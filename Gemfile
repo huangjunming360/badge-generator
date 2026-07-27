@@ -55,7 +55,7 @@ group :development do
   gem "web-console"
 end
 
-gem "dotenv-rails", "~> 3.2", groups: [:development, :test]
+gem "dotenv-rails", "~> 3.2", groups: [ :development, :test ]
 
 gem "docx", "~> 0.13.0"
 gem "pdf-reader", "~> 2.15", require: "pdf/reader"
