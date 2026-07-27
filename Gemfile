@@ -56,3 +56,7 @@ group :development do
 end
 
 gem "dotenv-rails", "~> 3.2", groups: [:development, :test]
+
+gem "docx", "~> 0.13.0"
+gem "pdf-reader", "~> 2.15", require: "pdf/reader"
+gem "roo", "~> 3.0"
