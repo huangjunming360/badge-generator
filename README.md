@@ -68,11 +68,6 @@ LLM_MODEL=claude-sonnet-5
 LLM_API_KEY=sk-ant-...
 ```
 
-## 排错
-
-- **`rails xxx` 总跳转到 `rails new` 帮助页**：说明当前目录缺少 `bin/rails`，`rails install` 重新生成的 binstubs 不对，需要写入 Rails 格式的 `bin/rails`。
-- **Ruby 编译失败、ZJIT/YJIT 符号找不到**：检查 PATH 中是否有 Anaconda 的 `nm`（`/opt/anaconda3/bin/nm`），它会干扰链接器。编译前执行 `PATH="/usr/bin:/bin:/opt/homebrew/bin:$HOME/.rbenv/bin" rbenv install 4.0.6`。
-
 ## 实现要点
 
 - 记忆：`Conversation#context_messages` 每次提问把该会话最近 40 条消息一起发给模型。
