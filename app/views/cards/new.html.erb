@@ -1,0 +1,32 @@
+<% content_for :title, "输入个人资料" %>
+
+<div class="mx-auto max-w-2xl px-6 py-16">
+  <header class="mb-8">
+    <h1 class="text-xl font-medium text-stone-800">名片资料标准化</h1>
+    <p class="mt-2 text-sm text-stone-500">
+      把你的个人资料粘进来，AI 会自动整理成结构化数据。
+    </p>
+  </header>
+
+  <%= form_with model: @card, class: "space-y-4" do |f| %>
+    <% if @card.errors.any? %>
+      <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <% @card.errors.full_messages.each do |msg| %>
+          <p><%= msg %></p>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%= f.text_area :raw_input,
+          rows: 10,
+          placeholder: "例如：我叫林小明，英文名 Xiaoming Lin，在某某科技有限公司用户增长部担任高级产品经理，手机 13800138000，邮箱 lin@example.com，办公地址在深圳市南山区科技园。",
+          class: "w-full resize-y rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm leading-relaxed text-stone-800 placeholder-stone-400 outline-none transition focus:border-stone-400" %>
+
+    <div class="flex items-center gap-4">
+      <%= f.submit "AI 识别",
+            data: { turbo_submits_with: "识别中…" },
+            class: "cursor-pointer rounded-xl bg-stone-800 px-5 py-2.5 text-sm text-white transition hover:bg-stone-700" %>
+      <%= link_to "历史记录", cards_path, class: "text-sm text-stone-400 transition hover:text-stone-600" %>
+    </div>
+  <% end %>
+</div>

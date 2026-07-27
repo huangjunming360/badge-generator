@@ -6,22 +6,34 @@ require "json"
 class AnthropicClient
   class Error < StandardError; end
 
-  SYSTEM_PROMPT = "你是一个乐于助人的中文助手。回答简洁、准确，使用简体中文。"
+  DEFAULT_SYSTEM_PROMPT = "你是一个乐于助人的中文助手。回答简洁、准确，使用简体中文。"
 
   def initialize(config: Rails.application.config.x.llm)
     @config = config
     raise Error, "缺少 API key，请在 .env 设置 LLM_API_KEY" if @config[:api_key].blank?
   end
 
+  # 非流式请求，返回完整回复文本。
+  # 需要整段内容才能处理的场景（如解析 JSON）用这个。
+  def complete(messages, system: DEFAULT_SYSTEM_PROMPT, max_tokens: nil)
+    response = post_json(
+      model: @config[:model],
+      max_tokens: max_tokens || @config[:max_tokens],
+      system: system,
+      messages: messages
+    )
+    Array(response["content"]).filter_map { |part| part["text"] }.join
+  end
+
   # 流式请求。每收到一个文本增量就 yield 一次。
   # 返回拼接后的完整文本。
   def stream(messages, &block)
-    uri = URI.join(@config[:base_url].chomp("/") + "/", "v1/messages")
+    uri = endpoint
     body = {
       model: @config[:model],
       max_tokens: @config[:max_tokens],
       stream: true,
-      system: SYSTEM_PROMPT,
+      system: DEFAULT_SYSTEM_PROMPT,
       messages: messages
     }
 
@@ -58,6 +70,31 @@ class AnthropicClient
   end
 
   private
+
+  def endpoint
+    URI.join(@config[:base_url].chomp("/") + "/", "v1/messages")
+  end
+
+  def post_json(body)
+    uri = endpoint
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == "https"
+    http.read_timeout = @config[:timeout]
+
+    request = Net::HTTP::Post.new(uri)
+    request["x-api-key"] = @config[:api_key]
+    request["anthropic-version"] = "2023-06-01"
+    request["content-type"] = "application/json"
+    request.body = JSON.generate(body)
+
+    response = http.request(request)
+    unless response.code.to_i == 200
+      raise Error, "上游返回 #{response.code}: #{response.body.to_s[0, 500]}"
+    end
+    JSON.parse(response.body)
+  rescue JSON::ParserError => e
+    raise Error, "上游返回的不是合法 JSON: #{e.message}"
+  end
 
   # 从一个 SSE 事件块里取出 content_block_delta 的文本增量。
   def extract_delta(event)
