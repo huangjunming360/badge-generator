@@ -7,8 +7,9 @@
 # Ignore bundler config.
 /.bundle
 
-# Ignore all environment files.
-/.env*
+# Ignore env files containing local secrets.
+/.env
+/.env.local
 
 # Ignore all logfiles and tempfiles.
 /log/*
@@ -29,6 +30,12 @@
 !/tmp/storage/.keep
 
 /public/assets
+
+# Ignore Claude Code local settings.
+/.claude/
+
+# Ignore macOS cruft.
+.DS_Store
 
 # Ignore key files for decrypting credentials and more.
 /config/*.key
