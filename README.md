@@ -1,41 +1,34 @@
 # newapp
 
-FastAPI + SQLite 后端，React + Vite + Tailwind 前端。
+Rails 8 + SQLite 的最简聊天应用。带对话记忆，回复逐字流式输出。
 
 ## 环境
 
-- Python 3.12.13（由 uv 管理，不动系统 3.10）
-- Node v22.23.0 / npm 10.9.8
-- SQLite 3.37.2（含 `sqlite3` 命令行）
+- Ruby 4.0.6（rbenv 管理）
+- Rails 8.1.3
+- SQLite 3.37.2
+- Tailwind CSS 4
 
-## 后端
-
-```bash
-cd backend
-uv sync                      # 装/同步依赖
-uv run uvicorn app.main:app --reload --port 8000
-uv run pytest                # 测试
-uv run ruff check . && uv run ruff format .
-uv run mypy app
-```
-
-数据库文件 `backend/data/app.sqlite3`，启动时自动建表。表结构变更用 Alembic：
+## 启动
 
 ```bash
-uv run alembic init -t async alembic     # 首次
-uv run alembic revision --autogenerate -m "xxx"
-uv run alembic upgrade head
+bin/rails s -p 8000        # http://localhost:8000
+bin/dev                    # 同时跑 Tailwind watch（改样式时用）
 ```
 
-## 前端
+## 配置
 
-```bash
-cd frontend
-npm run dev      # http://localhost:5173，/api 代理到 8000
-npm run build
+密钥放项目根 `.env`（已 gitignore），参考 `.env.example`：
+
+```
+LLM_BASE_URL=https://api.aicodemirror.com/api/claudecode
+LLM_MODEL=claude-sonnet-5
+LLM_API_KEY=sk-ant-...
 ```
 
-## 说明
+## 实现要点
 
-- CORS 与 Vite 代理都写死本地 5173/8000，上线前需改成真实域名。
-- 当前 `/api/health` 无鉴权，是空骨架；加登录时再装 `python-jose` + `passlib[bcrypt]`。
+- 记忆：`Conversation#context_messages` 每次提问把该会话最近 40 条消息一起发给模型。
+- 流式：`ReplyJob` 解析 Anthropic SSE，攒够 24 字节或 120ms 就用 Turbo Stream 替换气泡。
+- 队列用默认的 `:async`（进程内线程池）。重启进程会丢掉正在生成的回复，生产环境需换 Solid Queue 或 Sidekiq。
+- 目前没有登录鉴权，任何访问者都能看到并操作所有对话。仅限本地开发，对外暴露前必须加鉴权。

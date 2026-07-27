@@ -1,0 +1,13 @@
+<% streaming = local_assigns.fetch(:streaming, false) %>
+<div id="<%= dom_id(message) %>" class="flex <%= message.user? ? 'justify-end' : 'justify-start' %>">
+  <div class="max-w-[42rem] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words
+              <%= message.user? ? 'bg-stone-800 text-stone-50' : 'border border-stone-200 bg-white text-stone-700' %>">
+    <% if message.content.blank? && !message.user? %>
+      <span class="inline-flex gap-1 text-stone-400">
+        <span class="animate-pulse">思考中</span>
+      </span>
+    <% else %>
+      <%= message.content %><% if streaming %><span class="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-stone-400 align-middle"></span><% end %>
+    <% end %>
+  </div>
+</div>
