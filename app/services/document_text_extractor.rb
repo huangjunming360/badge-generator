@@ -15,10 +15,25 @@ class DocumentTextExtractor
     ".xlsm" => :spreadsheet,
     ".csv" => :spreadsheet,
     ".txt" => :plain,
-    ".md" => :plain
+    ".md" => :plain,
+    ".png" => :image,
+    ".jpg" => :image,
+    ".jpeg" => :image,
+    ".tif" => :image,
+    ".tiff" => :image,
+    ".bmp" => :image
   }.freeze
 
+  # PDF 文字层短于这个长度就认为是扫描版，转走 OCR。
+  # 扫描件常带一点页眉页脚文字，所以不能只判断完全为空。
+  SCANNED_PDF_THRESHOLD = 20
+
   ACCEPT_ATTRIBUTE = EXTENSIONS.keys.join(",").freeze
+
+  # 本次解析是否走了 OCR，供界面提示识别质量可能有偏差。
+  def used_ocr?
+    @used_ocr.present?
+  end
 
   def call(uploaded_file)
     raise ParseError, "没有选择文件" if uploaded_file.blank?
@@ -32,6 +47,7 @@ class DocumentTextExtractor
       when :pdf         then parse_pdf(path)
       when :spreadsheet then parse_spreadsheet(path)
       when :plain       then parse_plain(path)
+      when :image       then parse_image(path)
       end
     end
 
@@ -64,7 +80,7 @@ class DocumentTextExtractor
       tmp.flush
       yield tmp.path
     end
-  rescue UnsupportedFormat, ParseError
+  rescue UnsupportedFormat, ParseError, OcrExtractor::OcrError
     raise
   rescue StandardError => e
     raise ParseError, "文件解析失败：#{e.message}"
@@ -82,8 +98,29 @@ class DocumentTextExtractor
     parts.join("\n")
   end
 
+  # 先取文字层；取不到（扫描版）就转 OCR。
   def parse_pdf(path)
-    PDF::Reader.new(path).pages.map(&:text).join("\n")
+    text = begin
+      PDF::Reader.new(path).pages.map(&:text).join("\n")
+    rescue StandardError => e
+      Rails.logger.warn("PDF 文字层读取失败，转 OCR：#{e.message}")
+      ""
+    end
+
+    return text if text.strip.length >= SCANNED_PDF_THRESHOLD
+
+    Rails.logger.info("PDF 文字层为空或过短，启用 OCR")
+    @used_ocr = true
+    ocr.from_pdf(path)
+  end
+
+  def parse_image(path)
+    @used_ocr = true
+    ocr.from_image(path)
+  end
+
+  def ocr
+    @ocr ||= OcrExtractor.new
   end
 
   def parse_spreadsheet(path)
