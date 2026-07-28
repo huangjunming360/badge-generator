@@ -13,6 +13,9 @@ class CardsController < ApplicationController
     @card.source_name = @source_name
     @card.used_ocr = @used_ocr
 
+    portrait = params[:card]&.[](:portrait)
+    @card.portrait.attach(portrait) if portrait.present?
+
     unless @card.valid?
       return render :new, status: :unprocessable_content
     end
