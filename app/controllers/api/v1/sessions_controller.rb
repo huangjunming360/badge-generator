@@ -20,15 +20,15 @@ class Api::V1::SessionsController < Api::BaseController
     user = User.authenticate_by(params.permit(:email_address, :password))
 
     if user.nil?
-      return render json: { errors: ["邮箱或密码错误"] }, status: :unauthorized
+      return render json: { errors: [ "邮箱或密码错误" ] }, status: :unauthorized
     end
 
     if user.banned?
-      return render json: { errors: ["账号已被封禁"] }, status: :unauthorized
+      return render json: { errors: [ "账号已被封禁" ] }, status: :unauthorized
     end
 
     unless user.active?
-      return render json: { errors: ["账号尚未激活"] }, status: :unauthorized
+      return render json: { errors: [ "账号尚未激活" ] }, status: :unauthorized
     end
 
     start_new_session_for user

@@ -176,6 +176,7 @@
 <script>
   var jsonEditor = null;
   var modelCount = <%= @models.length %>;
+  var originalIds = <%= raw @original_ids %>;
   var dirty = false;
   var currentTab = "visual";
   var suppressChange = false;
@@ -281,8 +282,10 @@
     (data.models || []).forEach(function(m, i) {
       var tmpl = document.getElementById("model-row-template").content.cloneNode(true);
       fillRow(tmpl, m, i);
-      // 移除未保存高亮（同步操作不标记为脏）
-      tmpl.querySelector("tr").classList.remove("unsaved");
+      // 新模型保留高亮，已有模型取消高亮
+      if (originalIds.indexOf(m.id) >= 0) {
+        tmpl.querySelector("tr").classList.remove("unsaved");
+      }
       tbody.appendChild(tmpl);
 
       var opt = document.createElement("option");

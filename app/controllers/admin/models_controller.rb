@@ -14,15 +14,16 @@ class Admin::ModelsController < Admin::BaseController
       m.permit(:id, :label, :api, :model_name, :api_key, :api_base, :level)
     end
     raw["models"] = models.map do |m|
-      {
+      h = {
         "id" => m["id"],
         "label" => m["label"],
         "api" => m["api"],
         "model" => m["model_name"],
-        "api_key" => m["api_key"],
-        "api_base" => m["api_base"],
+        "api_key" => m["api_key"].presence,
+        "api_base" => m["api_base"].presence,
         "level" => m["level"].to_i
-      }.compact
+      }
+      h
     end
 
     errors = validate_models_config!(raw)
@@ -54,9 +55,11 @@ class Admin::ModelsController < Admin::BaseController
     @models = raw["models"] || []
     @default_model = raw["default"]
     @config_content = JSON.pretty_generate(raw)
+    @original_ids = @models.map { |m| m["id"] }.to_json
   rescue
     @models = []
     @default_model = nil
     @config_content = "{}"
+    @original_ids = "[]"
   end
 end
