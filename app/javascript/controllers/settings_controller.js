@@ -12,6 +12,12 @@ export default class extends Controller {
     const index = event.currentTarget.dataset.modelIndex
     const label = event.currentTarget.dataset.modelLabel
 
+    // 立即关闭面板，不等服务器
+    this.panelTarget.style.display = "none"
+    if (this.hasCurrentLabelTarget) {
+      this.currentLabelTarget.textContent = label
+    }
+
     fetch("/setting", {
       method: "PATCH",
       headers: {
@@ -19,11 +25,6 @@ export default class extends Controller {
         "X-CSRF-Token": document.querySelector("meta[name='csrf-token']").content
       },
       body: JSON.stringify({ model_index: parseInt(index) })
-    }).then(() => {
-      if (this.hasCurrentLabelTarget) {
-        this.currentLabelTarget.textContent = label
-      }
-      this.panelTarget.style.display = "none"
     })
   }
 

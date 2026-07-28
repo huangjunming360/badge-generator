@@ -21,6 +21,7 @@
   </head>
 
   <body class="bg-stone-50 text-stone-800 antialiased">
+    <% unless controller_name == "cards" && action_name == "show" %>
     <div style="position:fixed;top:16px;right:16px;z-index:50" data-controller="settings" data-action="click@window->settings#close">
       <button type="button" data-action="click->settings#toggle"
               style="display:flex;align-items:center;gap:4px;padding:4px 10px;font-size:12px;color:#78716c;background:#fff;border:1px solid #e7e5e4;border-radius:8px;cursor:pointer">
@@ -57,6 +58,7 @@
         </div>
       </div>
     </div>
+    <% end %>
 
     <%= yield %>
   </body>
