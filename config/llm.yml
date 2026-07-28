@@ -1,0 +1,44 @@
+# 模型配置
+#
+# 主流 API 分两类：Anthropic 兼容 和 OpenAI 兼容。
+# 多数供应商（DeepSeek、OpenRouter、xAI 等）跑 OpenAI 协议，
+# 区别仅在于 base_url 和模型名。
+#
+# functions 段将业务功能映射到 (协议, 模型)，
+# 不同用途选不同模型，互不影响。
+
+anthropic:
+  api_key: <%= ENV.fetch('ANTHROPIC_API_KEY', ENV['LLM_API_KEY']) %>
+  api_base: <%= ENV.fetch('ANTHROPIC_API_BASE', ENV.fetch('LLM_BASE_URL', 'https://api.anthropic.com')) %>
+
+openai:
+  api_key: <%= ENV['OPENAI_API_KEY'] %>
+  # api_base: 可选，默认 https://api.openai.com/v1
+
+functions:
+  # 名片提取 —— 轻量便宜，够用就好
+  card_extraction:
+    api: anthropic
+    model: claude-haiku-4-5-20251001
+    temperature: 0.0
+    max_tokens: 4096
+
+  # 通用对话 —— 主力模型
+  chat:
+    api: anthropic
+    model: claude-sonnet-5
+
+  # 翻译 —— GPT-4o
+  translation:
+    api: openai
+    model: gpt-4o
+
+  # 文本向量化
+  embedding:
+    api: openai
+    model: text-embedding-3-small
+
+  # 图片生成
+  image_generation:
+    api: openai
+    model: gpt-image-1.5
