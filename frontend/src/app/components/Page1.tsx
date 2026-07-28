@@ -11,6 +11,7 @@ import {
 } from "./shared";
 import { fetchSchema, createCardFromText, createCardFromDocument } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
+import UserMenu from "./UserMenu";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef } from "../../api/types";
@@ -238,8 +239,12 @@ export default function Page1() {
       {/* ── Header ─────────────────────────────────────── */}
       <div style={{
         background: U.blueDark, padding: "18px 0 16px",
-        textAlign: "center", flexShrink: 0,
+        textAlign: "center", flexShrink: 0, position: "relative",
       }}>
+        <div style={{ position: "absolute", top: 12, right: 16, zIndex: 1 }}>
+          <UserMenu dark />
+        </div>
+
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4 }}>
           <div style={{
             width: 34, height: 34, borderRadius: 10,

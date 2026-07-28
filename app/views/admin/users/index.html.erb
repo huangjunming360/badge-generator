@@ -1,0 +1,77 @@
+<div class="mx-auto max-w-7xl px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <%= link_to "← 后台首页", admin_root_path, class: "text-sm text-stone-500 hover:text-stone-800" %>
+      <h1 class="text-2xl font-bold">用户管理</h1>
+    </div>
+    <%= link_to "新建用户", new_admin_user_path, class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700" %>
+  </div>
+
+  <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-stone-50 border-b border-stone-200">
+        <tr>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">邮箱</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">角色</th>
+          <th class="text-center px-4 py-3 font-medium text-stone-600">权限等级</th>
+          <th class="text-center px-4 py-3 font-medium text-stone-600">激活</th>
+          <th class="text-center px-4 py-3 font-medium text-stone-600">封禁</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">注册时间</th>
+          <th class="text-right px-4 py-3 font-medium text-stone-600">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-stone-100">
+        <% @users.each do |user| %>
+          <tr class="hover:bg-stone-50">
+            <td class="px-4 py-3"><%= user.email_address %></td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 rounded-full text-xs <%= user.admin? ? "bg-purple-100 text-purple-700" : "bg-stone-100 text-stone-600" %>">
+                <%= user.admin? ? "管理员" : "用户" %>
+              </span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <% if user.admin? %>
+                <span class="text-xs text-stone-400">最高</span>
+              <% else %>
+                <%= form_with url: update_level_admin_user_path(user), method: :patch, local: true, style: "display:inline" do |f| %>
+                  <%= f.select :model_level,
+                        options_for_select(User.model_level_labels.to_a.map(&:reverse), user.model_level),
+                        {},
+                        class: "px-2 py-1 rounded text-xs border border-stone-300",
+                        onchange: "this.form.requestSubmit()" %>
+                <% end %>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <%= button_to user.active? ? "✓ 已激活" : "未激活", toggle_active_admin_user_path(user), method: :patch,
+                    data: { turbo_confirm: "确定#{user.active? ? '停用' : '激活'}该用户？" },
+                    class: "px-2 py-1 rounded text-xs #{user.active? ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}" %>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <% if user.banned? %>
+                <%= button_to "已封禁", toggle_ban_admin_user_path(user), method: :patch,
+                      data: { turbo_confirm: "确定解封该用户？" },
+                      class: "px-2 py-1 rounded text-xs bg-red-100 text-red-700" %>
+              <% else %>
+                <span class="text-stone-400 text-xs">正常</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 text-stone-500"><%= l user.created_at, format: :short %></td>
+            <td class="px-4 py-3 text-right">
+              <% unless user == Current.user %>
+                <%= button_to "删除", admin_user_path(user), method: :delete,
+                      data: { turbo_confirm: "确定删除用户 #{user.email_address}？此操作不可恢复！" },
+                      class: "text-red-500 hover:text-red-700 text-xs" %>
+                <% unless user.banned? %>
+                  <%= button_to "封禁", toggle_ban_admin_user_path(user), method: :patch,
+                        data: { turbo_confirm: "确定封禁 #{user.email_address}？" },
+                        class: "text-red-500 hover:text-red-700 text-xs ml-2" %>
+                <% end %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

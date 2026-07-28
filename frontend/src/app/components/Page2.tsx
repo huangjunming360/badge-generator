@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, Eye, Check, SlidersHorizontal } from "lucide-react";
+import UserMenu from "./UserMenu";
 import {
   Field, Template, AccentKey, FontSz, StyleKey, CustomCfg, NavState,
   E, U, ACCENTS,
@@ -146,6 +147,9 @@ export default function Page2() {
           onMouseLeave={e => { e.currentTarget.style.background=U.blueXLight; e.currentTarget.style.boxShadow="none"; }}>
           <Eye size={13}/> 预览成品
         </button>
+
+        <div style={{ width: 1, height: 20, background: U.border }}/>
+        <UserMenu />
       </div>
 
       {/* 错误必须让用户看到，否则保存失败会静默丢改动 */}

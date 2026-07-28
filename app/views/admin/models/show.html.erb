@@ -1,0 +1,389 @@
+<% content_for :head do %>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+  <style>
+    .tab-btn { padding:8px 20px; font-size:14px; cursor:pointer; border:1px solid #e7e5e4; background:#f5f5f4; color:#78716c }
+    .tab-btn.active { background:#fff; color:#44403c; border-bottom-color:#fff; font-weight:600 }
+    .tab-btn:first-child { border-radius:8px 0 0 0 }
+    .tab-btn:last-child { border-radius:0 8px 0 0 }
+    .model-row td { vertical-align:middle; padding:6px }
+    .model-row td input, .model-row td select { width:100%; padding:5px 6px; border:1px solid #e7e5e4; border-radius:6px; font-size:12px; box-sizing:border-box; background:#fff }
+    .model-row td input:focus, .model-row td select:focus { outline:2px solid #44403c; outline-offset:-1px; border-color:transparent }
+    .model-row.unsaved { background:#fffbeb }
+    .model-row.unsaved td:first-child input { border-color:#f59e0b }
+    .remove-btn { color:#ef4444; cursor:pointer; font-size:16px; background:none; border:none; padding:2px 6px; border-radius:4px }
+    .remove-btn:hover { background:#fef2f2 }
+    .add-btn { padding:8px 16px; background:#f5f5f4; border:1px dashed #d6d3d1; border-radius:8px; cursor:pointer; color:#44403c; font-size:13px; width:100% }
+    .add-btn:hover { background:#e7e5e4 }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center }
+    .modal-overlay.open { display:flex }
+    .modal-box { background:#fff; border-radius:12px; padding:24px; width:480px; max-width:90vw; box-shadow:0 20px 60px rgba(0,0,0,0.2) }
+    .modal-box h2 { font-size:18px; font-weight:600; margin-bottom:16px }
+    .modal-field { margin-bottom:12px }
+    .modal-field label { display:block; font-size:12px; font-weight:500; color:#78716c; margin-bottom:3px }
+    .modal-field input, .modal-field select { width:100%; padding:7px 10px; border:1px solid #e7e5e4; border-radius:6px; font-size:13px; box-sizing:border-box }
+    .modal-error { color:#ef4444; font-size:12px; display:none; margin-bottom:12px; padding:8px 12px; background:#fef2f2; border-radius:6px }
+    .json-tab { display:none }
+    .json-tab .CodeMirror { height:500px; border-radius:0 0 12px 12px }
+    #tab-visual { padding:16px }
+    .save-bar { padding:16px; border-top:1px solid #e7e5e4; display:flex; align-items:center; gap:12px }
+  </style>
+<% end %>
+
+<div class="mx-auto max-w-7xl px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <%= link_to "← 后台首页", admin_root_path, class: "text-sm text-stone-500 hover:text-stone-800", style: "text-decoration:none", onclick: "return warnUnsaved()", data: { turbo: false } %>
+      <h1 class="text-2xl font-bold">模型配置</h1>
+    </div>
+  </div>
+
+  <%= form_with url: admin_models_path, method: :patch, local: true, id: "models-form", html: { autocomplete: "off" } do |f| %>
+    <!-- Tabs -->
+    <div style="display:flex">
+      <button type="button" class="tab-btn active" data-tab="visual" onclick="switchTab('visual')">可视化编辑</button>
+      <button type="button" class="tab-btn" data-tab="json" onclick="switchTab('json')">JSON 编辑</button>
+    </div>
+
+    <!-- Visual tab -->
+    <div id="tab-visual" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl">
+      <div class="p-4 flex items-center gap-3">
+        <label class="text-sm font-medium">默认模型：</label>
+        <select name="default_model" id="default-model-select" class="border border-stone-300 rounded-lg px-3 py-1.5 text-sm">
+          <% @models.each do |m| %>
+            <option value="<%= m["id"] %>" <%= m["id"] == @default_model ? "selected" : "" %>><%= m["label"] %></option>
+          <% end %>
+        </select>
+      </div>
+
+      <div style="overflow-x:auto;padding:0 16px 16px">
+        <table style="width:100%;min-width:800px;border-collapse:collapse">
+          <thead>
+            <tr style="text-align:left;font-size:11px;color:#78716c;border-bottom:1px solid #e7e5e4">
+              <th style="padding:6px;width:100px">ID</th>
+              <th style="padding:6px;width:130px">名称</th>
+              <th style="padding:6px;width:80px">API</th>
+              <th style="padding:6px;width:110px">模型名</th>
+              <th style="padding:6px;width:140px">API Key</th>
+              <th style="padding:6px;width:140px">API Base</th>
+              <th style="padding:6px;width:45px">等级</th>
+              <th style="padding:6px;width:30px"></th>
+            </tr>
+          </thead>
+          <tbody id="models-tbody">
+            <% @models.each_with_index do |m, i| %>
+              <%= render "model_row", m: m, i: i %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <button type="button" class="add-btn" style="width:calc(100% - 32px);margin:0 16px 16px" onclick="openModal()">+ 添加模型</button>
+
+      <div class="save-bar">
+        <%= f.submit "保存配置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+        <span id="unsaved-warning" style="display:none;color:#d97706;font-size:13px">⚠ 有未保存的更改</span>
+      </div>
+    </div>
+
+    <!-- JSON tab -->
+    <div id="tab-json" class="bg-white border border-t-0 border-stone-200 json-tab">
+      <div id="json-editor-wrap"></div>
+      <div class="save-bar">
+        <button type="button" onclick="saveFromJson()" class="px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer">保存配置</button>
+        <span id="json-unsaved" style="display:none;color:#d97706;font-size:13px">⚠ 有未保存的更改</span>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<!-- Add model modal -->
+<div class="modal-overlay" id="add-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <h2>添加模型</h2>
+    <div class="modal-error" id="modal-error"></div>
+    <div class="modal-field">
+      <label>ID <span style="color:#ef4444">*</span></label>
+      <input type="text" id="modal-id" placeholder="deepseek_v4">
+    </div>
+    <div class="modal-field">
+      <label>名称 <span style="color:#ef4444">*</span></label>
+      <input type="text" id="modal-label" placeholder="DeepSeek V4">
+    </div>
+    <div class="modal-field">
+      <label>API <span style="color:#ef4444">*</span></label>
+      <select id="modal-api"><option value="anthropic">Anthropic</option><option value="openai">OpenAI</option></select>
+    </div>
+    <div class="modal-field">
+      <label>模型名 <span style="color:#ef4444">*</span></label>
+      <input type="text" id="modal-model" placeholder="deepseek-v4-pro">
+    </div>
+    <div class="modal-field">
+      <label>API Key</label>
+      <input type="text" id="modal-key" placeholder="sk-...">
+    </div>
+    <div class="modal-field">
+      <label>API Base</label>
+      <input type="text" id="modal-base" placeholder="https://api.xxx.com">
+    </div>
+    <div class="modal-field">
+      <label>等级（数字越小权限越高）</label>
+      <select id="modal-level" style="width:120px">
+        <option value="0">最高</option>
+        <option value="1">高级</option>
+        <option value="2">中级</option>
+        <option value="3">普通</option>
+        <option value="4">开放</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button type="button" onclick="closeModal()" style="padding:7px 16px;border:1px solid #e7e5e4;border-radius:8px;background:#fff;cursor:pointer">取消</button>
+      <button type="button" onclick="confirmAdd()" style="padding:7px 16px;border:none;border-radius:8px;background:#44403c;color:#fff;cursor:pointer">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template for a model row (mirrors _model_row.html.erb exactly) -->
+<template id="model-row-template">
+  <tr class="model-row unsaved">
+    <td><input type="text" name="models[__IDX__][id]" value="__ID__"></td>
+    <td><input type="text" name="models[__IDX__][label]" value="__LABEL__"></td>
+    <td>
+      <select name="models[__IDX__][api]">
+        <option value="anthropic">Anthropic</option>
+        <option value="openai">OpenAI</option>
+      </select>
+    </td>
+    <td><input type="text" name="models[__IDX__][model_name]" value="__MODEL__"></td>
+    <td><input type="text" name="models[__IDX__][api_key]" value="__KEY__"></td>
+    <td><input type="text" name="models[__IDX__][api_base]" value="__BASE__"></td>
+    <td>
+      <select name="models[__IDX__][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
+        <option value="0">最高</option>
+        <option value="1">高级</option>
+        <option value="2">中级</option>
+        <option value="3">普通</option>
+        <option value="4">开放</option>
+      </select>
+    </td>
+    <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>
+  </tr>
+</template>
+
+<script>
+  var jsonEditor = null;
+  var modelCount = <%= @models.length %>;
+  var originalIds = <%= raw @original_ids %>;
+  var dirty = false;
+  var currentTab = "visual";
+  var suppressChange = false;
+
+  function trackDirty() { dirty = true; document.getElementById("unsaved-warning").style.display = "inline"; }
+
+  document.addEventListener("turbo:load", function() {
+    document.getElementById("models-form").addEventListener("change", trackDirty);
+    document.getElementById("models-form").addEventListener("input", trackDirty);
+    document.getElementById("models-form").addEventListener("submit", function() {
+      dirty = false;
+      document.getElementById("unsaved-warning").style.display = "none";
+      document.getElementById("json-unsaved").style.display = "none";
+    });
+  });
+
+  window.addEventListener("beforeunload", function(e) {
+    if (dirty) { e.preventDefault(); e.returnValue = ""; }
+  });
+  function warnUnsaved() {
+    if (dirty) return confirm("有未保存的更改，确定离开？");
+    return true;
+  }
+
+  function switchTab(tab) {
+    if (tab === currentTab) return;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add("active");
+
+    if (tab === "json") {
+      // Sync form → JSON editor
+      document.getElementById("tab-visual").style.display = "none";
+      document.getElementById("tab-json").style.display = "block";
+      initJsonEditor();
+    } else {
+      // Sync JSON editor → form（不标记脏，只是同步视图）
+      if (jsonEditor) {
+        try {
+          jsonToForm(JSON.parse(jsonEditor.getValue()), false);
+        } catch(e) {
+          if (!confirm("JSON 格式有误，无法同步到可视化编辑。是否忽略？")) return;
+        }
+      }
+      document.getElementById("tab-json").style.display = "none";
+      document.getElementById("tab-visual").style.display = "block";
+    }
+    currentTab = tab;
+  }
+
+  function initJsonEditor() {
+    if (jsonEditor) {
+      // Update from form（不触发 dirty）
+      suppressChange = true;
+      jsonEditor.setValue(buildJsonFromForm());
+      suppressChange = false;
+      document.getElementById("json-unsaved").style.display = "none";
+      return;
+    }
+    var wrap = document.getElementById("json-editor-wrap");
+    jsonEditor = CodeMirror(wrap, {
+      value: buildJsonFromForm(),
+      mode: { name: "javascript", json: true },
+      lineNumbers: true,
+      lineWrapping: true,
+      indentUnit: 2,
+      tabSize: 2,
+      styleActiveLine: true,
+      autoCloseBrackets: true,
+      matchBrackets: true
+    });
+    jsonEditor.on("change", function() {
+      if (suppressChange) return;
+      dirty = true;
+      document.getElementById("unsaved-warning").style.display = "inline";
+      document.getElementById("json-unsaved").style.display = "inline";
+    });
+  }
+
+  function buildJsonFromForm() {
+    var data = new FormData(document.getElementById("models-form"));
+    var models = [], i = 0;
+    while (data.has("models[" + i + "][id]")) {
+      models.push({
+        id: data.get("models[" + i + "][id]"),
+        label: data.get("models[" + i + "][label]"),
+        api: data.get("models[" + i + "][api]"),
+        model: data.get("models[" + i + "][model_name]"),
+        api_key: data.get("models[" + i + "][api_key]") || "",
+        api_base: data.get("models[" + i + "][api_base]") || "",
+        level: parseInt(data.get("models[" + i + "][level]")) || 0
+      });
+      i++;
+    }
+    return JSON.stringify({ default: data.get("default_model"), models: models }, null, 2);
+  }
+
+  function jsonToForm(data, markDirty) {
+    var tbody = document.getElementById("models-tbody");
+    tbody.innerHTML = "";
+    var select = document.getElementById("default-model-select");
+    select.innerHTML = "";
+
+    (data.models || []).forEach(function(m, i) {
+      var tmpl = document.getElementById("model-row-template").content.cloneNode(true);
+      fillRow(tmpl, m, i);
+      // 新模型保留高亮，已有模型取消高亮
+      if (originalIds.indexOf(m.id) >= 0) {
+        tmpl.querySelector("tr").classList.remove("unsaved");
+      }
+      tbody.appendChild(tmpl);
+
+      var opt = document.createElement("option");
+      opt.value = m.id || "";
+      opt.text = m.label || "";
+      if (m.id === data.default) opt.selected = true;
+      select.appendChild(opt);
+    });
+    modelCount = (data.models || []).length;
+    if (markDirty) trackDirty();
+  }
+
+  function saveFromJson() {
+    // Sync JSON to form, then submit
+    try {
+      jsonToForm(JSON.parse(jsonEditor.getValue()), true);
+    } catch(e) {
+      alert("JSON 格式有误，无法保存：" + e.message);
+      return;
+    }
+    document.getElementById("models-form").requestSubmit();
+  }
+
+  // Modal
+  function openModal() {
+    document.getElementById("modal-error").style.display = "none";
+    document.getElementById("add-modal").classList.add("open");
+  }
+  function closeModal() {
+    document.getElementById("add-modal").classList.remove("open");
+  }
+
+  function confirmAdd() {
+    var id = document.getElementById("modal-id").value.trim();
+    var label = document.getElementById("modal-label").value.trim();
+    var model = document.getElementById("modal-model").value.trim();
+    var api = document.getElementById("modal-api").value;
+
+    var errors = [];
+    if (!id) errors.push("ID 不能为空");
+    if (!label) errors.push("名称不能为空");
+    if (!model) errors.push("模型名不能为空");
+    if (errors.length) {
+      var el = document.getElementById("modal-error");
+      el.textContent = errors.join("；");
+      el.style.display = "block";
+      return;
+    }
+
+    // Use template
+    var tmpl = document.getElementById("model-row-template").content.cloneNode(true);
+    fillRow(tmpl, {
+      id: id,
+      label: label,
+      api: api,
+      model: model,
+      api_key: document.getElementById("modal-key").value,
+      api_base: document.getElementById("modal-base").value,
+      level: document.getElementById("modal-level").value
+    }, modelCount);
+    document.getElementById("models-tbody").appendChild(tmpl);
+
+    // Add to default select
+    var opt = document.createElement("option");
+    opt.value = id;
+    opt.text = label;
+    document.getElementById("default-model-select").appendChild(opt);
+
+    modelCount++;
+    closeModal();
+    // Clear fields
+    ["modal-id","modal-label","modal-model","modal-key","modal-base"].forEach(function(f) {
+      document.getElementById(f).value = "";
+    });
+    document.getElementById("modal-level").value = "0";
+    trackDirty();
+  }
+
+  function fillRow(tmpl, m, idx) {
+    var inputs = tmpl.querySelectorAll("input, select");
+    inputs.forEach(function(el) {
+      var name = el.getAttribute("name");
+      if (!name) return;
+      var field = name.match(/\[(\w+)\]$/)[1];
+      if (field === "api") { el.value = m.api || "anthropic"; return; }
+      if (field === "level") { el.value = m.level || 0; return; }
+      // JSON 用 model 键，表单用 model_name
+      el.value = m[field === "model_name" ? "model" : field] || "";
+    });
+    // Fix index（处理 __IDX__ 和已有数字两种占位）
+    inputs.forEach(function(el) {
+      el.setAttribute("name", el.getAttribute("name").replace(/\[\d+\]|\[__IDX__\]/, "[" + idx + "]"));
+    });
+  }
+
+  function removeModel(btn) {
+    if (!confirm("确定删除此模型？")) return;
+    btn.closest("tr").remove();
+    trackDirty();
+  }
+</script>

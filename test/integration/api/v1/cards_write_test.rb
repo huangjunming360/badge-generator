@@ -1,6 +1,12 @@
 require "test_helper"
 
 class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
+  setup do
+    @_user = User.create!(email_address: "api-write@test.com", password: "test123", password_confirmation: "test123")
+    post session_url, params: { email_address: "api-write@test.com", password: "test123" }
+    follow_redirect!
+  end
+
   # 不打真实模型：提取行为在 card_extractor_test 里已覆盖，
   # 这里只验 HTTP 层的契约。
   class FakeClient

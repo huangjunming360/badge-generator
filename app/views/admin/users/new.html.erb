@@ -1,0 +1,26 @@
+<div class="mx-auto max-w-2xl px-4 py-8">
+  <h1 class="text-2xl font-bold mb-6">新建用户</h1>
+
+  <%= form_with model: @user, url: admin_users_path, class: "contents" do |f| %>
+    <div class="my-5">
+      <%= f.label :email_address, "邮箱", class: "block text-sm font-medium mb-1" %>
+      <%= f.email_field :email_address, required: true, class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
+    </div>
+    <div class="my-5">
+      <%= f.label :password, "密码", class: "block text-sm font-medium mb-1" %>
+      <%= f.password_field :password, required: true, class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
+    </div>
+    <div class="my-5">
+      <%= f.label :password_confirmation, "确认密码", class: "block text-sm font-medium mb-1" %>
+      <%= f.password_field :password_confirmation, class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
+    </div>
+    <div class="my-5">
+      <%= f.label :role, "角色", class: "block text-sm font-medium mb-1" %>
+      <%= f.select :role, options_for_select([["用户", "user"], ["管理员", "admin"]]), {}, class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
+    </div>
+    <div class="flex gap-4 mt-8">
+      <%= f.submit "创建", class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+      <%= link_to "取消", admin_users_path, class: "px-4 py-2 border border-stone-300 rounded-lg hover:bg-stone-50" %>
+    </div>
+  <% end %>
+</div>
