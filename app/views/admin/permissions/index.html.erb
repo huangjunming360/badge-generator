@@ -5,39 +5,46 @@
   </div>
 
   <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
-    权限规则：数字越小权限越高。<strong>用户 level ≤ 模型 level</strong> 即可使用该模型。
-    例如 level 0（最高）的用户可以用所有模型，level 3（普通）的用户只能用 level ≥ 3 的模型。
+    规则：数字越小权限越高。用户 <strong>level ≤ 模型 level</strong> 即可使用该模型。
   </div>
 
   <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">
     <table class="w-full text-sm">
       <thead class="bg-stone-50 border-b border-stone-200">
         <tr>
-          <th class="text-left px-4 py-3 font-medium text-stone-600">等级</th>
-          <th class="text-left px-4 py-3 font-medium text-stone-600">名称</th>
-          <th class="text-center px-4 py-3 font-medium text-stone-600">说明</th>
-          <th class="text-center px-4 py-3 font-medium text-stone-600">模型数</th>
-          <th class="text-center px-4 py-3 font-medium text-stone-600">用户数</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">用户</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">角色</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">当前权限</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-stone-100">
-        <% @levels.each do |val, label| %>
+        <% @users.each do |user| %>
           <tr class="hover:bg-stone-50">
-            <td class="px-4 py-3 font-mono text-stone-400"><%= val %></td>
-            <td class="px-4 py-3 font-medium"><%= label %></td>
-            <td class="px-4 py-3 text-stone-500 text-xs">
-              <%= { 0 => "管理员专属，可用全部模型", 1 => "可用绝大多数模型", 2 => "可用中级及以下模型", 3 => "可用普通及开放模型" }[val] || "仅可用开放模型" %>
+            <td class="px-4 py-3">
+              <span class="font-medium"><%= user.email_address %></span>
+              <% if user.banned? %>
+                <span class="ml-2 text-xs text-red-500">已封禁</span>
+              <% elsif !user.active? %>
+                <span class="ml-2 text-xs text-yellow-500">未激活</span>
+              <% end %>
             </td>
-            <td class="px-4 py-3 text-center"><%= @model_counts[val] || 0 %></td>
-            <td class="px-4 py-3 text-center"><%= @user_counts[val] || 0 %></td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 rounded-full text-xs <%= user.admin? ? "bg-purple-100 text-purple-700" : "bg-stone-100 text-stone-600" %>">
+                <%= user.admin? ? "管理员" : "用户" %>
+              </span>
+            </td>
+            <td class="px-4 py-3">
+              <%= form_with url: admin_permission_path(user), method: :patch, local: true, style: "display:inline" do |f| %>
+                <%= f.select :model_level,
+                      options_for_select(User::MODEL_LEVELS.to_a.map(&:reverse), user.model_level),
+                      {},
+                      class: "px-2 py-1 rounded text-xs border border-stone-300",
+                      onchange: "this.form.requestSubmit()" %>
+              <% end %>
+            </td>
           </tr>
         <% end %>
       </tbody>
     </table>
-  </div>
-
-  <div class="mt-6 flex gap-4">
-    <%= link_to "用户管理", admin_users_path, class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700" %>
-    <%= link_to "模型配置", admin_models_path, class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700" %>
   </div>
 </div>
