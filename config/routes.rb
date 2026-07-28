@@ -28,6 +28,7 @@ Rails.application.routes.draw do
       resource :session, only: %i[show create destroy], controller: "sessions"
       resource :registration, only: :create, controller: "registrations"
       resource :setup, only: %i[show create], controller: "setup"
+      get "progress/:id", to: "progress#show", as: :progress
       resource :schema, only: %i[show], controller: "schema"
       resources :cards, only: %i[index show create update]
     end

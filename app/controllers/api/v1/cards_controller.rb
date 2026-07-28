@@ -14,8 +14,11 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def create
+    progress = ProgressTracker.new(params[:progress_id]) if params[:progress_id].present?
+    progress&.set(:uploading)
+
     card = Current.user.cards.new
-    card.raw_input = resolve_raw_input
+    card.raw_input = resolve_raw_input(progress)
     card.source_name = @source_name
     card.used_ocr = @used_ocr
 
@@ -24,8 +27,10 @@ class Api::V1::CardsController < Api::BaseController
 
     return render_validation_errors(card) unless card.valid?
 
+    progress&.set(:extracting)
     card.data = CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
     card.save!
+    progress&.set(:done)
     render json: { card: serializer(card).as_detail }, status: :created
   rescue DocumentTextExtractor::UnsupportedFormat,
          DocumentTextExtractor::ParseError,
@@ -81,8 +86,9 @@ class Api::V1::CardsController < Api::BaseController
     params.require(:card).permit(:width_mm, :height_mm)
   end
 
-  def resolve_raw_input
+  def resolve_raw_input(progress = nil)
     file = params[:document]
+    progress&.set(:mineru) if file.present?
 
     if file.present?
       @source_name = file.original_filename
