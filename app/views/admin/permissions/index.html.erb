@@ -26,13 +26,7 @@
             <td class="px-4 py-3 font-mono text-stone-400"><%= val %></td>
             <td class="px-4 py-3 font-medium"><%= label %></td>
             <td class="px-4 py-3 text-stone-500 text-xs">
-              <% case val %>
-              <% when 0 %>管理员专属，可用全部模型
-              <% when 1 %>可用绝大多数模型
-              <% when 2 %>可用中级及以下模型
-              <% when 3 %>可用普通及开放模型
-              <% when 4 %>仅可用开放模型
-              <% end %>
+              <%= { 0 => "管理员专属，可用全部模型", 1 => "可用绝大多数模型", 2 => "可用中级及以下模型", 3 => "可用普通及开放模型" }[val] || "仅可用开放模型" %>
             </td>
             <td class="px-4 py-3 text-center"><%= @model_counts[val] || 0 %></td>
             <td class="px-4 py-3 text-center"><%= @user_counts[val] || 0 %></td>
