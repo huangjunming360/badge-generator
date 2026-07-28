@@ -13,11 +13,11 @@ export const fetchProgress = (taskId: string) =>
   getJson<ProgressStatus>(`/progress/${taskId}`);
 
 // 异步建卡：返回 task_id，前端轮询进度
-function startCreate(params: any): Promise<{ task_id: string; card_id: number }> {
+function startCreate(params: any): Promise<{ task_id: string }> {
   return sendJson("/cards", "POST", params);
 }
 
-function startCreateForm(form: FormData): Promise<{ task_id: string; card_id: number }> {
+function startCreateForm(form: FormData): Promise<{ task_id: string }> {
   return sendForm("/cards", "POST", form);
 }
 
@@ -38,13 +38,13 @@ export function pollCard(params: {
         ...(params.modelId ? { model_id: params.modelId } : {}),
       });
 
-  return work.then(({ task_id, card_id }) => {
+  return work.then(({ task_id }) => {
     return new Promise((resolve, reject) => {
       const poll = setInterval(async () => {
         try {
           const p = await fetchProgress(task_id);
           onProgress(p);
-          if (p.stage === "done") { clearInterval(poll); resolve(card_id); }
+          if (p.stage === "done") { clearInterval(poll); resolve(p.card_id!); }
           if (p.stage === "error") { clearInterval(poll); reject(new Error(p.message || "解析失败")); }
         } catch (e) {
           clearInterval(poll); reject(e);

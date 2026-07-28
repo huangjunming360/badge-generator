@@ -13,16 +13,9 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def create
-    # sync 参数用于测试，同步等待解析完成
     return create_sync if params[:sync] == "1"
 
-    # 异步：先建卡占位，后台解析
     progress_id = SecureRandom.hex(12)
-    card = Current.user.cards.new(raw_input: "解析中…")
-    card.save!(validate: false)
-    card_id = card.id
-
-    # 原始参数存起来，后台线程用
     raw_input = params[:raw_input]
     model_id = params[:model_id]
     file_data = params[:document]&.read rescue nil
@@ -37,11 +30,11 @@ class Api::V1::CardsController < Api::BaseController
     Thread.new do
       begin
         ActiveRecord::Base.connection_pool.with_connection do
-          # 在线程中恢复用户上下文
           user = User.find(user_id) if user_id
           Current.session = user&.sessions&.last
-          process_card(card_id, raw_input, model_id, file_data, file_name,
-                       portrait_data, portrait_name, progress)
+          card_id = process_card(raw_input, model_id, file_data, file_name,
+                                 portrait_data, portrait_name, progress)
+          progress.set(:done, "解析完成", card_id: card_id) if card_id
         end
       rescue => e
         progress.error(e.message)
@@ -49,7 +42,7 @@ class Api::V1::CardsController < Api::BaseController
       end
     end
 
-    render json: { task_id: progress_id, card_id: card_id }, status: :accepted
+    render json: { task_id: progress_id }, status: :accepted
   end
 
   def update
@@ -68,10 +61,10 @@ class Api::V1::CardsController < Api::BaseController
 
   private
 
-  def process_card(card_id, raw_input, model_id, file_data, file_name,
+  def process_card(raw_input, model_id, file_data, file_name,
                    portrait_data, portrait_name, progress)
     progress.set(:uploading, "启动解析…")
-    card = Card.find(card_id)
+    card = Current.user.cards.new
 
     # 处理上传的文件
     text = nil
@@ -117,7 +110,7 @@ class Api::V1::CardsController < Api::BaseController
     progress.set(:extracting, "AI 提取字段中…")
     card.data = CardExtractor.new(model_id: model_id).call(text)
     card.save!
-    progress.done
+    card.id
   rescue DocumentTextExtractor::UnsupportedFormat,
          DocumentTextExtractor::ParseError,
          OcrExtractor::OcrError,

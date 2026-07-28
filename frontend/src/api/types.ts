@@ -64,4 +64,5 @@ export interface ProgressStatus {
   stage: string;
   message: string;
   updated_at: string;
+  card_id?: number;
 }

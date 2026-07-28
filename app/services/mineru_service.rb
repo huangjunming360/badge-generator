@@ -84,12 +84,12 @@ class MineruService
       md_entry = zip.glob("**/full.md").first || zip.glob("**/*.md").first
       markdown = md_entry.get_input_stream.read if md_entry
 
-      # 从 PDF 布局信息中提取图片引用（CDN URL + bbox）
-      middle_entry = zip.glob("**/middle.json").first ||
-                     zip.glob("**/layout.json").first
-      if middle_entry
+      # 从布局/中间文件中提取图片引用（CDN URL + bbox）
+      layout_entry = zip.glob("**/layout.json").first ||
+                     zip.glob("**/middle.json").first
+      if layout_entry
         begin
-          layout = JSON.parse(middle_entry.get_input_stream.read)
+          layout = JSON.parse(layout_entry.get_input_stream.read)
           extract_image_refs(layout, image_refs)
         rescue JSON::ParserError
           nil
