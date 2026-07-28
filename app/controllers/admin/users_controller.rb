@@ -18,6 +18,9 @@ class Admin::UsersController < Admin::BaseController
 
   def update_level
     @user = User.find(params[:id])
+    if @user.admin?
+      return redirect_to admin_users_path, alert: "管理员权限不可修改"
+    end
     if @user.update(model_level: params[:model_level].to_i)
       redirect_to admin_users_path, notice: "权限等级已更新"
     else

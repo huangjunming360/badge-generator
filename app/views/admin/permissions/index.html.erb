@@ -34,12 +34,16 @@
               </span>
             </td>
             <td class="px-4 py-3">
-              <%= form_with url: admin_permission_path(user), method: :patch, local: true, style: "display:inline" do |f| %>
-                <%= f.select :model_level,
-                      options_for_select(User::MODEL_LEVELS.to_a.map(&:reverse), user.model_level),
-                      {},
-                      class: "px-2 py-1 rounded text-xs border border-stone-300",
-                      onchange: "this.form.requestSubmit()" %>
+              <% if user.admin? %>
+                <span class="text-xs text-stone-400">最高（管理员锁定）</span>
+              <% else %>
+                <%= form_with url: admin_permission_path(user), method: :patch, local: true, style: "display:inline" do |f| %>
+                  <%= f.select :model_level,
+                        options_for_select(User::MODEL_LEVELS.to_a.map(&:reverse), user.model_level),
+                        {},
+                        class: "px-2 py-1 rounded text-xs border border-stone-300",
+                        onchange: "this.form.requestSubmit()" %>
+                <% end %>
               <% end %>
             </td>
           </tr>
