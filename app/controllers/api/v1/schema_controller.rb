@@ -2,6 +2,8 @@
 # 单独一个端点而不是塞进每张卡的响应 —— 它们随记录重复传输是浪费，
 # 但前端确实需要它们来渲染标签和做前置校验。
 class Api::V1::SchemaController < Api::BaseController
+  skip_before_action :require_api_authentication, only: :show
+
   def show
     render json: {
       fields: Card::FIELDS.map { |key|

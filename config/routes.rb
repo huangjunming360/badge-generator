@@ -1,13 +1,10 @@
 Rails.application.routes.draw do
+  # 认证
   resource :session
   resources :passwords, param: :token
   resource :registration, only: %i[new create], as: :registration
 
   get "up" => "rails/health#show", as: :rails_health_check
-
-  resource :setting, only: %i[update]
-
-  resources :cards, only: %i[index new create show update]
 
   # 管理后台
   namespace :admin do
@@ -25,7 +22,7 @@ Rails.application.routes.draw do
     resource :permissions, only: %i[show update], controller: "permissions", path: "permissions"
   end
 
-  # 前后端分离 JSON API
+  # JSON API
   namespace :api do
     namespace :v1 do
       resource :schema, only: %i[show], controller: "schema"
@@ -33,5 +30,10 @@ Rails.application.routes.draw do
     end
   end
 
-  root "cards#new"
+  # 前端 SPA —— 所有非 /admin /api 的路径都渲染 index.html
+  root "frontend#index"
+  get "/*path" => "frontend#index",
+      constraints: ->(req) {
+        !req.path.start_with?("/admin", "/api", "/rails", "/up", "/assets")
+      }
 end
