@@ -75,7 +75,7 @@
         <div style="padding:4px 0">
           <% current_id = session.dig(:selected_model, "id") %>
           <% all_models.each_with_index do |m, i| %>
-          <% next if m["level"].to_i > Current.user&.model_level.to_i %>
+          <% next if m["level"].to_i < Current.user&.model_level.to_i %>
             <button type="button"
                     data-action="click->settings#select"
                     data-model-index="<%= i %>"

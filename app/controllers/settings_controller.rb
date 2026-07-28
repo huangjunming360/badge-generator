@@ -8,8 +8,8 @@ class SettingsController < ApplicationController
 
     if index >= 0 && index < models.length
       selected = models[index]
-      # 检查用户权限等级
-      if authenticated? && selected["level"].to_i > Current.user.model_level.to_i
+      # 检查用户权限等级：用户 level ≤ 模型 level 才可访问
+      if authenticated? && selected["level"].to_i < Current.user.model_level.to_i
         return head :forbidden
       end
       session[:selected_model] = selected

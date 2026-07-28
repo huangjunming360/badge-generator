@@ -130,12 +130,13 @@
       <input type="text" id="modal-base" placeholder="https://api.xxx.com">
     </div>
     <div class="modal-field">
-      <label>等级</label>
+      <label>等级（数字越小权限越高）</label>
       <select id="modal-level" style="width:120px">
-        <option value="0">普通</option>
-        <option value="10">高级</option>
-        <option value="50">VIP</option>
-        <option value="100">管理员</option>
+        <option value="0">最高</option>
+        <option value="1">高级</option>
+        <option value="2">中级</option>
+        <option value="3">普通</option>
+        <option value="4">开放</option>
       </select>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
@@ -160,11 +161,12 @@
     <td><input type="text" name="models[__IDX__][api_key]" value="__KEY__"></td>
     <td><input type="text" name="models[__IDX__][api_base]" value="__BASE__"></td>
     <td>
-      <select name="models[__IDX__][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:12px">
-        <option value="0">普通</option>
-        <option value="10">高级</option>
-        <option value="50">VIP</option>
-        <option value="100">管理员</option>
+      <select name="models[__IDX__][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
+        <option value="0">最高</option>
+        <option value="1">高级</option>
+        <option value="2">中级</option>
+        <option value="3">普通</option>
+        <option value="4">开放</option>
       </select>
     </td>
     <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>

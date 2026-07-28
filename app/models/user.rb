@@ -1,10 +1,12 @@
 class User < ApplicationRecord
-  # 权限等级：数字 → 中文描述
+  # 权限等级：数字越小权限越高。0=最高（管理员），4=开放（所有人）
+  # 用户 level ≤ 模型 level 即可访问该模型
   MODEL_LEVELS = {
-    0   => "普通",
-    10  => "高级",
-    50  => "VIP",
-    100 => "管理员"
+    0 => "最高",
+    1 => "高级",
+    2 => "中级",
+    3 => "普通",
+    4 => "开放"
   }.freeze
 
   has_secure_password
