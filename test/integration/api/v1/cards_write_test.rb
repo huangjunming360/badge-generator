@@ -81,7 +81,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "update 合并字段而不整体覆盖" do
-    card = Card.create!(user: @_user,raw_input: "x", data: { "name" => "林思远", "phone" => "13800138000" })
+    card = Card.create!(user: @_user, raw_input: "x", data: { "name" => "林思远", "phone" => "13800138000" })
 
     patch api_v1_card_path(card), params: { fields: { organization: "清华大学" } }
 
@@ -94,7 +94,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "update 丢弃 schema 外的字段" do
-    card = Card.create!(user: @_user,raw_input: "x", data: { "name" => "林思远" })
+    card = Card.create!(user: @_user, raw_input: "x", data: { "name" => "林思远" })
 
     patch api_v1_card_path(card), params: { fields: { name: "王五", evil_key: "x" } }
 
@@ -105,7 +105,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "update 尺寸越界返回 422" do
-    card = Card.create!(user: @_user,raw_input: "x")
+    card = Card.create!(user: @_user, raw_input: "x")
 
     patch api_v1_card_path(card), params: { card: { width_mm: Card::MAX_SIZE_MM + 1 } }
 
@@ -114,7 +114,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "上传照片后 portrait 返回 URL 而非 base64" do
-    card = Card.create!(user: @_user,raw_input: "x")
+    card = Card.create!(user: @_user, raw_input: "x")
     file = Rack::Test::UploadedFile.new(
       Rails.root.join("test/fixtures/files/portrait.png"), "image/png"
     )
@@ -129,7 +129,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "拒绝非图片格式的照片" do
-    card = Card.create!(user: @_user,raw_input: "x")
+    card = Card.create!(user: @_user, raw_input: "x")
     file = Rack::Test::UploadedFile.new(
       Rails.root.join("test/fixtures/files/note.txt"), "text/plain"
     )

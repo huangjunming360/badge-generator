@@ -1,7 +1,7 @@
 class Api::V1::CardsController < Api::BaseController
   # 速率限制：防止 LLM 额度被刷爆
   rate_limit to: 20, within: 1.minute, only: :create,
-    with: -> { render json: { errors: ["请求过于频繁，请稍后再试"] }, status: :too_many_requests }
+    with: -> { render json: { errors: [ "请求过于频繁，请稍后再试" ] }, status: :too_many_requests }
 
   def index
     cards = Current.user.cards.order(created_at: :desc)
