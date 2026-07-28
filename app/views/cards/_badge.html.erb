@@ -1,5 +1,7 @@
 <%# 挂牌模板。数据来自 card.normalized_data，样式见 app/assets/stylesheets/badge.css %>
-<div class="badge" id="badge">
+<div class="badge" id="badge"
+     data-badge-target="badge"
+     style="--badge-width: <%= card.width %>mm; --badge-height: <%= card.height %>mm;">
   <div class="badge__punch"></div>
 
   <% if card.portrait.attached? %>

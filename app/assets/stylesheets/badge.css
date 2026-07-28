@@ -9,9 +9,13 @@
   --badge-surface: #ffffff;
   --badge-accent: #44403c;
 
+  /* 尺寸由内联 style 覆盖，这里是兜底默认值。 */
+  --badge-width: 54mm;
+  --badge-height: 85mm;
+
   box-sizing: border-box;
-  width: 54mm;
-  min-height: 85mm;
+  width: var(--badge-width);
+  min-height: var(--badge-height);
   padding: 7mm 6mm 6mm;
 
   display: flex;
@@ -38,10 +42,12 @@
   background: #fafaf9;
 }
 
-/* 一寸照 25 × 35mm */
+/* 一寸照，保持 25:35 比例。用挂牌宽度的百分比，
+   这样改尺寸时照片跟着缩放而不会溢出边框。 */
 .badge__photo {
-  width: 25mm;
-  height: 35mm;
+  width: 46%;
+  aspect-ratio: 25 / 35;
+  height: auto;
   margin-bottom: 5mm;
   border: 1px solid var(--badge-line);
   border-radius: 1mm;

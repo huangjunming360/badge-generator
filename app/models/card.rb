@@ -26,6 +26,22 @@ class Card < ApplicationRecord
   PORTRAIT_TYPES = %w[image/png image/jpeg].freeze
   PORTRAIT_MAX_BYTES = 5.megabytes
 
+  # 挂牌尺寸，单位 mm。默认对齐常见竖版工牌。
+  DEFAULT_WIDTH_MM = 54
+  DEFAULT_HEIGHT_MM = 85
+  # 下限保证内容放得下，上限防止把页面撑爆。
+  MIN_SIZE_MM = 20
+  MAX_SIZE_MM = 200
+
+  validates :width_mm, :height_mm,
+            numericality: {
+              only_integer: true,
+              greater_than_or_equal_to: MIN_SIZE_MM,
+              less_than_or_equal_to: MAX_SIZE_MM,
+              message: "需在 #{MIN_SIZE_MM}–#{MAX_SIZE_MM}mm 之间"
+            },
+            allow_nil: true
+
   validates :raw_input, presence: { message: "请先输入个人资料" }
   validate :portrait_must_be_supported_image
 
@@ -37,6 +53,18 @@ class Card < ApplicationRecord
 
   def filled_count
     normalized_data.count { |_, v| v.present? }
+  end
+
+  def width
+    width_mm.presence || DEFAULT_WIDTH_MM
+  end
+
+  def height
+    height_mm.presence || DEFAULT_HEIGHT_MM
+  end
+
+  def default_size?
+    width == DEFAULT_WIDTH_MM && height == DEFAULT_HEIGHT_MM
   end
 
   private

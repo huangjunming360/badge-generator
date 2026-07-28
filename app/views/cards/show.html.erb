@@ -14,10 +14,20 @@
     </div>
   </header>
 
+  <% if @card.errors.any? %>
+    <div class="border-b border-red-200 bg-red-50 px-6 py-2 text-sm text-red-700">
+      <%= @card.errors.full_messages.to_sentence %>
+    </div>
+  <% end %>
+
   <%# 挂牌居中显示在窗口中间 %>
   <main class="flex flex-1 items-center justify-center px-6 py-12">
     <%= render "cards/badge", card: @card %>
   </main>
+
+  <div class="border-t border-stone-200 bg-white px-6 py-4">
+    <%= render "cards/size_controls", card: @card %>
+  </div>
 
   <footer class="border-t border-stone-200 bg-white px-6 py-3 text-center text-xs text-stone-400">
     <% if @card.source_name.present? %>
@@ -26,5 +36,6 @@
       来自手动输入
     <% end %>
     · 识别出 <%= @card.filled_count %>/<%= Card::FIELDS.size %> 个字段
+    · <%= @card.width %> × <%= @card.height %>mm<%= "（默认）" if @card.default_size? %>
   </footer>
 </div>

@@ -37,6 +37,16 @@ class CardsController < ApplicationController
     @card = Card.find(params[:id])
   end
 
+  def update
+    @card = Card.find(params[:id])
+
+    if @card.update(size_params)
+      redirect_to @card
+    else
+      render :show, status: :unprocessable_content
+    end
+  end
+
   private
 
   # 上传了文件就用文件内容，否则用文本框内容。
@@ -53,5 +63,9 @@ class CardsController < ApplicationController
       @source_name = nil
       params.require(:card).permit(:raw_input)[:raw_input]
     end
+  end
+
+  def size_params
+    params.require(:card).permit(:width_mm, :height_mm)
   end
 end
