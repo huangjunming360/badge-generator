@@ -54,4 +54,8 @@ export interface SchemaPayload {
     available: { id: string; label: string }[];
     default: string | null;
   };
+  upload: {
+    allowed_extensions: string[];
+    max_bytes: number;
+  };
 }

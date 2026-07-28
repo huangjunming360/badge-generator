@@ -14,7 +14,7 @@ import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
-import type { SchemaFieldDef } from "../../api/types";
+import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
 /* ── Editable field row ──────────────────────────────────────── */
 function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
@@ -119,6 +119,7 @@ export default function Page1() {
   );
   // 后端 schema：字段清单与中文标签的唯一来源，不在前端写死。
   const [schema, setSchema] = useState<SchemaFieldDef[]>([]);
+  const [uploadCfg, setUploadCfg] = useState<{ allowed_extensions: string[]; max_bytes: number } | null>(null);
   const [error, setError]   = useState<string | null>(null);
   // 建卡后的 id，供第二页读取与后续更新。
   const [cardId, setCardId] = useState<number | null>(saved?.cardId ?? null);
@@ -149,6 +150,7 @@ export default function Page1() {
         setSchema(s.fields);
         setModels(s.models.available);
         setModelId(s.models.default);
+        if (s.upload) setUploadCfg(s.upload);
       })
       .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "无法读取字段配置"); });
     return () => { alive = false; };
@@ -386,9 +388,9 @@ export default function Page1() {
               onClick={() => fileRef.current?.click()} />
             <ImportBtn icon={<ImageIcon size={13} />} label="导入图片"
               onClick={() => imgRef.current?.click()} />
-            <input ref={fileRef} type="file" accept=".txt,.csv,.vcf" style={{ display: "none" }}
+            <input ref={fileRef} type="file" accept={uploadCfg?.allowed_extensions?.join(",") || ".txt,.csv,.vcf"} style={{ display: "none" }}
               onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-            <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }}
+            <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
               onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
 
             <div style={{ flex: 1 }} />

@@ -32,6 +32,10 @@ class Api::V1::SchemaController < Api::BaseController
       models: {
         available: models_config["models"].to_a.map { |m| m.slice("id", "label") },
         default: models_config["default"]
+      },
+      upload: {
+        allowed_extensions: DocumentTextExtractor.accepted_extensions,
+        max_bytes: DocumentTextExtractor::MAX_BYTES
       }
     }
   end
