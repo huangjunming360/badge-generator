@@ -216,7 +216,7 @@ class MineruService
     req["Content-Length"] = File.size(file_path)
 
     res = http.request(req)
-    unless res.code.to_i == 200
+    unless res.code.to_i >= 200 && res.code.to_i < 300
       raise Error, "上传失败: HTTP #{res.code}"
     end
   end
@@ -231,7 +231,9 @@ class MineruService
     http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
     res = http.request(Net::HTTP::Get.new(uri))
-    raise Error, "下载失败: HTTP #{res.code}" unless res.code.to_i == 200
+    unless res.code.to_i >= 200 && res.code.to_i < 300
+      raise Error, "下载失败: HTTP #{res.code}"
+    end
     res.body
   rescue OpenSSL::SSL::SSLError => e
     # 重试一次，跳过 SSL 验证（部分 CDN/代理环境需要）
