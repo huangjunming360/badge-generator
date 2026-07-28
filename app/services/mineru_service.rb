@@ -1,20 +1,12 @@
 # frozen_string_literal: true
 
-# MinerU 文档解析服务。
-# 支持精准解析 API（需 Token）和 Agent 轻量 API（无需 Token）两种模式。
-# 精准模式返回 ZIP（含 Markdown + JSON + 图片），
-# Agent 模式仅返回 Markdown CDN 链接。
-#
-# 用法：
-#   MineruService.new.parse(file_path, file_name: "resume.pdf")
-#   # => { text: "...", images: [{ path: "...", bbox: [...] }], model_version: "pipeline" }
 class MineruService
   class Error < StandardError; end
   class TimeoutError < Error; end
 
   PRECISION_BASE = "https://mineru.net"
   AGENT_BASE = "https://mineru.net/api/v1/agent"
-  TIMEOUT = 300 # 最大等待秒数
+  TIMEOUT = 300
   POLL_INTERVAL = 3
 
   def initialize(model_version: nil, token: nil)
@@ -22,7 +14,6 @@ class MineruService
     @token = token || ENV["MINERU_API_KEY"]
   end
 
-  # 解析本地文件。有 Token 走精准 API，否则走 Agent 轻量 API。
   def parse(file_path, file_name: nil)
     raise Error, "文件不存在: #{file_path}" unless File.exist?(file_path)
 
@@ -35,11 +26,11 @@ class MineruService
 
   private
 
-  # ===== 精准 API（有 Token）=====
+  # ===== 精准 API =====
   def parse_precision(file_path, file_name)
     batch_id = upload_and_submit(file_path, file_name)
     result = poll_batch(batch_id)
-    extract_result_from_zip(result)
+    extract_result(result)
   end
 
   def upload_and_submit(file_path, file_name)
@@ -50,13 +41,10 @@ class MineruService
       },
       headers: auth_header
     )
-
     data = resp["data"]
     batch_id = data["batch_id"]
     upload_url = data["file_urls"]&.first
     raise Error, "未获取到上传链接" unless upload_url
-
-    # PUT 上传文件
     put_file(upload_url, file_path)
     batch_id
   end
@@ -64,15 +52,12 @@ class MineruService
   def poll_batch(batch_id)
     TIMEOUT.times do
       resp = http_get("#{PRECISION_BASE}/api/v4/extract-results/batch/#{batch_id}", headers: auth_header)
-      results = resp.dig("data", "extract_result") || []
-      result = results.first
+      result = resp.dig("data", "extract_result")&.first
       return result if result.nil?
 
       case result["state"]
-      when "done"
-        return result
-      when "failed"
-        raise Error, "MinerU 解析失败: #{result['err_msg']}"
+      when "done" then return result
+      when "failed" then raise Error, "MinerU 解析失败: #{result['err_msg']}"
       when "pending", "running", "converting", "waiting-file", "uploading"
         sleep POLL_INTERVAL
       end
@@ -80,7 +65,7 @@ class MineruService
     raise TimeoutError, "MinerU 解析超时"
   end
 
-  def extract_result_from_zip(result)
+  def extract_result(result)
     zip_url = result["full_zip_url"]
     return { text: "", images: [] } unless zip_url
 
@@ -92,65 +77,111 @@ class MineruService
     zip_data = download_file(zip_url)
     images = []
     markdown = nil
+    image_refs = []  # { url:, path:, bbox: }
 
     Zip::File.open_buffer(zip_data) do |zip|
-      # 找 full.md
-      md_entry = zip.glob("**/full.md").first ||
-                 zip.glob("**/*.md").first
+      # full.md
+      md_entry = zip.glob("**/full.md").first || zip.glob("**/*.md").first
       markdown = md_entry.get_input_stream.read if md_entry
 
-      # 提取图片
-      zip.each do |entry|
-        next unless entry.name.match?(/\.(png|jpg|jpeg|webp)$/i)
-        # 大型图片可能是文档内嵌图（含证件照）
-        images << {
-          path: entry.name,
-          data: entry.get_input_stream.read
-        }
+      # 从 PDF 布局信息中提取图片引用（CDN URL + bbox）
+      middle_entry = zip.glob("**/middle.json").first ||
+                     zip.glob("**/layout.json").first
+      if middle_entry
+        begin
+          layout = JSON.parse(middle_entry.get_input_stream.read)
+          extract_image_refs(layout, image_refs)
+        rescue JSON::ParserError
+          nil
+        end
       end
 
-      # 尝试从 content_list.json 获取图片坐标信息
+      # 也查 content_list.json
       cl_entry = zip.glob("**/content_list.json").first
       if cl_entry
         begin
           cl = JSON.parse(cl_entry.get_input_stream.read)
-          # content_list 可能包含图片的 bbox 信息
-          extract_image_metadata(cl, images)
+          cl.each do |item|
+            next unless item["image_path"]
+            next if image_refs.any? { |r| r[:path] == item["image_path"] }
+            image_refs << { url: item["image_path"], path: File.basename(item["image_path"]), bbox: item["bbox"] }
+          end
         rescue JSON::ParserError
-          # ignore
+          nil
         end
+      end
+
+      # ZIP 内嵌图片（如果有的话）
+      zip.each do |entry|
+        next unless entry.name.match?(/\.(png|jpg|jpeg|webp)$/i)
+        next if image_refs.any? { |r| r[:path] == entry.name || r[:url]&.include?(entry.name) }
+        image_refs << { url: nil, path: entry.name, bbox: nil }
+      end
+    end
+
+    # 下载图片
+    image_refs.each do |ref|
+      begin
+        if ref[:url]
+          data = download_file(ref[:url])
+        else
+          # 重新打开 ZIP 读取图片
+          data = zip_entry_data(zip_data, ref[:path])
+        end
+        images << { path: ref[:path], data: data, bbox: ref[:bbox] }
+      rescue => e
+        Rails.logger.warn("MinerU 图片下载失败: #{ref[:path]}: #{e.message}")
       end
     end
 
     [ markdown || "", images ]
   end
 
-  def extract_image_metadata(content_list, images)
-    # content_list 每项含 type/image_path/bbox 等
-    content_list.each do |item|
-      next unless item["type"] == "image" || item["image_path"]
-      img_path = item["image_path"]
-      img = images.find { |i| i[:path].end_with?(File.basename(img_path || "")) }
-      next unless img
-      img[:bbox] = item["bbox"] if item["bbox"]
-      img[:caption] = item["caption"] if item["caption"]
+  def extract_image_refs(layout, refs)
+    # middle.json 结构: { pdf_info: [{ preproc_blocks: [...] }] }
+    pdf_infos = layout["pdf_info"] || []
+    pdf_infos.each do |info|
+      blocks = info["preproc_blocks"] || []
+      blocks.each do |block|
+        next unless block["type"] == "image"
+        extract_from_block(block, refs)
+      end
     end
   end
 
-  # ===== Agent 轻量 API（无需 Token）=====
+  def extract_from_block(block, refs)
+    bbox = block["bbox"]
+    sub_blocks = block["blocks"] || []
+    sub_blocks.each do |sb|
+      sb["lines"]&.each do |line|
+        line["spans"]&.each do |span|
+          next unless span["type"] == "image" && span["image_path"]
+          refs << {
+            url: span["image_path"],
+            path: File.basename(span["image_path"]),
+            bbox: span["bbox"] || sb["bbox"] || bbox
+          }
+        end
+      end
+    end
+  end
+
+  def zip_entry_data(zip_data, path)
+    Zip::File.open_buffer(zip_data) do |zip|
+      entry = zip.find { |e| e.name == path || e.name.end_with?("/#{path}") }
+      entry ? entry.get_input_stream.read : nil
+    end
+  end
+
+  # ===== Agent 轻量 API =====
   def parse_agent(file_path, file_name)
-    # Step 1: 获取上传地址
     name = file_name || File.basename(file_path)
     resp = http_post("#{AGENT_BASE}/parse/file", { file_name: name })
     data = resp["data"]
     task_id = data["task_id"]
     upload_url = data["file_url"]
     raise Error, "未获取到上传链接" unless upload_url
-
-    # Step 2: PUT 上传
     put_file(upload_url, file_path)
-
-    # Step 3: 轮询
     markdown_url = poll_agent(task_id)
     text = download_text(markdown_url)
     { text: text, images: [] }
@@ -161,10 +192,8 @@ class MineruService
       resp = http_get("#{AGENT_BASE}/parse/#{task_id}")
       data = resp["data"]
       case data["state"]
-      when "done"
-        return data["markdown_url"]
-      when "failed"
-        raise Error, "MinerU Agent 解析失败: #{data['err_msg']}"
+      when "done" then return data["markdown_url"]
+      when "failed" then raise Error, "MinerU Agent 解析失败: #{data['err_msg']}"
       when "waiting-file", "pending", "running", "uploading"
         sleep POLL_INTERVAL
       end
@@ -172,7 +201,7 @@ class MineruService
     raise TimeoutError, "MinerU Agent 解析超时"
   end
 
-  # ===== HTTP 工具 =====
+  # ===== HTTP =====
   def auth_header
     { "Authorization" => "Bearer #{@token}" }
   end
@@ -182,14 +211,11 @@ class MineruService
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == "https"
     http.read_timeout = 30
-
     req = Net::HTTP::Post.new(uri)
     req["Content-Type"] = "application/json"
     headers.each { |k, v| req[k] = v }
     req.body = body.to_json
-
-    res = http.request(req)
-    parse_response(res)
+    parse_response(http.request(req))
   end
 
   def http_get(url, headers: {})
@@ -197,12 +223,9 @@ class MineruService
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == "https"
     http.read_timeout = 30
-
     req = Net::HTTP::Get.new(uri)
     headers.each { |k, v| req[k] = v }
-
-    res = http.request(req)
-    parse_response(res)
+    parse_response(http.request(req))
   end
 
   def put_file(url, file_path)
@@ -210,11 +233,9 @@ class MineruService
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == "https"
     http.read_timeout = 120
-
     req = Net::HTTP::Put.new(uri)
     req.body_stream = File.open(file_path, "rb")
     req["Content-Length"] = File.size(file_path)
-
     res = http.request(req)
     unless res.code.to_i >= 200 && res.code.to_i < 300
       raise Error, "上传失败: HTTP #{res.code}"
@@ -227,23 +248,19 @@ class MineruService
     http.use_ssl = uri.scheme == "https"
     http.read_timeout = 120
     http.open_timeout = 30
-    # macOS 代理工具（Surge/ClashX）可能拦截连接
     http.verify_mode = OpenSSL::SSL::VERIFY_PEER
-
     res = http.request(Net::HTTP::Get.new(uri))
     unless res.code.to_i >= 200 && res.code.to_i < 300
       raise Error, "下载失败: HTTP #{res.code}"
     end
     res.body
-  rescue OpenSSL::SSL::SSLError => e
-    # 重试一次，跳过 SSL 验证（部分 CDN/代理环境需要）
+  rescue OpenSSL::SSL::SSLError
     http.verify_mode = OpenSSL::SSL::VERIFY_NONE
     retry
   end
 
   def download_text(url)
-    data = download_file(url)
-    data.force_encoding("UTF-8")
+    download_file(url).force_encoding("UTF-8")
   rescue => e
     raise Error, "下载结果失败: #{e.message}"
   end

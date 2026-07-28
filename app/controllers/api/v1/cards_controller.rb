@@ -92,6 +92,21 @@ class Api::V1::CardsController < Api::BaseController
       text = extractor.call(uploaded)
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name
+
+      # MinerU 提取的图片 → 尝试识别大头照
+      if extractor.extracted_images.present?
+        progress.set(:portrait, "识别大头照…")
+        detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
+        found = detector.detect(extractor.extracted_images)
+        if found
+          img = extractor.extracted_images.find { |i| i[:path] == found }
+          if img && img[:data].present?
+            card.portrait.attach(io: StringIO.new(img[:data]),
+              filename: File.basename(img[:path]),
+              content_type: "image/#{File.extname(img[:path]).delete('.')}")
+          end
+        end
+      end
     else
       text = raw_input
     end
