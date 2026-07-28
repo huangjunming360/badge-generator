@@ -21,7 +21,7 @@ Rails.application.routes.draw do
     resource :settings, only: %i[edit update], controller: "settings"
     resource :general_settings, only: %i[show update], controller: "general_settings", path: "site-settings"
     resource :models, only: %i[show update], controller: "models"
-    resources :permissions, only: %i[index update]
+    resource :permissions, only: %i[show update], controller: "permissions", path: "permissions"
   end
 
   root "cards#new"

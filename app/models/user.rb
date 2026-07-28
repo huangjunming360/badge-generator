@@ -1,13 +1,24 @@
 class User < ApplicationRecord
-  # 权限等级：数字越小权限越高。0=最高（管理员），4=开放（所有人）
-  # 用户 level ≤ 模型 level 即可访问该模型
-  MODEL_LEVELS = {
-    0 => "最高",
-    1 => "高级",
-    2 => "中级",
-    3 => "普通",
-    4 => "开放"
+  # 默认权限等级定义（可被 Setting 覆盖）
+  DEFAULT_LEVELS = {
+    0 => { label: "最高", desc: "可用全部模型" },
+    1 => { label: "高级", desc: "可用绝大多数模型" },
+    2 => { label: "中级", desc: "可用中级及以下模型" },
+    3 => { label: "普通", desc: "可用普通及开放模型" },
+    4 => { label: "开放", desc: "仅可用开放模型" }
   }.freeze
+
+  def self.model_levels
+    stored = Setting.get("level_definitions")
+    return DEFAULT_LEVELS if stored.blank?
+    parsed = JSON.parse(stored) rescue nil
+    return DEFAULT_LEVELS if parsed.blank?
+    parsed.transform_keys(&:to_i).transform_values(&:symbolize_keys)
+  end
+
+  def self.model_level_labels
+    model_levels.transform_values { |v| v[:label] }
+  end
 
   has_secure_password
   has_many :sessions, dependent: :destroy
@@ -32,7 +43,7 @@ class User < ApplicationRecord
   end
 
   def model_level_label
-    MODEL_LEVELS[model_level.to_i] || "未知(#{model_level})"
+    User.model_levels.dig(model_level.to_i, :label) || "未知"
   end
 
   def ban!

@@ -1,17 +1,17 @@
 class Admin::PermissionsController < Admin::BaseController
-  def index
-    @users = User.order(:model_level, :email_address)
+  def show
+    @levels = User.model_levels
   end
 
   def update
-    @user = User.find(params[:id])
-    if @user.admin?
-      return redirect_to admin_permissions_path, alert: "管理员权限不可修改"
-    end
-    if @user.update(model_level: params[:model_level].to_i)
-      redirect_to admin_permissions_path, notice: "#{@user.email_address} 权限已更新"
+    if params[:levels].present?
+      levels = params[:levels].to_unsafe_h.transform_keys(&:to_i)
+      Setting.set("level_definitions", levels.to_json)
+      # 重新加载 User 的等级缓存
+      Rails.cache.delete("level_definitions") if Rails.cache
+      redirect_to admin_permissions_path, notice: "权限等级设置已更新"
     else
-      redirect_to admin_permissions_path, alert: "更新失败"
+      redirect_to admin_permissions_path, alert: "保存失败"
     end
   end
 end
