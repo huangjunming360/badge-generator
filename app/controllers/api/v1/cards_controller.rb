@@ -125,7 +125,12 @@ class Api::V1::CardsController < Api::BaseController
            .gsub(/[^\p{Print}\p{Space}]/, "")  # 只保留可打印字符和空白
            .squeeze(" ")
            .strip
-    card.raw_input = raw.truncate(20_000)
+    if raw.length > 20_000
+      card.raw_input = raw.truncate(20_000)
+      card.source_name = [ card.source_name, "（内容过长已截断）" ].compact.join(" ")
+    else
+      card.raw_input = raw
+    end
 
     progress.set(:extracting, "AI 提取字段中…")
     card.data = CardExtractor.new(model_id: model_id).call(text)
