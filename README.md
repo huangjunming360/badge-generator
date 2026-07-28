@@ -111,18 +111,18 @@ openai:
 
 不涉及代码改动。
 
-## 模型调用
+## 模型调用示例
 
 所有模型调用走 `LlmService`，按用途名调用，由框架自动匹配模型：
 
 ```ruby
-# 名片提取 —— 轻量模型 haiku
+# 名片提取 —— 轻量模型
 LlmService.new.complete(messages, system: CardExtractor::SYSTEM_PROMPT)
 
-# 通用对话 —— 主力模型 sonnet
+# 通用对话 —— 主力模型
 LlmService.new(function: :chat).complete(messages)
 
-# 翻译 —— GPT-4o
+# 翻译
 LlmService.new(function: :translation).complete(messages)
 
 # 向量化
