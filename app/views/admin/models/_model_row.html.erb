@@ -1,15 +1,15 @@
 <tr class="model-row">
-  <td><input type="text" name="models[<%= i %>][id]" value="<%= m["id"] %>" placeholder="deepseek_v4"></td>
-  <td><input type="text" name="models[<%= i %>][label]" value="<%= m["label"] %>" placeholder="DeepSeek V4"></td>
+  <td><input type="text" name="models[<%= i %>][id]" value="<%= m["id"] %>"></td>
+  <td><input type="text" name="models[<%= i %>][label]" value="<%= m["label"] %>"></td>
   <td>
     <select name="models[<%= i %>][api]">
       <option value="anthropic" <%= "selected" if m["api"] == "anthropic" %>>Anthropic</option>
       <option value="openai" <%= "selected" if m["api"] == "openai" %>>OpenAI</option>
     </select>
   </td>
-  <td><input type="text" name="models[<%= i %>][model_name]" value="<%= m["model"] %>" placeholder="deepseek-v4-pro"></td>
-  <td><input type="text" name="models[<%= i %>][api_key]" value="<%= m["api_key"] %>" placeholder="sk-..."></td>
-  <td><input type="text" name="models[<%= i %>][api_base]" value="<%= m["api_base"] %>" placeholder="https://api.xxx.com"></td>
+  <td><input type="text" name="models[<%= i %>][model_name]" value="<%= m["model"] %>"></td>
+  <td><input type="text" name="models[<%= i %>][api_key]" value="<%= m["api_key"] %>"></td>
+  <td><input type="text" name="models[<%= i %>][api_base]" value="<%= m["api_base"] %>"></td>
   <td><input type="number" name="models[<%= i %>][level]" value="<%= m["level"] || 0 %>" min="0" style="width:50px"></td>
   <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>
 </tr>

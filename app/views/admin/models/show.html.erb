@@ -18,7 +18,6 @@
     .remove-btn:hover { background:#fef2f2 }
     .add-btn { padding:8px 16px; background:#f5f5f4; border:1px dashed #d6d3d1; border-radius:8px; cursor:pointer; color:#44403c; font-size:13px; width:100% }
     .add-btn:hover { background:#e7e5e4 }
-    /* Modal */
     .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center }
     .modal-overlay.open { display:flex }
     .modal-box { background:#fff; border-radius:12px; padding:24px; width:480px; max-width:90vw; box-shadow:0 20px 60px rgba(0,0,0,0.2) }
@@ -27,10 +26,10 @@
     .modal-field label { display:block; font-size:12px; font-weight:500; color:#78716c; margin-bottom:3px }
     .modal-field input, .modal-field select { width:100%; padding:7px 10px; border:1px solid #e7e5e4; border-radius:6px; font-size:13px; box-sizing:border-box }
     .modal-error { color:#ef4444; font-size:12px; display:none; margin-bottom:12px; padding:8px 12px; background:#fef2f2; border-radius:6px }
-    /* JSON tab */
     .json-tab { display:none }
-    .json-tab .CodeMirror { height:500px }
+    .json-tab .CodeMirror { height:500px; border-radius:0 0 12px 12px }
     #tab-visual { padding:16px }
+    .save-bar { padding:16px; border-top:1px solid #e7e5e4; display:flex; align-items:center; gap:12px }
   </style>
 <% end %>
 
@@ -42,15 +41,16 @@
     </div>
   </div>
 
-  <div style="display:flex">
-    <button type="button" class="tab-btn active" data-tab="visual" onclick="switchTab('visual')">可视化编辑</button>
-    <button type="button" class="tab-btn" data-tab="json" onclick="switchTab('json')">JSON 编辑</button>
-  </div>
+  <%= form_with url: admin_models_path, method: :patch, local: true, id: "models-form", html: { autocomplete: "off" } do |f| %>
+    <!-- Tabs -->
+    <div style="display:flex">
+      <button type="button" class="tab-btn active" data-tab="visual" onclick="switchTab('visual')">可视化编辑</button>
+      <button type="button" class="tab-btn" data-tab="json" onclick="switchTab('json')">JSON 编辑</button>
+    </div>
 
-  <!-- Visual editor tab -->
-  <div id="tab-visual" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl">
-    <%= form_with url: admin_models_path, method: :patch, local: true, id: "models-form", html: { autocomplete: "off" } do |f| %>
-      <div class="mb-4 flex items-center gap-3">
+    <!-- Visual tab -->
+    <div id="tab-visual" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl">
+      <div class="p-4 flex items-center gap-3">
         <label class="text-sm font-medium">默认模型：</label>
         <select name="default_model" id="default-model-select" class="border border-stone-300 rounded-lg px-3 py-1.5 text-sm">
           <% @models.each do |m| %>
@@ -59,11 +59,11 @@
         </select>
       </div>
 
-      <div style="overflow-x:auto">
+      <div style="overflow-x:auto;padding:0 16px 16px">
         <table style="width:100%;min-width:800px;border-collapse:collapse">
           <thead>
             <tr style="text-align:left;font-size:11px;color:#78716c;border-bottom:1px solid #e7e5e4">
-              <th style="padding:6px;width:100px">标识 ID</th>
+              <th style="padding:6px;width:100px">ID</th>
               <th style="padding:6px;width:130px">名称</th>
               <th style="padding:6px;width:80px">API</th>
               <th style="padding:6px;width:110px">模型名</th>
@@ -81,26 +81,23 @@
         </table>
       </div>
 
-      <button type="button" class="add-btn mt-4" onclick="openModal()">+ 添加模型</button>
+      <button type="button" class="add-btn" style="width:calc(100% - 32px);margin:0 16px" onclick="openModal()">+ 添加模型</button>
 
-      <div class="mt-6 flex gap-3">
+      <div class="save-bar">
         <%= f.submit "保存配置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
-        <span id="unsaved-warning" style="display:none;color:#d97706;font-size:13px;align-self:center">⚠ 有未保存的更改</span>
+        <span id="unsaved-warning" style="display:none;color:#d97706;font-size:13px">⚠ 有未保存的更改</span>
       </div>
-    <% end %>
-  </div>
+    </div>
 
-  <!-- JSON editor tab -->
-  <div id="tab-json" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl json-tab">
-    <%= form_with url: admin_settings_path, method: :patch, local: true, id: "json-form" do |f| %>
-      <%= f.text_area :config_content, id: "json-editor-src", style: "display:none" %>
-      <div id="json-editor-wrap" style="min-height:500px"></div>
-      <div style="padding:12px 16px;border-top:1px solid #e7e5e4;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:#78716c" id="json-status">修改 JSON 后请保存</span>
-        <%= f.submit "保存 JSON", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+    <!-- JSON tab -->
+    <div id="tab-json" class="bg-white border border-t-0 border-stone-200 json-tab">
+      <div id="json-editor-wrap"></div>
+      <div class="save-bar">
+        <button type="button" onclick="saveFromJson()" class="px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer">保存配置</button>
+        <span id="json-status" style="font-size:12px;color:#78716c">同步中…</span>
       </div>
-    <% end %>
-  </div>
+    </div>
+  <% end %>
 </div>
 
 <!-- Add model modal -->
@@ -109,7 +106,7 @@
     <h2>添加模型</h2>
     <div class="modal-error" id="modal-error"></div>
     <div class="modal-field">
-      <label>标识 ID <span style="color:#ef4444">*</span></label>
+      <label>ID <span style="color:#ef4444">*</span></label>
       <input type="text" id="modal-id" placeholder="deepseek_v4">
     </div>
     <div class="modal-field">
@@ -118,10 +115,7 @@
     </div>
     <div class="modal-field">
       <label>API <span style="color:#ef4444">*</span></label>
-      <select id="modal-api">
-        <option value="anthropic">Anthropic</option>
-        <option value="openai">OpenAI</option>
-      </select>
+      <select id="modal-api"><option value="anthropic">Anthropic</option><option value="openai">OpenAI</option></select>
     </div>
     <div class="modal-field">
       <label>模型名 <span style="color:#ef4444">*</span></label>
@@ -136,7 +130,7 @@
       <input type="text" id="modal-base" placeholder="https://api.xxx.com">
     </div>
     <div class="modal-field">
-      <label>权限等级</label>
+      <label>等级</label>
       <input type="number" id="modal-level" value="0" min="0" style="width:80px">
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
@@ -146,10 +140,30 @@
   </div>
 </div>
 
+<!-- Template for a model row (mirrors _model_row.html.erb exactly) -->
+<template id="model-row-template">
+  <tr class="model-row unsaved">
+    <td><input type="text" name="models[__IDX__][id]" value="__ID__"></td>
+    <td><input type="text" name="models[__IDX__][label]" value="__LABEL__"></td>
+    <td>
+      <select name="models[__IDX__][api]">
+        <option value="anthropic">Anthropic</option>
+        <option value="openai">OpenAI</option>
+      </select>
+    </td>
+    <td><input type="text" name="models[__IDX__][model_name]" value="__MODEL__"></td>
+    <td><input type="text" name="models[__IDX__][api_key]" value="__KEY__"></td>
+    <td><input type="text" name="models[__IDX__][api_base]" value="__BASE__"></td>
+    <td><input type="number" name="models[__IDX__][level]" value="__LEVEL__" min="0" style="width:50px"></td>
+    <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>
+  </tr>
+</template>
+
 <script>
   var jsonEditor = null;
   var modelCount = <%= @models.length %>;
   var dirty = false;
+  var currentTab = "visual";
 
   function trackDirty() { dirty = true; document.getElementById("unsaved-warning").style.display = "inline"; }
 
@@ -157,9 +171,6 @@
     document.getElementById("models-form").addEventListener("change", trackDirty);
     document.getElementById("models-form").addEventListener("input", trackDirty);
     document.getElementById("models-form").addEventListener("submit", function() { dirty = false; });
-    document.getElementById("json-form").addEventListener("submit", function() {
-      if (jsonEditor) document.getElementById("json-editor-src").value = jsonEditor.getValue();
-    });
   });
 
   window.addEventListener("beforeunload", function(e) {
@@ -167,71 +178,40 @@
   });
 
   function switchTab(tab) {
+    if (tab === currentTab) return;
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
     document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add("active");
-    document.getElementById("tab-visual").style.display = tab === "visual" ? "block" : "none";
-    document.getElementById("tab-json").style.display = tab === "json" ? "block" : "none";
 
     if (tab === "json") {
+      // Sync form → JSON editor
+      document.getElementById("tab-visual").style.display = "none";
+      document.getElementById("tab-json").style.display = "block";
       initJsonEditor();
-    } else if (tab === "visual" && jsonEditor) {
-      // 把 JSON 编辑器内容同步回可视化表单
-      try {
-        var parsed = JSON.parse(jsonEditor.getValue());
-        jsonToForm(parsed);
-        document.getElementById("json-status").textContent = "✅ JSON 已同步到可视化编辑";
-      } catch(e) {
-        if (!confirm("JSON 格式有误，无法同步到可视化编辑。是否忽略？")) {
-          switchTab('json');
-          document.querySelector(`.tab-btn[data-tab="json"]`).classList.add("active");
-          return;
+    } else {
+      // Sync JSON editor → form
+      if (jsonEditor) {
+        try {
+          jsonToForm(JSON.parse(jsonEditor.getValue()));
+        } catch(e) {
+          if (!confirm("JSON 格式有误，无法同步到可视化编辑。是否忽略？")) return;
         }
       }
+      document.getElementById("tab-json").style.display = "none";
+      document.getElementById("tab-visual").style.display = "block";
     }
+    currentTab = tab;
   }
-
-  function jsonToForm(data) {
-    var tbody = document.getElementById("models-tbody");
-    tbody.innerHTML = "";
-    var select = document.getElementById("default-model-select");
-    select.innerHTML = "";
-
-    (data.models || []).forEach(function(m, i) {
-      var html = '<tr class="model-row">' +
-        '<td><input type="text" name="models[' + i + '][id]" value="' + esc(m.id || "") + '"></td>' +
-        '<td><input type="text" name="models[' + i + '][label]" value="' + esc(m.label || "") + '"></td>' +
-        '<td><select name="models[' + i + '][api]">' +
-          '<option value="anthropic"' + (m.api === "anthropic" ? " selected" : "") + '>Anthropic</option>' +
-          '<option value="openai"' + (m.api === "openai" ? " selected" : "") + '>OpenAI</option>' +
-        '</select></td>' +
-        '<td><input type="text" name="models[' + i + '][model_name]" value="' + esc(m.model || "") + '"></td>' +
-        '<td><input type="text" name="models[' + i + '][api_key]" value="' + esc(m.api_key || "") + '"></td>' +
-        '<td><input type="text" name="models[' + i + '][api_base]" value="' + esc(m.api_base || "") + '"></td>' +
-        '<td><input type="number" name="models[' + i + '][level]" value="' + (m.level || 0) + '" min="0" style="width:50px"></td>' +
-        '<td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td></tr>';
-      var temp = document.createElement("div");
-      temp.innerHTML = html;
-      tbody.appendChild(temp.firstElementChild);
-
-      var opt = document.createElement("option");
-      opt.value = m.id || "";
-      opt.text = m.label || "";
-      if (m.id === data.default) opt.selected = true;
-      select.appendChild(opt);
-    });
-    modelCount = (data.models || []).length;
-    trackDirty();
-  }
-
-  function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
   function initJsonEditor() {
-    if (jsonEditor) return;
-    var src = document.getElementById("json-editor-src");
-    src.value = buildJsonFromForm();
+    if (jsonEditor) {
+      // Update from form
+      jsonEditor.setValue(buildJsonFromForm());
+      document.getElementById("json-status").textContent = "已同步";
+      return;
+    }
     var wrap = document.getElementById("json-editor-wrap");
     jsonEditor = CodeMirror(wrap, {
-      value: src.value,
+      value: buildJsonFromForm(),
       mode: { name: "javascript", json: true },
       lineNumbers: true,
       lineWrapping: true,
@@ -239,13 +219,14 @@
       tabSize: 2,
       styleActiveLine: true,
       autoCloseBrackets: true,
-      matchBrackets: true,
-      extraKeys: { "Ctrl-S": function() { document.getElementById("json-form").requestSubmit(); } }
+      matchBrackets: true
     });
     jsonEditor.on("change", function() {
-      src.value = jsonEditor.getValue();
-      document.getElementById("json-status").textContent = "⚠ 未保存";
+      document.getElementById("json-status").textContent = "⚠ 未保存到可视化";
+      dirty = true;
+      document.getElementById("unsaved-warning").style.display = "inline";
     });
+    document.getElementById("json-status").textContent = "已同步";
   }
 
   function buildJsonFromForm() {
@@ -266,6 +247,38 @@
     return JSON.stringify({ default: data.get("default_model"), models: models }, null, 2);
   }
 
+  function jsonToForm(data) {
+    var tbody = document.getElementById("models-tbody");
+    tbody.innerHTML = "";
+    var select = document.getElementById("default-model-select");
+    select.innerHTML = "";
+
+    (data.models || []).forEach(function(m, i) {
+      var tmpl = document.getElementById("model-row-template").content.cloneNode(true);
+      fillRow(tmpl, m, i);
+      tbody.appendChild(tmpl);
+
+      var opt = document.createElement("option");
+      opt.value = m.id || "";
+      opt.text = m.label || "";
+      if (m.id === data.default) opt.selected = true;
+      select.appendChild(opt);
+    });
+    modelCount = (data.models || []).length;
+    trackDirty();
+  }
+
+  function saveFromJson() {
+    // Sync JSON to form, then submit
+    try {
+      jsonToForm(JSON.parse(jsonEditor.getValue()));
+    } catch(e) {
+      alert("JSON 格式有误，无法保存：" + e.message);
+      return;
+    }
+    document.getElementById("models-form").requestSubmit();
+  }
+
   // Modal
   function openModal() {
     document.getElementById("modal-error").style.display = "none";
@@ -278,14 +291,13 @@
   function confirmAdd() {
     var id = document.getElementById("modal-id").value.trim();
     var label = document.getElementById("modal-label").value.trim();
-    var api = document.getElementById("modal-api").value;
     var model = document.getElementById("modal-model").value.trim();
+    var api = document.getElementById("modal-api").value;
 
     var errors = [];
-    if (!id) errors.push("标识 ID 不能为空");
+    if (!id) errors.push("ID 不能为空");
     if (!label) errors.push("名称不能为空");
     if (!model) errors.push("模型名不能为空");
-
     if (errors.length) {
       var el = document.getElementById("modal-error");
       el.textContent = errors.join("；");
@@ -293,24 +305,18 @@
       return;
     }
 
-    var idx = modelCount;
-    var html = '<tr class="model-row unsaved">' +
-      '<td><input type="text" name="models[' + idx + '][id]" value="' + esc(id) + '"></td>' +
-      '<td><input type="text" name="models[' + idx + '][label]" value="' + esc(label) + '"></td>' +
-      '<td><select name="models[' + idx + '][api]">' +
-        '<option value="anthropic"' + (api === "anthropic" ? " selected" : "") + '>Anthropic</option>' +
-        '<option value="openai"' + (api === "openai" ? " selected" : "") + '>OpenAI</option>' +
-      '</select></td>' +
-      '<td><input type="text" name="models[' + idx + '][model_name]" value="' + esc(model) + '"></td>' +
-      '<td><input type="text" name="models[' + idx + '][api_key]" value="' + esc(document.getElementById("modal-key").value) + '"></td>' +
-      '<td><input type="text" name="models[' + idx + '][api_base]" value="' + esc(document.getElementById("modal-base").value) + '"></td>' +
-      '<td><input type="number" name="models[' + idx + '][level]" value="' + document.getElementById("modal-level").value + '" min="0" style="width:50px"></td>' +
-      '<td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td></tr>';
-
-    var tbody = document.getElementById("models-tbody");
-    var temp = document.createElement("div");
-    temp.innerHTML = html;
-    tbody.appendChild(temp.firstElementChild);
+    // Use template
+    var tmpl = document.getElementById("model-row-template").content.cloneNode(true);
+    fillRow(tmpl, {
+      id: id,
+      label: label,
+      api: api,
+      model: model,
+      api_key: document.getElementById("modal-key").value,
+      api_base: document.getElementById("modal-base").value,
+      level: document.getElementById("modal-level").value
+    }, modelCount);
+    document.getElementById("models-tbody").appendChild(tmpl);
 
     // Add to default select
     var opt = document.createElement("option");
@@ -320,14 +326,28 @@
 
     modelCount++;
     closeModal();
-    // Clear modal
-    document.getElementById("modal-id").value = "";
-    document.getElementById("modal-label").value = "";
-    document.getElementById("modal-model").value = "";
-    document.getElementById("modal-key").value = "";
-    document.getElementById("modal-base").value = "";
+    // Clear fields
+    ["modal-id","modal-label","modal-model","modal-key","modal-base"].forEach(function(f) {
+      document.getElementById(f).value = "";
+    });
     document.getElementById("modal-level").value = "0";
     trackDirty();
+  }
+
+  function fillRow(tmpl, m, idx) {
+    var inputs = tmpl.querySelectorAll("input, select");
+    inputs.forEach(function(el) {
+      var name = el.getAttribute("name");
+      if (!name) return;
+      var field = name.match(/\[(\w+)\]$/)[1];
+      if (field === "api") { el.value = m.api || "anthropic"; return; }
+      if (field === "level") { el.value = m.level || 0; return; }
+      el.value = m[field] || "";
+    });
+    // Fix index
+    inputs.forEach(function(el) {
+      el.setAttribute("name", el.getAttribute("name").replace(/\[\d+\]/, "[" + idx + "]"));
+    });
   }
 
   function removeModel(btn) {
