@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Newapp" %></title>
+    <title><%= content_for(:title) || Setting.get("site_title", default: "Badge Generator") %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Newapp">
@@ -32,8 +32,10 @@
               style: "color:#78716c;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-size:13px;line-height:1" %>
       <% else %>
         <%= link_to "登录", new_session_path, style: "color:#44403c;text-decoration:underline" %>
+        <% if Setting.bool("allow_registration", default: true) %>
         <span style="color:#d6d3d1">|</span>
         <%= link_to "注册", new_registration_path, style: "color:#44403c;text-decoration:underline" %>
+        <% end %>
       <% end %>
 
       <% unless controller_name == "cards" && action_name == "show" %>

@@ -18,6 +18,7 @@ Rails.application.routes.draw do
       end
     end
     resource :settings, only: %i[edit update], controller: "settings"
+    resource :general_settings, only: %i[show update], controller: "general_settings", path: "site-settings"
   end
 
   root "cards#new"
