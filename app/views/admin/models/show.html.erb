@@ -372,7 +372,8 @@
       var field = name.match(/\[(\w+)\]$/)[1];
       if (field === "api") { el.value = m.api || "anthropic"; return; }
       if (field === "level") { el.value = m.level || 0; return; }
-      el.value = m[field] || "";
+      // JSON 用 model 键，表单用 model_name
+      el.value = m[field === "model_name" ? "model" : field] || "";
     });
     // Fix index（处理 __IDX__ 和已有数字两种占位）
     inputs.forEach(function(el) {
