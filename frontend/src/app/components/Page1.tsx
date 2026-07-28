@@ -113,6 +113,7 @@ export default function Page1() {
     saved?.fields ? saved.fields.length - 1 : -1
   );
   const [imgName, setImgName]   = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
     saved?.fields?.length ? "active" : "idle"
@@ -192,17 +193,21 @@ export default function Page1() {
   }, [schema, startStream, fields.length]);
 
   const handleParse = useCallback(() => {
-    if (!rawText.trim() || parsing) return;
-    runExtraction(() => createCardFromText(rawText, modelId));
-  }, [rawText, parsing, runExtraction, modelId]);
+    if (parsing) return;
+    if (pendingFile) {
+      runExtraction(() => createCardFromDocument(pendingFile, portraitFile, modelId).then(r => { setPendingFile(null); return r; }));
+    } else if (rawText.trim()) {
+      runExtraction(() => createCardFromText(rawText, modelId));
+    }
+  }, [rawText, parsing, runExtraction, modelId, pendingFile, portraitFile]);
 
-  // 文档不再由前端 FileReader 读文本：后端能按扩展名处理
-  // docx/pdf/xlsx/csv，扫描件还会自动走 OCR，前端读不了这些。
+  // 上传文件仅暂存，用户点击「提取」后再发送给后端
   const handleFile = useCallback((file: File) => {
     if (parsing) return;
-    setRawText(`（已上传文件：${file.name}）`);
-    runExtraction(() => createCardFromDocument(file, portraitFile, modelId));
-  }, [parsing, runExtraction, portraitFile, modelId]);
+    setPendingFile(file);
+    setRawText(`（已选择文件：${file.name}）`);
+    setPhase("active");
+  }, [parsing]);
 
   // 证件照只记下来，随下一次建卡一起提交。
   const handleImg = useCallback((file: File) => {
@@ -395,7 +400,7 @@ export default function Page1() {
 
             <div style={{ flex: 1 }} />
 
-            <RippleBtn onClick={handleParse} disabled={!rawText.trim() || parsing} style={{
+            <RippleBtn onClick={handleParse} disabled={(!rawText.trim() && !pendingFile) || parsing} style={{
               display: "flex", alignItems: "center", gap: 7, padding: "9px 22px",
               borderRadius: 9, border: "none",
               cursor: rawText.trim() && !parsing ? "pointer" : "default",

@@ -86,7 +86,9 @@ class DocumentTextExtractor
     result = MineruService.new(model_version: model_id).parse(file_path,
       file_name: uploaded_file.original_filename)
     @extracted_images = result[:images]
-    text = normalize_whitespace(result[:text])
+    raw = result[:text].to_s
+    raw = raw.force_encoding("UTF-8") if raw.encoding == Encoding::BINARY
+    text = normalize_whitespace(raw)
     return nil if text.blank?
 
     text.truncate(MAX_CHARS)
