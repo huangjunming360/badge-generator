@@ -11,21 +11,53 @@
 
     <%= yield :head %>
 
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
-    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
 
-    <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
-    <%# 挂牌模板样式，独立于 Tailwind %>
     <%= stylesheet_link_tag "badge", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
   <body class="bg-stone-50 text-stone-800 antialiased">
+    <div style="position:fixed;top:16px;right:16px;z-index:50" data-controller="settings" data-action="click@window->settings#close">
+      <button type="button" data-action="click->settings#toggle"
+              style="display:flex;align-items:center;gap:4px;padding:4px 10px;font-size:12px;color:#78716c;background:#fff;border:1px solid #e7e5e4;border-radius:8px;cursor:pointer">
+        <svg style="width:14px;height:14px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span data-settings-target="currentLabel">
+          <%= session.dig(:selected_model, "label") || default_model_label %>
+        </span>
+      </button>
+
+      <div data-settings-target="panel"
+           style="display:none;position:absolute;right:0;top:100%;margin-top:4px;width:220px;background:#fff;border:1px solid #e7e5e4;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,.05)">
+        <div style="padding:10px 14px;border-bottom:1px solid #f5f5f4">
+          <p style="font-size:12px;color:#78716c;margin:0">模型</p>
+        </div>
+        <div style="padding:4px 0">
+          <% current_id = session.dig(:selected_model, "id") %>
+          <% all_models.each_with_index do |m, i| %>
+            <button type="button"
+                    data-action="click->settings#select"
+                    data-model-index="<%= i %>"
+                    data-model-label="<%= m["label"] %>"
+                    style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 14px;font-size:13px;color:#44403c;background:transparent;border:none;cursor:pointer;text-align:left">
+              <span><%= m["label"] %></span>
+              <% if m["id"] == current_id || (current_id.nil? && m["id"] == default_model_id) %>
+                <svg style="width:16px;height:16px;color:#a8a29e" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+              <% end %>
+            </button>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
     <%= yield %>
   </body>
 </html>

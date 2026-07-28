@@ -1,33 +1,31 @@
 # frozen_string_literal: true
 
-# RubyLLM 封装层，按用途自动选择协议和模型。
+# LLM 调用封装。模型和密钥全部来自 config/models.json，
+# 用户可在前端切换模型，选中的模型存入 session。
 #
-# 用法（按用途调用）：
-#
-#   名片提取 —— 轻量模型
-#     LlmService.new.complete([{ role: "user", content: text }], system: PROMPT)
-#
-#   通用对话 —— 主力模型
-#     LlmService.new(function: :chat).complete(messages)
-#
-#   翻译
-#     LlmService.new(function: :translation).complete(messages)
-#
-#   文本向量化
-#     LlmService.new(function: :embedding).embed("文本")
-#
-# 每种用途对应的 (协议, 模型) 在 config/llm.yml functions 段配。
+# 用法：
+#   LlmService.new(session: session).complete(messages, system: PROMPT)
 
 class LlmService
   class Error < StandardError; end
 
-  def initialize(function: :card_extraction)
-    @function = function.to_sym
-    @config = resolve_function_config
+  def initialize(session: nil)
+    @session = session
+    @config = resolve_config
   end
 
-  def complete(messages, system: nil, max_tokens: nil)
-    chat = build_chat(system: system, max_tokens: max_tokens || @config[:max_tokens])
+  def complete(messages, system: nil, max_tokens: 4096)
+    # 每个模型独立密钥 → 调用前配置
+    configure_provider!
+
+    chat = RubyLLM.chat(
+      model: @config["model"],
+      provider: @config["api"],
+      assume_model_exists: true
+    )
+    chat.with_instructions(system) if system.present?
+    chat.with_temperature(0.0)
+    chat.with_params(max_tokens: max_tokens.to_i) if max_tokens.to_i > 0
 
     messages.each do |msg|
       role = (msg[:role] || msg["role"]).to_s
@@ -44,34 +42,48 @@ class LlmService
   end
 
   def embed(text)
-    RubyLLM.embed(text, model: @config[:model], provider: @config[:api])
+    RubyLLM.embed(text, model: @config["model"], provider: @config["api"])
   rescue RubyLLM::Error => e
     raise Error, "Embedding 失败: #{e.message}"
   end
 
   private
 
-  def build_chat(system:, max_tokens:)
-    chat = RubyLLM.chat(
-      model: @config[:model],
-      provider: @config[:api],
-      assume_model_exists: true
-    )
-    chat.with_instructions(system) if system.present?
-    chat.with_temperature(@config[:temperature].to_f) if @config[:temperature]
-    chat.with_params(max_tokens: max_tokens.to_i) if max_tokens.to_i > 0
-    chat
+  def resolve_config
+    # 用户在前端选的模型优先
+    if @session && (selected = @session[:selected_model])
+      return selected
+    end
+
+    # 否则用默认模型
+    models = all_models
+    default_id = models_config["default"]
+    models.find { |m| m["id"] == default_id } || models.first || {}
   end
 
-  def resolve_function_config
-    raw = Rails.application.config.x.llm_config || {}
-    func = raw.dig(:functions, @function) || {}
+  def all_models
+    models_config["models"] || []
+  end
 
-    {
-      api: (func[:api] || :anthropic).to_sym,
-      model: func[:model] || "claude-sonnet-5",
-      temperature: func[:temperature] || 0.3,
-      max_tokens: func[:max_tokens] || 4096
-    }
+  def configure_provider!
+    api  = @config["api"]
+    key  = @config["api_key"]
+    base = @config["api_base"]
+
+    return if key.blank? && base.blank?
+
+    RubyLLM.configure do |c|
+      if api == "openai"
+        c.openai_api_key  = key if key.present?
+        c.openai_api_base = base if base.present?
+      else
+        c.anthropic_api_key  = key if key.present?
+        c.anthropic_api_base = base if base.present?
+      end
+    end
+  end
+
+  def models_config
+    Rails.application.config.x.models || {}
   end
 end

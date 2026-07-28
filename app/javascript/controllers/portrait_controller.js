@@ -12,9 +12,9 @@ export default class extends Controller {
     this.objectUrl = URL.createObjectURL(file)
 
     this.imageTarget.src = this.objectUrl
-    this.imageTarget.classList.remove("hidden")
-    this.placeholderTarget.classList.add("hidden")
-    this.frameTarget.classList.remove("border-dashed")
+    this.imageTarget.style.display = "block"
+    this.placeholderTarget.style.display = "none"
+    this.frameTarget.style.borderStyle = "solid"
     this.filenameTarget.textContent = file.name
   }
 

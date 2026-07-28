@@ -32,9 +32,13 @@
 
 # Ignore Claude Code local settings.
 /.claude/
+/skills-lock.json
 
 # Ignore macOS cruft.
 .DS_Store
+
+# Ignore model credentials config.
+/config/models.json
 
 # Ignore key files for decrypting credentials and more.
 /config/*.key

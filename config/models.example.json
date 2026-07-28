@@ -1,0 +1,35 @@
+{
+  "default": "claude_haiku",
+  "models": [
+    {
+      "id": "claude_haiku",
+      "label": "Claude Haiku 4.5",
+      "api": "anthropic",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "id": "claude_sonnet",
+      "label": "Claude Sonnet 5",
+      "api": "anthropic",
+      "model": "claude-sonnet-5",
+      "api_key": "",
+      "api_base": ""
+    },
+    {
+      "id": "gpt4o_mini",
+      "label": "GPT-4o mini",
+      "api": "openai",
+      "model": "gpt-4o-mini",
+      "api_key": "",
+      "api_base": ""
+    },
+    {
+      "id": "gpt4o",
+      "label": "GPT-4o",
+      "api": "openai",
+      "model": "gpt-4o",
+      "api_key": "",
+      "api_base": ""
+    }
+  ]
+}

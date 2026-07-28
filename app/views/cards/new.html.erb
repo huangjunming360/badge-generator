@@ -38,26 +38,26 @@
       </div>
     </div>
 
-    <div class="border-t border-stone-200 pt-5" data-controller="portrait">
-      <h2 class="mb-1 text-sm text-stone-700">证件照（可选）</h2>
-      <p class="mb-3 text-xs text-stone-400">用于后续生成名片，本阶段仅保存。PNG 或 JPG，5MB 以内。</p>
+    <div data-controller="portrait" style="border-top:1px solid #e7e5e4;padding-top:20px;margin-top:20px">
+      <h2 style="font-size:14px;margin:0 0 4px 0;color:#44403c">证件照（可选）</h2>
+      <p style="font-size:12px;margin:0 0 12px 0;color:#a8a29e">用于后续生成名片，本阶段仅保存。PNG 或 JPG，5MB 以内。</p>
 
-      <div class="flex items-center gap-4">
+      <div style="display:flex;align-items:center;gap:16px">
         <div data-portrait-target="frame"
-             class="flex h-24 w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50 text-xs text-stone-400">
-          <span data-portrait-target="placeholder">无照片</span>
-          <img data-portrait-target="image" class="hidden h-full w-full object-cover" alt="证件照预览">
+             style="display:flex;width:72px;height:96px;flex-shrink:0;align-items:center;justify-content:center;overflow:hidden;border:1px dashed #d6d3d1;border-radius:8px;background:#fafaf9">
+          <span data-portrait-target="placeholder" style="font-size:12px;color:#a8a29e">无照片</span>
+          <img data-portrait-target="image" style="display:none;width:100%;height:100%;object-fit:cover" alt="证件照预览">
         </div>
 
         <div>
-          <label class="cursor-pointer rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600 transition hover:bg-stone-50">
+          <label style="display:inline-block;cursor:pointer;padding:8px 12px;font-size:14px;color:#78716c;background:#fff;border:1px solid #e7e5e4;border-radius:8px">
             选择照片
             <%= f.file_field :portrait,
                   accept: "image/png,image/jpeg",
-                  class: "hidden",
+                  style: "display:none",
                   data: { portrait_target: "input", action: "change->portrait#preview" } %>
           </label>
-          <p data-portrait-target="filename" class="mt-2 truncate text-xs text-stone-400"></p>
+          <p data-portrait-target="filename" style="margin-top:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#a8a29e"></p>
         </div>
       </div>
     </div>

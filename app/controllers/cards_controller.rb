@@ -20,7 +20,7 @@ class CardsController < ApplicationController
       return render :new, status: :unprocessable_content
     end
 
-    @card.data = CardExtractor.new.call(@card.raw_input)
+    @card.data = CardExtractor.new(session: session).call(@card.raw_input)
     @card.save!
     redirect_to @card
   rescue DocumentTextExtractor::UnsupportedFormat,
