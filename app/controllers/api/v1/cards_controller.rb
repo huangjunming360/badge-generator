@@ -76,13 +76,16 @@ class Api::V1::CardsController < Api::BaseController
       progress.set(:mineru, "文档解析中…")
       ext = File.extname(file_name || ".txt").downcase
       tmpfile = Tempfile.new([ "upload", ext ], binmode: true)
+      tmpfile.binmode
       tmpfile.write(file_data)
-      tmpfile.flush
       tmpfile.rewind
 
       extractor = DocumentTextExtractor.new
-      # 用 Rack::Multipart::UploadedFile 模拟上传文件
-      uploaded = Rack::Multipart::UploadedFile.new(tmpfile.path, "application/octet-stream", false, filename: file_name || "file#{ext}")
+      uploaded = ActionDispatch::Http::UploadedFile.new(
+        filename: file_name || "file#{ext}",
+        type: "application/octet-stream",
+        tempfile: tmpfile
+      )
       text = extractor.call(uploaded)
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name
