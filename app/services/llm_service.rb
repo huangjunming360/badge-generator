@@ -31,14 +31,12 @@ class LlmService
     )
     chat.with_instructions(system) if system.present?
     chat.with_temperature(0.0)
-    if @config["no_thinking"]
-      # 某些 OpenAI 协议模型（如 Doubao）需要显式 thinking:disabled
-      extra = { thinking: { type: "disabled" } } if @config["api"] == "openai"
-    else
-      chat.with_thinking(effort: :high)
+    if @config["no_thinking"] && @config["api"] == "openai"
+      # Doubao 等 OpenAI 协议模型：主动发 thinking:disabled 关闭深度推理
+      chat.with_params(thinking: { type: "disabled" }, max_tokens: max_tokens.to_i)
+    elsif max_tokens.to_i > 0
+      chat.with_params(max_tokens: max_tokens.to_i)
     end
-    extra ||= {}
-    chat.with_params(**extra.merge(max_tokens: max_tokens.to_i)) if max_tokens.to_i > 0 || extra.any?
 
     messages.each do |msg|
       role = (msg[:role] || msg["role"]).to_s
