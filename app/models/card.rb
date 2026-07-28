@@ -32,6 +32,8 @@ class Card < ApplicationRecord
   }.freeze
 
   # 证件照/大头照。本阶段只存不用，后续模板渲染时才读。
+  belongs_to :user, optional: true
+
   has_one_attached :portrait
 
   PORTRAIT_TYPES = %w[image/png image/jpeg].freeze

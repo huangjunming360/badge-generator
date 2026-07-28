@@ -1,7 +1,11 @@
 class CardsController < ApplicationController
   allow_unauthenticated_access only: %i[index show new]
   def index
-    @cards = Card.order(created_at: :desc)
+    @cards = if authenticated?
+      Current.user.cards.order(created_at: :desc)
+    else
+      Card.none
+    end
   end
 
   def new
@@ -21,6 +25,7 @@ class CardsController < ApplicationController
       return render :new, status: :unprocessable_content
     end
 
+    @card.user = Current.user if authenticated?
     @card.data = CardExtractor.new(session: session).call(@card.raw_input)
     @card.save!
     redirect_to @card

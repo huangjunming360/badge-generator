@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_28_085451) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_28_092820) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -47,7 +47,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_085451) do
     t.string "source_name"
     t.datetime "updated_at", null: false
     t.boolean "used_ocr"
+    t.integer "user_id"
     t.integer "width_mm"
+    t.index ["user_id"], name: "index_cards_on_user_id"
   end
 
   create_table "conversations", force: :cascade do |t|
@@ -96,6 +98,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_085451) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "cards", "users"
   add_foreign_key "messages", "conversations"
   add_foreign_key "sessions", "users"
 end
