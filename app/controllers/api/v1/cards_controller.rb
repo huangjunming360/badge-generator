@@ -26,14 +26,17 @@ class Api::V1::CardsController < Api::BaseController
     file_name = params[:document]&.original_filename
     portrait_data = params[:portrait]&.read rescue nil
     portrait_name = params[:portrait]&.original_filename
+    user_id = Current.user&.id
 
     progress = ProgressTracker.new(progress_id)
     progress.set(:uploading, "已提交，排队中…")
 
     Thread.new do
       begin
-        # Rails 在线程中需要重新建立数据库连接
         ActiveRecord::Base.connection_pool.with_connection do
+          # 在线程中恢复用户上下文
+          user = User.find(user_id) if user_id
+          Current.session = user&.sessions&.last
           process_card(card_id, raw_input, model_id, file_data, file_name,
                        portrait_data, portrait_name, progress)
         end
@@ -65,38 +68,29 @@ class Api::V1::CardsController < Api::BaseController
   def process_card(card_id, raw_input, model_id, file_data, file_name,
                    portrait_data, portrait_name, progress)
     progress.set(:uploading, "启动解析…")
-    card = Current.user.cards.find(card_id)
+    card = Card.find(card_id)
 
     # 处理上传的文件
     text = nil
     if file_data
       progress.set(:mineru, "文档解析中…")
       ext = File.extname(file_name || ".txt").downcase
-      Tempfile.create([ "upload", ext ], binmode: true) do |tmp|
-        tmp.write(file_data)
-        tmp.flush
-        extractor = DocumentTextExtractor.new
-        text = extractor.call(ActionDispatch::Http::UploadedFile.new(
-          filename: file_name || "file#{ext}", type: "", tempfile: tmp
-        ))
-        card.used_ocr = extractor.used_ocr?
-        card.source_name = file_name
+      tmpfile = Tempfile.new([ "upload", ext ], binmode: true)
+      tmpfile.write(file_data)
+      tmpfile.flush
+      tmpfile.rewind
 
-        if extractor.extracted_images.present? && portrait_data.blank?
-          progress.set(:portrait, "识别大头照…")
-          detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
-          found = detector.detect(extractor.extracted_images)
-          # 如果有图片数据，attach 到 card
-        end
-      end
+      extractor = DocumentTextExtractor.new
+      # 用 Rack::Multipart::UploadedFile 模拟上传文件
+      uploaded = Rack::Multipart::UploadedFile.new(tmpfile.path, "application/octet-stream", false, filename: file_name || "file#{ext}")
+      text = extractor.call(uploaded)
+      card.used_ocr = extractor.used_ocr?
+      card.source_name = file_name
     else
       text = raw_input
     end
 
     card.raw_input = text || raw_input || ""
-
-    portrait = params[:portrait]
-    card.portrait.attach(portrait) if portrait.present?
     return progress.error("提取失败: 无文本内容") if text.blank?
 
     progress.set(:extracting, "AI 提取字段中…")
