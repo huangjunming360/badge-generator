@@ -20,6 +20,8 @@
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%# 挂牌模板样式，独立于 Tailwind %>
+    <%= stylesheet_link_tag "badge", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 

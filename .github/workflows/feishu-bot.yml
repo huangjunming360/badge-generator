@@ -1,0 +1,44 @@
+name: feishu bot
+
+on:
+  # 重要：分支保护规则变更
+  branch_protection_rule:
+    types: [created, deleted]
+  
+  # 重要：部署状态变更
+  deployment_status:
+  
+  # 重要：里程碑创建/删除
+  milestone:
+    types: [opened, deleted]
+  
+  # 重要：PR合并到主分支（仅当PR被合并时）
+  pull_request:
+    branches: ['main']
+    types: [closed]
+  
+  # 重要：推送到主分支（代码合并后的推送）
+  push:
+    branches: ['main']
+  
+  # 重要：Release发布
+  release:
+    types: [published]
+  
+  # 重要：Package发布
+  registry_package:
+    types: [published]
+  
+  # 定期检查（保持原有的定时任务）
+  schedule:
+    - cron: '30 2 * * *'
+
+jobs:
+  send-event:
+    name: Webhook
+    runs-on: ubuntu-latest
+    steps:
+      - uses: junka/feishu-bot-webhook-action@main
+        with:
+          webhook: ${{ secrets.FEISHU_BOT_WEBHOOK }}
+          signkey: ${{ secrets.FEISHU_BOT_SIGNKEY }}

@@ -1,44 +1,41 @@
-<% content_for :title, "识别结果" %>
+<% content_for :title, "挂牌预览" %>
 
-<div class="mx-auto max-w-3xl px-6 py-16">
-  <header class="mb-8 flex items-baseline justify-between">
-    <div>
-      <h1 class="text-xl font-medium text-stone-800">识别结果</h1>
-      <p class="mt-2 text-sm text-stone-500">
-        共 <%= Card::FIELDS.size %> 个字段，识别出 <%= @card.filled_count %> 个。
-      </p>
+<div class="flex min-h-screen flex-col">
+  <header class="flex items-center justify-between border-b border-stone-200 bg-white px-6 py-3">
+    <div class="flex items-baseline gap-3">
+      <h1 class="text-sm font-medium text-stone-700">挂牌预览</h1>
+      <% if @card.used_ocr? %>
+        <span class="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">OCR 识别，建议核对</span>
+      <% end %>
     </div>
-    <%= link_to "再来一张", root_path, class: "text-sm text-stone-500 transition hover:text-stone-800" %>
+    <div class="flex items-center gap-4">
+      <%= link_to "历史记录", cards_path, class: "text-sm text-stone-400 transition hover:text-stone-600" %>
+      <%= link_to "再来一张", root_path, class: "text-sm text-stone-500 transition hover:text-stone-800" %>
+    </div>
   </header>
 
-  <section class="mb-8 overflow-hidden rounded-xl border border-stone-200 bg-white">
-    <table class="w-full text-sm">
-      <tbody>
-        <% @card.normalized_data.each do |field, value| %>
-          <tr class="border-b border-stone-100 last:border-0">
-            <th class="w-32 bg-stone-50/60 px-4 py-2.5 text-left font-normal text-stone-500">
-              <%= Card::FIELD_LABELS[field] %>
-            </th>
-            <td class="px-4 py-2.5 <%= value ? 'text-stone-800' : 'text-stone-300' %>">
-              <%= value || "—" %>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </section>
+  <% if @card.errors.any? %>
+    <div class="border-b border-red-200 bg-red-50 px-6 py-2 text-sm text-red-700">
+      <%= @card.errors.full_messages.to_sentence %>
+    </div>
+  <% end %>
 
-  <section class="mb-8">
-    <h2 class="mb-2 text-xs tracking-wide text-stone-400 uppercase">标准化 JSON</h2>
-    <pre class="overflow-x-auto rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs leading-relaxed text-stone-600"><%= JSON.pretty_generate(@card.normalized_data) %></pre>
-  </section>
+  <%# 挂牌居中显示在窗口中间 %>
+  <main class="flex flex-1 items-center justify-center px-6 py-12">
+    <%= render "cards/badge", card: @card %>
+  </main>
 
-  <section>
-    <h2 class="mb-2 text-xs tracking-wide text-stone-400 uppercase">
-      原始输入<% if @card.source_name.present? %>
-        <span class="ml-1 normal-case tracking-normal text-stone-500">来自 <%= @card.source_name %></span>
-      <% end %>
-    </h2>
-    <p class="rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-stone-500"><%= @card.raw_input %></p>
-  </section>
+  <div class="border-t border-stone-200 bg-white px-6 py-4">
+    <%= render "cards/size_controls", card: @card %>
+  </div>
+
+  <footer class="border-t border-stone-200 bg-white px-6 py-3 text-center text-xs text-stone-400">
+    <% if @card.source_name.present? %>
+      来自 <%= @card.source_name %>
+    <% else %>
+      来自手动输入
+    <% end %>
+    · 识别出 <%= @card.filled_count %>/<%= Card::FIELDS.size %> 个字段
+    · <%= @card.width %> × <%= @card.height %>mm<%= "（默认）" if @card.default_size? %>
+  </footer>
 </div>

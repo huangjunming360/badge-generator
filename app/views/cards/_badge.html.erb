@@ -1,0 +1,24 @@
+<%# 挂牌模板。数据来自 card.normalized_data，样式见 app/assets/stylesheets/badge.css %>
+<div class="badge" id="badge"
+     data-badge-target="badge"
+     style="--badge-width: <%= card.width %>mm; --badge-height: <%= card.height %>mm;">
+  <div class="badge__punch"></div>
+
+  <% if card.portrait.attached? %>
+    <%= image_tag card.portrait, class: "badge__photo", alt: "证件照" %>
+  <% else %>
+    <div class="badge__photo badge__photo--empty">无照片</div>
+  <% end %>
+
+  <% name = card.normalized_data["name"] %>
+  <h2 class="badge__name <%= "badge__placeholder" if name.blank? %>">
+    <%= name.presence || "未识别姓名" %>
+  </h2>
+
+  <div class="badge__rule"></div>
+
+  <% org = card.normalized_data["organization"] %>
+  <p class="badge__org <%= "badge__placeholder" if org.blank? %>">
+    <%= org.presence || "未识别单位" %>
+  </p>
+</div>

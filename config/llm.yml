@@ -19,7 +19,7 @@ functions:
   # 名片提取 —— 轻量便宜，够用就好
   card_extraction:
     api: anthropic
-    model: claude-haiku-4-5-20251001
+    model: <%= ENV.fetch('LLM_MODEL', 'claude-haiku-4-5-20251001') %>
     temperature: 0.0
     max_tokens: 4096
 

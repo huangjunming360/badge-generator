@@ -2,7 +2,7 @@
 
 https://github.com/huangjunming360/badge-generator
 
-Rails 8 + SQLite 的名片/资料标准化应用。
+名片/胸卡生成器。当前阶段：资料输入 → AI 提取 → 标准化 JSON。
 
 ## 环境
 
@@ -10,6 +10,7 @@ Rails 8 + SQLite 的名片/资料标准化应用。
 - Rails 8.1.3
 - SQLite 3
 - Tailwind CSS 4
+- tesseract 4.1.1（chi_sim + chi_tra + eng）、poppler-utils —— OCR 依赖
 
 ## 首次设置
 
@@ -24,9 +25,11 @@ rails db:migrate
 ## 启动
 
 ```bash
-rails s -p 8000               # http://localhost:8000
+PIDFILE=tmp/pids/puma.pid bin/rails s -p 8000 -b 127.0.0.1   # http://localhost:8000
 bin/dev                       # 同时跑 Tailwind watch（改样式时用）
 ```
+
+必须显式指定 `PIDFILE`，否则 Rails 会误判系统的 `/run/tat_agent.pid` 而拒绝启动。
 
 ## 分支与 PR 流程
 
@@ -60,6 +63,15 @@ git push origin --delete 你的分支名
 ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_API_BASE=https://你的网关地址
 ```
+
+当前默认走 DeepSeek 的 Anthropic 兼容端点，`.env` 形如：
+
+```env
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.deepseek.com/anthropic
+```
+
+换回 Claude 官方只需改 `LLM_BASE_URL` 和 `config/llm.yml` 里对应用途的 `model`。
 
 ## 模型配置体系
 
@@ -130,3 +142,33 @@ LlmService.new(function: :embedding).embed("文本")
 ```
 
 代码里只出现用途名，不出现具体模型名。调整模型只需改 YAML，不需改 Ruby。
+
+## 支持的输入
+
+文字直接粘贴，或上传文件：
+
+| 格式 | 处理方式 |
+|---|---|
+| docx | `docx` gem，含表格 |
+| pdf | `pdf-reader` 读文字层；文字层为空（扫描版）自动转 OCR |
+| xlsx / xlsm / csv | `roo`，遍历所有 sheet |
+| txt / md | 直接读取 |
+| png / jpg / tif / bmp | tesseract OCR |
+
+上限 10MB，抽出的文本截断到 2 万字。
+
+## 实现要点
+
+- `DocumentTextExtractor` 只做"文件 → 纯文本"，`CardExtractor` 只做"文本 → 标准化 JSON"，职责分离，加新格式只需加一个分支。
+- OCR 用 `--psm 6`（单一文本块按行读）。默认的 `psm 3` 会把"姓名：张三"这类左右布局拆成两行导致字段值错位。
+- 走过 OCR 的记录会在结果页标注"OCR 识别，建议核对"。
+- 固定 11 字段 schema，见 `app/models/card.rb`。提取不到的字段留 null，不编造。
+
+## 已知限制
+
+- 无鉴权，任何访问者能看到所有记录。仅本地开发，对外暴露前必须加。
+- 提取结果本阶段不可编辑，只能重新提交。
+
+## 待做
+
+可编辑表单、字体/配色选择、PNG 下载。
