@@ -76,6 +76,10 @@
           <% current_id = session.dig(:selected_model, "id") %>
           <% all_models.each_with_index do |m, i| %>
           <% next if m["level"].to_i > Current.user&.model_level.to_i %>
+            <button type="button"
+                    data-action="click->settings#select"
+                    data-model-index="<%= i %>"
+                    data-model-label="<%= m["label"] %>"
                     style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 14px;font-size:13px;color:#44403c;background:transparent;border:none;cursor:pointer;text-align:left">
               <span><%= m["label"] %></span>
               <% if m["id"] == current_id || (current_id.nil? && m["id"] == default_model_id) %>
