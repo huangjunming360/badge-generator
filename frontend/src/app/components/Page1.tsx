@@ -387,6 +387,25 @@ export default function Page1() {
             />
           </div>
 
+          {/* ── 解析进度 ───────────────────────────────── */}
+          {parsing && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "8px 0",
+              fontSize: 12, color: U.textMid,
+            }}>
+              <div style={{ flex: 1, display: "flex", gap: 4 }}>
+                {["上传中", "文档解析", "AI 提取", "完成"].map((label, i) => (
+                  <div key={i} style={{
+                    flex: 1, height: 3, borderRadius: 2,
+                    background: i <= 1 ? U.blue : U.borderLight,
+                    transition: `background .4s ${E.smooth}`,
+                  }} />
+                ))}
+              </div>
+              <span style={{ whiteSpace: "nowrap", fontSize: 11 }}>文档解析中…</span>
+            </div>
+          )}
+
           {/* ── Action bar ─────────────────────────────── */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <ImportBtn icon={<Upload size={13} />} label="导入文件"
