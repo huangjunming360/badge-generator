@@ -38,11 +38,16 @@ class Card < ApplicationRecord
   PORTRAIT_MAX_BYTES = 5.megabytes
 
   # 挂牌尺寸，单位 mm。默认对齐常见竖版工牌。
-  DEFAULT_WIDTH_MM = 54
+  DEFAULT_WIDTH_MM = 55
   DEFAULT_HEIGHT_MM = 85
   # 下限保证内容放得下，上限防止把页面撑爆。
   MIN_SIZE_MM = 20
   MAX_SIZE_MM = 200
+
+  # 预览缩放档位。只影响屏幕显示大小，不改变 mm 尺寸和 55:85 宽高比，
+  # 因此不入库——换台设备看，用默认档位就好。
+  PREVIEW_SCALES = [ 1, 1.5, 2, 3 ].freeze
+  DEFAULT_PREVIEW_SCALE = 2
 
   validates :width_mm, :height_mm,
             numericality: {

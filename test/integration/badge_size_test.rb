@@ -15,9 +15,24 @@ class BadgeSizeTest < ActionDispatch::IntegrationTest
     get card_path(@card)
     assert_select ".badge" do |elements|
       style = elements.first["style"]
-      assert_includes style, "--badge-width: 54mm"
-      assert_includes style, "--badge-height: 85mm"
+      assert_includes style, "--badge-width: #{Card::DEFAULT_WIDTH_MM}mm"
+      assert_includes style, "--badge-height: #{Card::DEFAULT_HEIGHT_MM}mm"
     end
+  end
+
+  test "挂牌带默认预览缩放倍数" do
+    get card_path(@card)
+    assert_select ".badge" do |elements|
+      assert_includes elements.first["style"], "--badge-scale: #{Card::DEFAULT_PREVIEW_SCALE}"
+    end
+  end
+
+  test "预览缩放不入库，宽高比保持 55:85" do
+    # 缩放只是显示倍数，不该被当成尺寸存下来。
+    patch card_path(@card), params: { card: {}, preview_scale: 3 }
+    @card.reload
+    assert_equal Card::DEFAULT_WIDTH_MM, @card.width
+    assert_equal Card::DEFAULT_HEIGHT_MM, @card.height
   end
 
   test "自定义尺寸后挂牌用新值" do

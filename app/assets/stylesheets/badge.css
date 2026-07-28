@@ -1,6 +1,10 @@
 /* 挂牌模板。刻意不用 Tailwind：
    模板样式需要自成一体，将来做字体/配色切换和 PNG 导出时才好控制。
-   尺寸用 mm，对齐实物挂牌（54 × 85mm，竖版）。 */
+   尺寸用 mm，对齐实物挂牌（55 × 85mm，竖版）。
+
+   预览放大用 zoom 而不是 transform: scale()：zoom 参与布局，
+   放大后父容器居中和页面滚动都还是对的；transform 不改布局盒，
+   内容超出默认高度时会盖住下方的尺寸控件。 */
 
 .badge {
   --badge-ink: #1c1917;
@@ -9,9 +13,13 @@
   --badge-surface: #ffffff;
   --badge-accent: #44403c;
 
-  /* 尺寸由内联 style 覆盖，这里是兜底默认值。 */
-  --badge-width: 54mm;
+  /* 尺寸与缩放倍数由内联 style 覆盖，这里是兜底默认值。 */
+  --badge-width: 55mm;
   --badge-height: 85mm;
+  --badge-scale: 2;
+
+  /* 整体等比放大，宽高比恒为 55:85，内部所有 mm 尺寸一起缩放。 */
+  zoom: var(--badge-scale);
 
   box-sizing: border-box;
   width: var(--badge-width);

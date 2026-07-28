@@ -5,7 +5,8 @@
         badge_size_min_value: Card::MIN_SIZE_MM,
         badge_size_max_value: Card::MAX_SIZE_MM,
         badge_size_default_width_value: Card::DEFAULT_WIDTH_MM,
-        badge_size_default_height_value: Card::DEFAULT_HEIGHT_MM
+        badge_size_default_height_value: Card::DEFAULT_HEIGHT_MM,
+        badge_size_default_scale_value: Card::DEFAULT_PREVIEW_SCALE
       },
       class: "flex flex-wrap items-end gap-4" do |f| %>
 
@@ -23,6 +24,20 @@
           min: Card::MIN_SIZE_MM, max: Card::MAX_SIZE_MM, step: 1,
           data: { badge_size_target: "height", action: "input->badge-size#apply" },
           class: "w-24 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-800 outline-none transition focus:border-stone-400" %>
+  </div>
+
+  <div>
+    <%# 预览缩放只改屏幕显示大小，不入库，所以用普通 select 而非 f.select。 %>
+    <label for="preview_scale" class="mb-1 block text-xs text-stone-500">预览缩放</label>
+    <select id="preview_scale" name="preview_scale"
+            data-badge-size-target="scale" data-action="change->badge-size#apply"
+            class="w-24 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-800 outline-none transition focus:border-stone-400">
+      <% Card::PREVIEW_SCALES.each do |scale| %>
+        <option value="<%= scale %>" <%= "selected" if scale == Card::DEFAULT_PREVIEW_SCALE %>>
+          <%= "#{scale.to_s.sub(/\.0\z/, '')}×" %>
+        </option>
+      <% end %>
+    </select>
   </div>
 
   <div class="flex items-center gap-2">
