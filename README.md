@@ -1,4 +1,4 @@
-# newapp
+# Badge Generator
 
 https://github.com/huangjunming360/badge-generator
 
