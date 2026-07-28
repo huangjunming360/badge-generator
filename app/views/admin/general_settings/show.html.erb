@@ -1,10 +1,10 @@
 <div class="mx-auto max-w-3xl px-4 py-8">
   <div class="flex items-center gap-4 mb-6">
-    <%= link_to "← 后台首页", admin_root_path, class: "text-sm text-stone-500 hover:text-stone-800", onclick: "return confirm('有未保存的更改，确定离开？')" %>
+    <a href="<%= admin_root_path %>" class="text-sm text-stone-500 hover:text-stone-800" style="text-decoration:none" onclick="return warnSettingsUnsaved()">← 后台首页</a>
     <h1 class="text-2xl font-bold">通用设置</h1>
   </div>
 
-  <%= form_with url: admin_general_settings_path, method: :patch, local: true, class: "contents" do |f| %>
+  <%= form_with url: admin_general_settings_path, method: :patch, local: true, class: "contents", id: "settings-form" do |f| %>
     <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
       <div class="p-5">
         <label class="block text-sm font-medium mb-1">站点标题</label>
@@ -37,8 +37,29 @@
       </div>
     </div>
 
-    <div class="mt-6">
+    <div class="mt-6 flex items-center gap-3">
       <%= f.submit "保存设置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+      <span id="settings-unsaved" style="display:none;color:#d97706;font-size:13px">⚠ 有未保存的更改</span>
     </div>
   <% end %>
 </div>
+
+<script>
+  var settingsDirty = false;
+
+  document.addEventListener("turbo:load", function() {
+    var form = document.getElementById("settings-form");
+    form.addEventListener("change", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
+    form.addEventListener("input", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
+    form.addEventListener("submit", function() { settingsDirty = false; });
+  });
+
+  window.addEventListener("beforeunload", function(e) {
+    if (settingsDirty) { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  function warnSettingsUnsaved() {
+    if (settingsDirty) return confirm("有未保存的更改，确定离开？");
+    return true;
+  }
+</script>
