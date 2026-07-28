@@ -137,6 +137,8 @@
         <option value="2">中级</option>
         <option value="3">普通</option>
         <option value="4">开放</option>
+        <option disabled>──────────</option>
+        <option value="5">系统</option>
       </select>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
@@ -161,12 +163,14 @@
     <td><input type="text" name="models[__IDX__][api_key]" value="__KEY__"></td>
     <td><input type="text" name="models[__IDX__][api_base]" value="__BASE__"></td>
     <td>
-      <select name="models[__IDX__][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
+      <select name="models[__IDX__][level]" style="width:80px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
         <option value="0">最高</option>
         <option value="1">高级</option>
         <option value="2">中级</option>
         <option value="3">普通</option>
         <option value="4">开放</option>
+        <option disabled>──────────</option>
+        <option value="5">系统</option>
       </select>
     </td>
     <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>
