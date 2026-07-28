@@ -3,7 +3,15 @@ class Card < ApplicationRecord
   FIELDS = %w[
     name name_en title department organization
     phone email website address employee_id tagline
+    host_organization host_department event_topic
   ].freeze
+
+  # 活动固定信息：资料里通常不写，缺省就用这套。
+  FIELD_DEFAULTS = {
+    "host_organization" => "上海交通大学",
+    "host_department" => "自然科学研究院",
+    "event_topic" => "中法人工智能暑期学校"
+  }.freeze
 
   # 字段中文名，给界面显示用。
   FIELD_LABELS = {
@@ -17,7 +25,10 @@ class Card < ApplicationRecord
     "website" => "网址",
     "address" => "地址",
     "employee_id" => "工号",
-    "tagline" => "标语"
+    "tagline" => "标语",
+    "host_organization" => "组织项目的机构",
+    "host_department" => "组织项目的机构部门",
+    "event_topic" => "项目主题"
   }.freeze
 
   # 证件照/大头照。本阶段只存不用，后续模板渲染时才读。
@@ -48,7 +59,7 @@ class Card < ApplicationRecord
   # 保证读出来总是 11 个 key 齐全的 Hash，视图不用做 nil 判断。
   def normalized_data
     stored = data.presence || {}
-    FIELDS.index_with { |f| stored[f].presence }
+    FIELDS.index_with { |f| stored[f].presence || FIELD_DEFAULTS[f] }
   end
 
   def filled_count
