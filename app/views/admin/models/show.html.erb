@@ -29,6 +29,7 @@
     .json-tab .CodeMirror { height:500px }
     /* Compact table for visual tab */
     #tab-visual { padding:16px }
+    .sync-note { font-size:12px; color:#d97706; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:6px 12px; margin-bottom:12px }
   </style>
 <% end %>
 
@@ -48,6 +49,7 @@
 
   <!-- Visual editor tab -->
   <div id="tab-visual" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl">
+    <div class="sync-note" id="visual-sync-note" style="display:none">⚠ 检测到 JSON 标签页有未保存更改，<a href="#" onclick="location.reload()" style="color:#d97706;font-weight:600">点击刷新页面</a>以同步</div>
     <%= form_with url: admin_models_path, method: :patch, local: true, id: "models-form", html: { autocomplete: "off" } do |f| %>
       <div class="mb-4 flex items-center gap-3">
         <label class="text-sm font-medium">默认模型：</label>
@@ -91,6 +93,7 @@
 
   <!-- JSON editor tab -->
   <div id="tab-json" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl json-tab">
+    <div class="sync-note">💡 编辑 JSON 后切换到「可视化编辑」标签页会丢失更改，建议在一个标签页内完成编辑并保存</div>
     <%= form_with url: admin_settings_path, method: :patch, local: true, id: "json-form" do |f| %>
       <%= f.text_area :config_content, id: "json-editor-src", style: "display:none" %>
       <div id="json-editor-wrap" style="min-height:500px"></div>
@@ -147,6 +150,8 @@
   var jsonEditor = null;
   var modelCount = <%= @models.length %>;
   var dirty = false;
+  var jsonDirty = false;
+  var currentTab = "visual";
 
   function trackDirty() { dirty = true; document.getElementById("unsaved-warning").style.display = "inline"; }
 
@@ -156,25 +161,37 @@
     document.getElementById("models-form").addEventListener("submit", function() { dirty = false; });
     document.getElementById("json-form").addEventListener("submit", function(e) {
       if (jsonEditor) document.getElementById("json-editor-src").value = jsonEditor.getValue();
+      jsonDirty = false;
     });
   });
 
   window.addEventListener("beforeunload", function(e) {
-    if (dirty) { e.preventDefault(); e.returnValue = ""; }
+    if (dirty || jsonDirty) { e.preventDefault(); e.returnValue = ""; }
   });
 
   function switchTab(tab) {
+    if (tab === currentTab) return;
+    // Warn if switching away from unsaved changes
+    if (tab === "visual" && jsonDirty) {
+      document.getElementById("visual-sync-note").style.display = "block";
+    }
+    if (tab === "json" && dirty) {
+      if (!confirm("可视化编辑有未保存的更改，切换到 JSON 标签页将丢失这些更改。是否继续？")) return;
+    }
+
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
     document.getElementById("tab-visual").style.display = tab === "visual" ? "block" : "none";
     document.getElementById("tab-json").style.display = tab === "json" ? "block" : "none";
     event.target.classList.add("active");
+    currentTab = tab;
     if (tab === "json") initJsonEditor();
   }
 
   function initJsonEditor() {
     if (jsonEditor) return;
     var src = document.getElementById("json-editor-src");
-    src.value = buildJsonFromForm();
+    // 从服务器原始配置加载，不从表单构建
+    src.value = <%= raw @config_content.to_json %>;
     var wrap = document.getElementById("json-editor-wrap");
     jsonEditor = CodeMirror(wrap, {
       value: src.value,
@@ -188,25 +205,10 @@
       matchBrackets: true,
       extraKeys: { "Ctrl-S": function() { document.getElementById("json-form").requestSubmit(); } }
     });
-    jsonEditor.on("change", function() { src.value = jsonEditor.getValue(); });
-  }
-
-  function buildJsonFromForm() {
-    var data = new FormData(document.getElementById("models-form"));
-    var models = [], i = 0;
-    while (data.has("models[" + i + "][id]")) {
-      models.push({
-        id: data.get("models[" + i + "][id]"),
-        label: data.get("models[" + i + "][label]"),
-        api: data.get("models[" + i + "][api]"),
-        model: data.get("models[" + i + "][model_name]"),
-        api_key: data.get("models[" + i + "][api_key]") || "",
-        api_base: data.get("models[" + i + "][api_base]") || "",
-        level: parseInt(data.get("models[" + i + "][level]")) || 0
-      });
-      i++;
-    }
-    return JSON.stringify({ default: data.get("default_model"), models: models }, null, 2);
+    jsonEditor.on("change", function() {
+      src.value = jsonEditor.getValue();
+      if (!jsonDirty) { jsonDirty = true; }
+    });
   }
 
   // Modal

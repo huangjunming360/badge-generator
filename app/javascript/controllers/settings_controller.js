@@ -10,7 +10,6 @@ export default class extends Controller {
 
   select(event) {
     const index = event.currentTarget.dataset.modelIndex
-    const label = event.currentTarget.dataset.modelLabel
 
     fetch("/setting", {
       method: "PATCH",
@@ -20,10 +19,7 @@ export default class extends Controller {
       },
       body: JSON.stringify({ model_index: parseInt(index) })
     }).then(() => {
-      if (this.hasCurrentLabelTarget) {
-        this.currentLabelTarget.textContent = label
-      }
-      this.panelTarget.style.display = "none"
+      window.location.reload()
     })
   }
 

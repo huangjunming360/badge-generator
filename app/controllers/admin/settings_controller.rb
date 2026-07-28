@@ -11,7 +11,11 @@ class Admin::SettingsController < Admin::BaseController
       return redirect_to edit_admin_settings_path, alert: "配置内容不能为空"
     end
     begin
-      JSON.parse(content) # 验证 JSON 格式
+      parsed = JSON.parse(content)
+      errors = validate_models_config!(parsed)
+      unless errors.empty?
+        return redirect_to edit_admin_settings_path, alert: "配置校验失败:\n#{errors.join("\n")}"
+      end
       File.write(@config_path, content)
       load_models_config!
       redirect_to edit_admin_settings_path, notice: "模型配置已更新"

@@ -25,6 +25,13 @@ class Admin::ModelsController < Admin::BaseController
       }.compact
     end
 
+    errors = validate_models_config!(raw)
+    unless errors.empty?
+      load_config
+      flash.now[:alert] = "配置校验失败: #{errors.join('; ')}"
+      return render :show, status: :unprocessable_content
+    end
+
     File.write(@config_path, JSON.pretty_generate(raw) + "\n")
     # 重新加载配置
     Rails.application.config.x.models = {
@@ -46,8 +53,10 @@ class Admin::ModelsController < Admin::BaseController
     raw = JSON.parse(File.read(@config_path))
     @models = raw["models"] || []
     @default_model = raw["default"]
+    @config_content = JSON.pretty_generate(raw)
   rescue
     @models = []
     @default_model = nil
+    @config_content = "{}"
   end
 end
