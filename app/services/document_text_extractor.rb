@@ -31,7 +31,7 @@ class DocumentTextExtractor
   # 从设置读取允许的扩展名，如果没有则用内置默认
   def self.accepted_extensions
     raw = Setting.get("allowed_extensions")
-    return EXTENSIONS if raw.blank?
+    return EXTENSIONS.keys if raw.blank?
     raw.split.map(&:strip).select { |e| e.start_with?(".") }
   end
 
