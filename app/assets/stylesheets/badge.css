@@ -1,0 +1,86 @@
+/* 挂牌模板。刻意不用 Tailwind：
+   模板样式需要自成一体，将来做字体/配色切换和 PNG 导出时才好控制。
+   尺寸用 mm，对齐实物挂牌（54 × 85mm，竖版）。 */
+
+.badge {
+  --badge-ink: #1c1917;
+  --badge-muted: #78716c;
+  --badge-line: #e7e5e4;
+  --badge-surface: #ffffff;
+  --badge-accent: #44403c;
+
+  box-sizing: border-box;
+  width: 54mm;
+  min-height: 85mm;
+  padding: 7mm 6mm 6mm;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  background: var(--badge-surface);
+  border: 1px solid var(--badge-line);
+  border-radius: 3mm;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%), 0 8px 24px rgb(0 0 0 / 6%);
+
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--badge-ink);
+  text-align: center;
+}
+
+/* 挂绳孔 */
+.badge__punch {
+  width: 12mm;
+  height: 2.5mm;
+  margin-bottom: 5mm;
+  border: 1px solid var(--badge-line);
+  border-radius: 1.25mm;
+  background: #fafaf9;
+}
+
+/* 一寸照 25 × 35mm */
+.badge__photo {
+  width: 25mm;
+  height: 35mm;
+  margin-bottom: 5mm;
+  border: 1px solid var(--badge-line);
+  border-radius: 1mm;
+  object-fit: cover;
+  display: block;
+  background: #f5f5f4;
+}
+
+.badge__photo--empty {
+  border-style: dashed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3mm;
+  color: var(--badge-muted);
+}
+
+.badge__name {
+  margin: 0;
+  font-size: 6mm;
+  font-weight: 600;
+  letter-spacing: 0.5mm;
+  line-height: 1.2;
+}
+
+.badge__rule {
+  width: 14mm;
+  height: 0;
+  margin: 3mm 0;
+  border-top: 1px solid var(--badge-line);
+}
+
+.badge__org {
+  margin: 0;
+  font-size: 3.6mm;
+  line-height: 1.5;
+  color: var(--badge-muted);
+}
+
+.badge__placeholder {
+  color: #d6d3d1;
+}
