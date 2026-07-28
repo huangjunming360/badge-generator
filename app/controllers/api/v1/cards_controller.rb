@@ -13,6 +13,9 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def create
+    # sync 参数用于测试，同步等待解析完成
+    return create_sync if params[:sync] == "1"
+
     # 异步：先建卡占位，后台解析
     progress_id = SecureRandom.hex(12)
     card = Current.user.cards.new(raw_input: "解析中…")
@@ -110,6 +113,31 @@ class Api::V1::CardsController < Api::BaseController
     progress.error("AI 服务异常: #{e.message}")
   end
 
+  def create_sync
+    card = Current.user.cards.new
+    card.raw_input = resolve_raw_input
+    card.source_name = @source_name
+    card.used_ocr = @used_ocr
+
+    portrait = params[:portrait]
+    card.portrait.attach(portrait) if portrait.present?
+
+    return render_validation_errors(card) unless card.valid?
+
+    card.data = CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
+    card.save!
+    render json: { card: serializer(card).as_detail }, status: :created
+  rescue DocumentTextExtractor::UnsupportedFormat,
+         DocumentTextExtractor::ParseError,
+         OcrExtractor::OcrError,
+         CardExtractor::ExtractionError => e
+    render_error(e.message, status: :unprocessable_content)
+  rescue LlmService::UnknownModel => e
+    render_error(e.message, status: :unprocessable_content)
+  rescue LlmService::Error => e
+    render_error(e.message, status: :bad_gateway)
+  end
+
   def serializer(card)
     CardSerializer.new(card, host: request.base_url)
   end
@@ -133,5 +161,21 @@ class Api::V1::CardsController < Api::BaseController
   def size_params
     return {} if params[:card].blank?
     params.require(:card).permit(:width_mm, :height_mm)
+  end
+
+  def resolve_raw_input
+    file = params[:document]
+
+    if file.present?
+      @source_name = file.original_filename
+      extractor = DocumentTextExtractor.new
+      text = extractor.call(file)
+      @used_ocr = extractor.used_ocr?
+      text
+    else
+      @source_name = nil
+      @used_ocr = false
+      params[:raw_input]
+    end
   end
 end
