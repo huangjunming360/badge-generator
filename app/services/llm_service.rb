@@ -32,11 +32,8 @@ class LlmService
     chat.with_instructions(system) if system.present?
     chat.with_temperature(0.0)
     chat.with_params(max_tokens: max_tokens.to_i) if max_tokens.to_i > 0
-    if @config["thinking"]
-      effort = (@config["thinking_effort"] || "high").to_sym
-      opts = { effort: effort }
-      opts[:budget] = @config["thinking_budget"].to_i if @config["thinking_budget"].present?
-      chat.with_thinking(**opts)
+    unless @config["no_thinking"]
+      chat.with_thinking(effort: :high)
     end
 
     messages.each do |msg|
