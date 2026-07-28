@@ -1,6 +1,6 @@
 class SettingsController < ApplicationController
   # 要求登录才能切换模型
-  before_action :require_authentication, only: :update
+  before_action :require_authentication
 
   def update
     models = available_models

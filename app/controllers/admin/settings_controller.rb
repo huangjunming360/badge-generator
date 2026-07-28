@@ -6,11 +6,13 @@ class Admin::SettingsController < Admin::BaseController
 
   def update
     @config_path = Rails.root.join("config/models.json")
+    content = params[:config_content]
+    if content.blank?
+      return redirect_to edit_admin_settings_path, alert: "配置内容不能为空"
+    end
     begin
-      content = params[:config_content]
       JSON.parse(content) # 验证 JSON 格式
       File.write(@config_path, content)
-      # 重新加载配置
       load_models_config!
       redirect_to edit_admin_settings_path, notice: "模型配置已更新"
     rescue JSON::ParserError => e

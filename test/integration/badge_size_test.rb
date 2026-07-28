@@ -3,6 +3,11 @@ require "test_helper"
 class BadgeSizeTest < ActionDispatch::IntegrationTest
   setup do
     @card = Card.create!(raw_input: "测试", data: { "name" => "张三", "organization" => "某单位" })
+    # 创建测试用户并登录（PATCH 需要鉴权）
+    @user = User.create!(email_address: "test@test.com", password: "test123", password_confirmation: "test123")
+    post session_url, params: { email_address: "test@test.com", password: "test123" }
+    assert_redirected_to root_path
+    follow_redirect!
   end
 
   test "未设置尺寸时用默认值" do

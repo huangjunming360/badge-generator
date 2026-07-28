@@ -21,6 +21,6 @@ Setting.find_or_create_by!(key: "allow_registration") do |s|
   s.value = "true"
 end
 Setting.find_or_create_by!(key: "require_login_for_models") do |s|
-  s.value = "false"
+  s.value = "true"
 end
 puts "默认设置已初始化"
