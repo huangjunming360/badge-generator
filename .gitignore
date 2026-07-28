@@ -47,3 +47,7 @@
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# 前端（frontend/）依赖与构建产物。构建产物由 nginx 托管，不入库。
+/frontend/node_modules
+/frontend/dist
