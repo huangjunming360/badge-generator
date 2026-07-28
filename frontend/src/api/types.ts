@@ -58,6 +58,10 @@ export interface SchemaPayload {
     allowed_extensions: string[];
     max_bytes: number;
   };
+  mineru: {
+    available: boolean;
+    portrait_detect: boolean;
+  };
 }
 
 export interface ProgressStatus {

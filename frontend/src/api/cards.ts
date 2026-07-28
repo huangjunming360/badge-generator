@@ -24,6 +24,7 @@ function startCreateForm(form: FormData): Promise<{ task_id: string }> {
 // 轮询进度直到完成，返回 card_id
 export function pollCard(params: {
   rawInput?: string; file?: File; portrait?: File | null; modelId?: string | null;
+  mineru_enabled?: boolean; portrait_detect?: boolean;
 }, onProgress: (p: ProgressStatus) => void): Promise<number> {
   const work = params.file
     ? (() => {

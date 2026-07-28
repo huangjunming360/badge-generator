@@ -1,6 +1,6 @@
 class Admin::GeneralSettingsController < Admin::BaseController
   # 布尔类型的设置项
-  BOOL_KEYS = %i[allow_registration require_login_for_models mineru_enabled].freeze
+  BOOL_KEYS = %i[allow_registration require_login_for_models mineru_enabled portrait_detect].freeze
   # 文本类型的设置项
   TEXT_KEYS = %i[site_title mineru_model extract_model portrait_model allowed_extensions].freeze
   # 写入 .env 的设置项

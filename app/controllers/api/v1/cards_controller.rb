@@ -18,6 +18,8 @@ class Api::V1::CardsController < Api::BaseController
     progress_id = SecureRandom.hex(12)
     raw_input = params[:raw_input]
     model_id = params[:model_id]
+    mineru_enabled = params[:mineru_enabled]
+    portrait_detect = params[:portrait_detect]
     file_data = params[:document]&.read rescue nil
     file_name = params[:document]&.original_filename
     portrait_data = params[:portrait]&.read rescue nil
@@ -33,7 +35,8 @@ class Api::V1::CardsController < Api::BaseController
           user = User.find(user_id) if user_id
           Current.session = user&.sessions&.last
           card_id = process_card(raw_input, model_id, file_data, file_name,
-                                 portrait_data, portrait_name, progress)
+                                 portrait_data, portrait_name, progress,
+                                 mineru_enabled:, portrait_detect:)
           progress.set(:done, "解析完成", card_id: card_id) if card_id
         end
       rescue => e
@@ -62,7 +65,8 @@ class Api::V1::CardsController < Api::BaseController
   private
 
   def process_card(raw_input, model_id, file_data, file_name,
-                   portrait_data, portrait_name, progress)
+                   portrait_data, portrait_name, progress,
+                   mineru_enabled: nil, portrait_detect: nil)
     progress.set(:uploading, "启动解析…")
     card = Current.user.cards.new
 
@@ -86,9 +90,9 @@ class Api::V1::CardsController < Api::BaseController
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name
 
-      # MinerU 提取的图片 → 尝试识别大头照
-      if extractor.extracted_images.present?
-        progress.set(:portrait, "识别大头照…")
+      # MinerU 提取的图片 → 尝试识别老人像
+      if extractor.extracted_images.present? && portrait_detect != false
+        progress.set(:portrait, "人像识别中…")
         detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
         found = detector.detect(extractor.extracted_images)
         if found

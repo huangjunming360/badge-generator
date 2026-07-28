@@ -36,6 +36,10 @@ class Api::V1::SchemaController < Api::BaseController
       upload: {
         allowed_extensions: DocumentTextExtractor.accepted_extensions,
         max_bytes: DocumentTextExtractor::MAX_BYTES
+      },
+      mineru: {
+        available: Setting.bool("mineru_enabled", default: false) && ENV["MINERU_API_KEY"].present?,
+        portrait_detect: Setting.bool("portrait_detect", default: true)
       }
     }
   end

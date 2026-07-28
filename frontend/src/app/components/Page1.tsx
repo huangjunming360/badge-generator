@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X,
-  Sparkles, Layers,
+  Sparkles, Layers, Settings,
 } from "lucide-react";
 import {
   Field, NavState,
@@ -123,6 +123,10 @@ export default function Page1() {
   // 后端 schema：字段清单与中文标签的唯一来源，不在前端写死。
   const [schema, setSchema] = useState<SchemaFieldDef[]>([]);
   const [uploadCfg, setUploadCfg] = useState<{ allowed_extensions: string[]; max_bytes: number } | null>(null);
+  const [mineruCfg, setMineruCfg] = useState<{ available: boolean; portrait_detect: boolean } | null>(null);
+  const [mineruEnabled, setMineruEnabled] = useState(true);
+  const [portraitDetect, setPortraitDetect] = useState(true);
+  const [showMineruOpts, setShowMineruOpts] = useState(false);
   const [error, setError]   = useState<string | null>(null);
   // 建卡后的 id，供第二页读取与后续更新。
   const [cardId, setCardId] = useState<number | null>(saved?.cardId ?? null);
@@ -154,6 +158,7 @@ export default function Page1() {
         setModels(s.models.available);
         setModelId(s.models.default);
         if (s.upload) setUploadCfg(s.upload);
+        if (s.mineru) { setMineruCfg(s.mineru); setMineruEnabled(s.mineru.available); }
       })
       .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "无法读取字段配置"); });
     return () => { alive = false; };
@@ -204,13 +209,14 @@ export default function Page1() {
 
   const handleParse = useCallback(() => {
     if (parsing) return;
+    const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect };
     if (pendingFile) {
-      runExtraction({ file: pendingFile, portrait: portraitFile, modelId });
+      runExtraction({ file: pendingFile, portrait: portraitFile, modelId, ...opts });
       setPendingFile(null);
     } else if (rawText.trim()) {
-      runExtraction({ rawInput: rawText, modelId });
+      runExtraction({ rawInput: rawText, modelId, ...opts });
     }
-  }, [rawText, parsing, runExtraction, modelId, pendingFile, portraitFile]);
+  }, [rawText, parsing, runExtraction, modelId, pendingFile, portraitFile, mineruEnabled, portraitDetect]);
 
   // 上传文件仅暂存，用户点击「提取」后再发送给后端
   const handleFile = useCallback((file: File) => {
@@ -436,6 +442,41 @@ export default function Page1() {
               onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
             <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
               onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
+
+            {mineruCfg?.available && (
+              <div style={{ position: "relative" }}>
+                <button onClick={() => setShowMineruOpts(v => !v)} style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "5px 10px", borderRadius: 8, border: `1px solid ${U.border}`,
+                  background: showMineruOpts ? U.surfaceBlue : "transparent",
+                  cursor: "pointer", fontSize: 11, color: U.textMid,
+                  transition: `all .15s ${E.smooth}`,
+                }}>
+                  <Layers size={12} /> 识别
+                </button>
+                {showMineruOpts && (
+                  <div style={{
+                    position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 100,
+                    width: 180, background: "#fff", borderRadius: 10,
+                    border: `1px solid ${U.border}`, boxShadow: "0 4px 16px rgba(0,0,0,.08)",
+                    padding: 8, fontSize: 12,
+                  }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4", cursor: "pointer" }}>
+                      <input type="checkbox" checked={mineruEnabled} onChange={e => setMineruEnabled(e.target.checked)}
+                             style={{ width: 14, height: 14, cursor: "pointer" }} />
+                      <span style={{ color: U.textMid }}>文档解析</span>
+                    </label>
+                    {mineruEnabled && (
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4", cursor: "pointer" }}>
+                        <input type="checkbox" checked={portraitDetect} onChange={e => setPortraitDetect(e.target.checked)}
+                               style={{ width: 14, height: 14, cursor: "pointer" }} />
+                        <span style={{ color: U.textMid }}>人像识别</span>
+                      </label>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div style={{ flex: 1 }} />
 
