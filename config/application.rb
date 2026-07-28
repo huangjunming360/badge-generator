@@ -18,6 +18,10 @@ require "action_cable/engine"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+# RubyLLM: 我们没有用 acts_as_chat，跳过旧版 API deprecation 噪音
+# 必须在 ActiveRecord 加载前设置，所以放这里而不是 initializer
+RubyLLM.configure { |c| c.use_new_acts_as = true } if defined?(RubyLLM)
+
 module Newapp
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.

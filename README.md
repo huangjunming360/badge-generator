@@ -1,4 +1,4 @@
-# newapp
+# Badge Generator
 
 https://github.com/huangjunming360/badge-generator
 
@@ -52,25 +52,81 @@ git push origin --delete 你的分支名
 # 5. 功能稳定后在 GitHub 发 PR：dev → master
 ```
 
-## bin/ 目录说明
-
-`bin/rails` 是 Rails 项目的入口。系统 `rails` 命令通过它来判断当前目录是否是 Rails 项目——找不到 `bin/rails` 时 `rails` 会退化为 `rails new`。
-
-因此 `bin/` 必须保留、不能删除，且需提交到 git。
-
 ## 配置
 
-密钥放项目根 `.env`（已 gitignore），参考 `.env.example`：
+密钥放项目根 `.env`（已 gitignore），参考 `config/llm.yml`：
 
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_BASE=https://你的网关地址
 ```
-LLM_BASE_URL=https://api.aicodemirror.com/api/claudecode
-LLM_MODEL=claude-sonnet-5
-LLM_API_KEY=sk-ant-...
+
+## 模型配置体系
+
+所有模型配置集中在 `config/llm.yml`，结构分两层：
+
+```yaml
+# 协议层 —— 只分 Anthropic 和 OpenAI 两类
+anthropic:
+  api_key: ...
+  api_base: ...      # 自部署网关在这设
+
+openai:
+  api_key: ...
+  # api_base: 可选
+
+# 用途层 —— 每种用途指定用哪个协议和模型
+functions:
+  用途名:
+    api: anthropic   # 或 openai
+    model: 模型名
+    temperature: ...
 ```
 
-## 实现要点
+**协议层**：主流通用接口只有 Anthropic 兼容 和 OpenAI 兼容。DeepSeek、OpenRouter、xAI 等多数供应商都走 OpenAI 协议，区别只在于 base_url 和模型名。
 
-- 记忆：`Conversation#context_messages` 每次提问把该会话最近 40 条消息一起发给模型。
-- 流式：`ReplyJob` 解析 Anthropic SSE，攒够 24 字节或 120ms 就用 Turbo Stream 替换气泡。
-- 队列用默认的 `:async`（进程内线程池）。重启进程会丢掉正在生成的回复，生产环境需换 Solid Queue 或 Sidekiq。
-- 目前没有登录鉴权，任何访问者都能看到并操作所有对话。仅限本地开发，对外暴露前必须加鉴权。
+**用途层**：定义每种业务用途的 (协议, 模型)。比如名片提取用轻量模型（便宜够用），翻译用 GPT-4o，通用对话用主力模型，互相独立。
+
+### 添加新用途
+
+只需在 `config/llm.yml` 的 functions 加一条：
+
+```yaml
+functions:
+  code_review:
+    api: anthropic
+    model: claude-sonnet-5
+    temperature: 0.0
+```
+
+### 切换供应商
+
+例如从 OpenAI 换成 DeepSeek，改 base_url 和模型名即可：
+
+```yaml
+openai:
+  api_key: <%= ENV['DEEPSEEK_API_KEY'] %>
+  api_base: https://api.deepseek.com
+```
+
+不涉及代码改动。
+
+## 模型调用示例
+
+所有模型调用走 `LlmService`，按用途名调用，由框架自动匹配模型：
+
+```ruby
+# 名片提取 —— 轻量模型
+LlmService.new.complete(messages, system: CardExtractor::SYSTEM_PROMPT)
+
+# 通用对话 —— 主力模型
+LlmService.new(function: :chat).complete(messages)
+
+# 翻译
+LlmService.new(function: :translation).complete(messages)
+
+# 向量化
+LlmService.new(function: :embedding).embed("文本")
+```
+
+代码里只出现用途名，不出现具体模型名。调整模型只需改 YAML，不需改 Ruby。

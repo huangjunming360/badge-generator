@@ -22,6 +22,7 @@ class CardsController < ApplicationController
   rescue DocumentTextExtractor::UnsupportedFormat,
          DocumentTextExtractor::ParseError,
          CardExtractor::ExtractionError,
+         LlmService::Error,
          AnthropicClient::Error => e
     @card.errors.add(:base, e.message)
     render :new, status: :unprocessable_content

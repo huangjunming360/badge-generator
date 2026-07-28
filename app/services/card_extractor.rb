@@ -30,7 +30,7 @@ class CardExtractor
     {"name":"林小明","name_en":"Xiaoming Lin","title":"高级产品经理","department":"用户增长部","organization":"某某科技有限公司","phone":"13800138000","email":"lin@example.com","website":null,"address":"深圳市南山区科技园","employee_id":null,"tagline":"让增长有迹可循"}
   PROMPT
 
-  def initialize(client: AnthropicClient.new)
+  def initialize(client: LlmService.new(function: :card_extraction))
     @client = client
   end
 

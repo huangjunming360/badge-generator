@@ -1,16 +1,22 @@
 require "net/http"
 require "json"
 
+# DEPRECATED: 请改用 LlmService（基于 RubyLLM）。
+#
 # Anthropic Messages API 的最小流式客户端。
-# 端点/密钥从 Rails.application.config.x.llm 读（见 config/initializers/llm.rb）。
+# 保留以兼容尚未迁移的调用方，新代码请用 LlmService。
+#
+# 迁移方式：
+#   AnthropicClient.new  →  LlmService.new(function: :card_extraction)
+#   client.complete(...)  →  same interface
 class AnthropicClient
   class Error < StandardError; end
 
   DEFAULT_SYSTEM_PROMPT = "你是一个乐于助人的中文助手。回答简洁、准确，使用简体中文。"
 
-  def initialize(config: Rails.application.config.x.llm)
+  def initialize(config: Rails.application.config.x.llm || {})
     @config = config
-    raise Error, "缺少 API key，请在 .env 设置 LLM_API_KEY" if @config[:api_key].blank?
+    raise Error, "缺少 API key，请在 .env 设置 ANTHROPIC_API_KEY" if @config[:api_key].blank?
   end
 
   # 非流式请求，返回完整回复文本。
