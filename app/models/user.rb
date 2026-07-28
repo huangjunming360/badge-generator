@@ -7,7 +7,7 @@ class User < ApplicationRecord
     2 => { label: "中级", desc: "可用中级及以下模型" },
     3 => { label: "普通", desc: "可用普通及开放模型" },
     4 => { label: "开放", desc: "仅可用开放模型" },
-    5 => { label: "系统", desc: "仅系统内部使用", internal: true }
+    -1 => { label: "系统", desc: "仅系统内部使用", internal: true }
   }.freeze
 
   def self.model_levels
