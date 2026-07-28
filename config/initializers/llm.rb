@@ -17,6 +17,8 @@ if File.exist?(llm_config_path)
   Rails.application.config.x.llm_config = raw_config
 
   RubyLLM.configure do |config|
+    config.request_timeout = 120
+
     anthropic = raw_config[:anthropic]
     if anthropic
       config.anthropic_api_key = anthropic[:api_key] if anthropic[:api_key]

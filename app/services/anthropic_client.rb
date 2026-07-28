@@ -14,7 +14,7 @@ class AnthropicClient
 
   DEFAULT_SYSTEM_PROMPT = "你是一个乐于助人的中文助手。回答简洁、准确，使用简体中文。"
 
-  def initialize(config: Rails.application.config.x.llm)
+  def initialize(config: Rails.application.config.x.llm || {})
     @config = config
     raise Error, "缺少 API key，请在 .env 设置 ANTHROPIC_API_KEY" if @config[:api_key].blank?
   end

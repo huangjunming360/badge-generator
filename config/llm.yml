@@ -13,7 +13,7 @@ anthropic:
 
 openai:
   api_key: <%= ENV['OPENAI_API_KEY'] %>
-  # api_base: 可选，默认 https://api.openai.com/v1
+  api_base: <%= ENV['OPENAI_API_BASE'] || 'https://api.openai.com/v1' %>
 
 functions:
   # 名片提取 —— 轻量便宜，够用就好
@@ -37,8 +37,3 @@ functions:
   embedding:
     api: openai
     model: text-embedding-3-small
-
-  # 图片生成
-  image_generation:
-    api: openai
-    model: gpt-image-1.5

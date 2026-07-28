@@ -4,20 +4,17 @@
 #
 # 用法（按用途调用）：
 #
-#   名片提取 —— 轻量模型 haiku，速度快成本低
+#   名片提取 —— 轻量模型
 #     LlmService.new.complete([{ role: "user", content: text }], system: PROMPT)
 #
-#   通用对话 —— 主力模型 sonnet
+#   通用对话 —— 主力模型
 #     LlmService.new(function: :chat).complete(messages)
 #
-#   翻译 —— GPT-4o
-#     LlmService.new(function: :translation).complete(messages, system: "Translate to English")
+#   翻译
+#     LlmService.new(function: :translation).complete(messages)
 #
 #   文本向量化
-#     LlmService.new(function: :embedding).embed("你好")
-#
-#   图片生成
-#     LlmService.new(function: :image_generation).paint("prompt")
+#     LlmService.new(function: :embedding).embed("文本")
 #
 # 每种用途对应的 (协议, 模型) 在 config/llm.yml functions 段配。
 
@@ -30,18 +27,15 @@ class LlmService
   end
 
   def complete(messages, system: nil, max_tokens: nil)
-    chat = build_chat(system: system, max_tokens: max_tokens)
+    chat = build_chat(system: system, max_tokens: max_tokens || @config[:max_tokens])
 
-    user_msg = messages.reverse.find { |m|
-      (m[:role] || m["role"]).to_s == "user"
-    }
-    user_content = if user_msg
-                     user_msg[:content] || user_msg["content"]
-    else
-                     messages.dig(-1, :content) || messages.dig(-1, "content")
-    end.to_s
+    messages.each do |msg|
+      role = (msg[:role] || msg["role"]).to_s
+      next if role == "system"
+      chat.add_message(role: role.to_sym, content: msg[:content] || msg["content"])
+    end
 
-    response = chat.ask(user_content)
+    response = chat.complete
     response.content.to_s
   rescue RubyLLM::Error => e
     raise Error, "AI 服务响应异常: #{e.message}"
