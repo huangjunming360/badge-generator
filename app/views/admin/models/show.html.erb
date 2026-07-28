@@ -275,7 +275,7 @@
         model: data.get("models[" + i + "][model_name]"),
         api_key: data.get("models[" + i + "][api_key]") || "",
         api_base: data.get("models[" + i + "][api_base]") || "",
-        no_thinking: data.get("models[" + i + "][no_thinking]") === "1",
+        no_thinking: document.querySelector(`[name="models[${i}][no_thinking]"][type="checkbox"]`)?.checked === true,
         level: parseInt(data.get("models[" + i + "][level]")) || 0
       });
       i++;
