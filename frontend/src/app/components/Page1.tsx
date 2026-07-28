@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
-  Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X,
+  Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X, FileText,
   Sparkles, Layers, Settings,
 } from "lucide-react";
 import {
@@ -222,7 +222,6 @@ export default function Page1() {
   const handleFile = useCallback((file: File) => {
     if (parsing) return;
     setPendingFile(file);
-    setRawText(`（已选择文件：${file.name}）`);
     setPhase("active");
   }, [parsing]);
 
@@ -404,6 +403,23 @@ export default function Page1() {
             />
           </div>
 
+          {/* ── 已上传文件 ──────────────────────────────── */}
+          {pendingFile && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "8px 4px 0",
+              fontSize: 12, color: U.textMid,
+            }}>
+              <FileText size={13} />
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {pendingFile.name}
+              </span>
+              <button onClick={() => setPendingFile(null)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: U.textFaint, padding: 2, fontSize: 14, lineHeight: 1,
+              }}>×</button>
+            </div>
+          )}
+
           {/* ── 解析进度 ───────────────────────────────── */}
           {parsing && (
             <div style={{
@@ -457,11 +473,11 @@ export default function Page1() {
                 {showMineruOpts && (
                   <div style={{
                     position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 100,
-                    width: 180, background: "#fff", borderRadius: 10,
+                    width: 160, background: "#fff", borderRadius: 8,
                     border: `1px solid ${U.border}`, boxShadow: "0 4px 16px rgba(0,0,0,.08)",
-                    padding: 8, fontSize: 12,
+                    padding: 6, fontSize: 11,
                   }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 2", cursor: "pointer" }}>
                       <input type="checkbox" checked={mineruEnabled} onChange={e => setMineruEnabled(e.target.checked)}
                              style={{ width: 14, height: 14, cursor: "pointer" }} />
                       <span style={{ color: U.textMid }}>文档解析</span>
