@@ -34,8 +34,9 @@ class LlmService
     chat.with_params(max_tokens: max_tokens.to_i) if max_tokens.to_i > 0
     if @config["thinking"]
       effort = (@config["thinking_effort"] || "high").to_sym
-      budget = (@config["thinking_budget"] || 4000).to_i
-      chat.with_thinking(effort: effort, budget: budget)
+      opts = { effort: effort }
+      opts[:budget] = @config["thinking_budget"].to_i if @config["thinking_budget"].present?
+      chat.with_thinking(**opts)
     end
 
     messages.each do |msg|
