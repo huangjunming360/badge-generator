@@ -10,6 +10,11 @@
   <td><input type="text" name="models[<%= i %>][model_name]" value="<%= m["model"] %>"></td>
   <td><input type="text" name="models[<%= i %>][api_key]" value="<%= m["api_key"] %>"></td>
   <td><input type="text" name="models[<%= i %>][api_base]" value="<%= m["api_base"] %>"></td>
+  <td style="text-align:center;vertical-align:middle">
+    <input type="hidden" name="models[<%= i %>][thinking]" value="0">
+    <input type="checkbox" name="models[<%= i %>][thinking]" value="1" <%= "checked" if m["thinking"] == true %>
+           style="width:16px;height:16px;cursor:pointer">
+  </td>
   <td>
     <select name="models[<%= i %>][level]" style="width:80px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
       <% levels = User.model_levels %>

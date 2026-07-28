@@ -32,6 +32,7 @@ class LlmService
     chat.with_instructions(system) if system.present?
     chat.with_temperature(0.0)
     chat.with_params(max_tokens: max_tokens.to_i) if max_tokens.to_i > 0
+    chat.with_thinking(effort: :high, budget: 4000) if @config["thinking"] == true
 
     messages.each do |msg|
       role = (msg[:role] || msg["role"]).to_s

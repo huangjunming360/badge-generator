@@ -11,19 +11,19 @@ class Admin::ModelsController < Admin::BaseController
 
     # 用 permit 处理 ActionController::Parameters
     models = params.fetch(:models, {}).values.map do |m|
-      m.permit(:id, :label, :api, :model_name, :api_key, :api_base, :level)
+      m.permit(:id, :label, :api, :model_name, :api_key, :api_base, :level, :thinking)
     end
     raw["models"] = models.map do |m|
-      h = {
+      {
         "id" => m["id"],
         "label" => m["label"],
         "api" => m["api"],
         "model" => m["model_name"],
         "api_key" => m["api_key"].presence,
         "api_base" => m["api_base"].presence,
-        "level" => m["level"].to_i
+        "level" => m["level"].to_i,
+        "thinking" => m["thinking"] == "1" || m["thinking"] == true
       }
-      h
     end
 
     errors = validate_models_config!(raw)
