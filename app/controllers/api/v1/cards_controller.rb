@@ -115,7 +115,9 @@ class Api::V1::CardsController < Api::BaseController
       text = raw_input
     end
 
-    card.raw_input = text || raw_input || ""
+    raw = text || raw_input || ""
+    raw = raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") if raw.encoding != Encoding::UTF_8
+    card.raw_input = raw.truncate(50_000)
     return progress.error("提取失败: 无文本内容") if text.blank?
 
     progress.set(:extracting, "AI 提取字段中…")
