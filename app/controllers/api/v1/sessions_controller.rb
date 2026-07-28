@@ -1,5 +1,5 @@
 class Api::V1::SessionsController < Api::BaseController
-  skip_before_action :require_api_authentication, only: :create
+  skip_before_action :require_api_authentication, only: %i[show create]
 
   def show
     if authenticated?

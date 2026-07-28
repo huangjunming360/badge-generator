@@ -1,14 +1,16 @@
 # 种子数据
 
-# 管理员账号
+# 管理员账号。首次部署务必通过环境变量 ADMIN_PASSWORD 修改密码。
 admin = User.find_or_initialize_by(email_address: "admin@example.com")
 if admin.new_record?
-  admin.password = "admin123"
-  admin.password_confirmation = "admin123"
+  pw = ENV.fetch("ADMIN_PASSWORD", SecureRandom.hex(16))
+  admin.password = pw
+  admin.password_confirmation = pw
   admin.role = "admin"
   admin.active = true
   admin.save!
-  puts "管理员账号创建成功: admin@example.com / admin123"
+  puts "管理员账号创建成功: admin@example.com"
+  puts "密码: #{pw}" if ENV["ADMIN_PASSWORD"].present?
 else
   puts "管理员账号已存在"
 end
