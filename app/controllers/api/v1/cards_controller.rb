@@ -116,9 +116,16 @@ class Api::V1::CardsController < Api::BaseController
     end
 
     raw = text || raw_input || ""
-    raw = raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") if raw.encoding != Encoding::UTF_8
-    card.raw_input = raw.truncate(50_000)
-    return progress.error("提取失败: 无文本内容") if text.blank?
+    return progress.error("提取失败: 无文本内容") if raw.blank?
+
+    # 清理非法字符：null 字节、控制字符（保留换行）
+    raw = raw.force_encoding("UTF-8") if raw.encoding == Encoding::BINARY
+    raw = raw.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+           .gsub("\x00", "")
+           .gsub(/[^\p{Print}\p{Space}]/, "")  # 只保留可打印字符和空白
+           .squeeze(" ")
+           .strip
+    card.raw_input = raw.truncate(20_000)
 
     progress.set(:extracting, "AI 提取字段中…")
     card.data = CardExtractor.new(model_id: model_id).call(text)
