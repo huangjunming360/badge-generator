@@ -29,12 +29,9 @@ class LlmService
       provider: @config["api"],
       assume_model_exists: true
     )
+    chat.with_instructions(system) if system.present?
     chat.with_temperature(0.0)
     chat.with_params(max_tokens: max_tokens.to_i) if max_tokens.to_i > 0
-
-    # 系统提示作为第一条消息发送（不用 with_instructions，它会产
-    # 生 DeepSeek 不支持的 developer role）
-    chat.add_message(role: :system, content: system) if system.present?
 
     messages.each do |msg|
       role = (msg[:role] || msg["role"]).to_s
