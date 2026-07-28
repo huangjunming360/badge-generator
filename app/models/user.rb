@@ -1,4 +1,12 @@
 class User < ApplicationRecord
+  # 权限等级：数字 → 中文描述
+  MODEL_LEVELS = {
+    0   => "普通",
+    10  => "高级",
+    50  => "VIP",
+    100 => "管理员"
+  }.freeze
+
   has_secure_password
   has_many :sessions, dependent: :destroy
   has_many :cards, dependent: :nullify
@@ -19,6 +27,10 @@ class User < ApplicationRecord
 
   def banned?
     banned_at.present?
+  end
+
+  def model_level_label
+    MODEL_LEVELS[model_level.to_i] || "未知(#{model_level})"
   end
 
   def ban!

@@ -10,6 +10,12 @@
   <td><input type="text" name="models[<%= i %>][model_name]" value="<%= m["model"] %>"></td>
   <td><input type="text" name="models[<%= i %>][api_key]" value="<%= m["api_key"] %>"></td>
   <td><input type="text" name="models[<%= i %>][api_base]" value="<%= m["api_base"] %>"></td>
-  <td><input type="number" name="models[<%= i %>][level]" value="<%= m["level"] || 0 %>" min="0" style="width:50px"></td>
+  <td>
+    <select name="models[<%= i %>][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:12px">
+      <% User::MODEL_LEVELS.each do |val, label| %>
+        <option value="<%= val %>" <%= "selected" if m["level"].to_i == val %>><%= label %></option>
+      <% end %>
+    </select>
+  </td>
   <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>
 </tr>
