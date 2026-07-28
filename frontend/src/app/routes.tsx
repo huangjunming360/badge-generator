@@ -5,6 +5,7 @@ import Page2 from "./components/Page2";
 import Page3 from "./components/Page3";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
+import SetupPage from "./components/SetupPage";
 
 export const router = createBrowserRouter([
   {
@@ -17,4 +18,5 @@ export const router = createBrowserRouter([
   },
   { path: "/login", Component: LoginPage },
   { path: "/register", Component: RegisterPage },
+  { path: "/setup", Component: SetupPage },
 ]);
