@@ -21,7 +21,7 @@ export default function RootLayout() {
   }, [loading, user, loc.pathname]);
 
   return (
-    <div style={{ paddingTop: 48 }}>
+    <div>
       <TopBar />
       <Outlet />
     </div>
