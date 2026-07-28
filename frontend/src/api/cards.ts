@@ -32,11 +32,15 @@ export function pollCard(params: {
         form.append("document", params.file);
         if (params.portrait) form.append("portrait", params.portrait);
         if (params.modelId) form.append("model_id", params.modelId);
+        form.append("mineru_enabled", params.mineru_enabled !== false ? "1" : "0");
+        form.append("portrait_detect", params.portrait_detect !== false ? "1" : "0");
         return startCreateForm(form);
       })()
     : startCreate({
         raw_input: params.rawInput,
         ...(params.modelId ? { model_id: params.modelId } : {}),
+        mineru_enabled: params.mineru_enabled !== false ? "1" : "0",
+        portrait_detect: params.portrait_detect !== false ? "1" : "0",
       });
 
   return work.then(({ task_id }) => {

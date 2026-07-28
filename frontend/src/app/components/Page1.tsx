@@ -459,7 +459,7 @@ export default function Page1() {
             <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
               onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
 
-            {mineruCfg?.available && (
+            {mineruCfg?.available && (!!pendingFile || rawText.trim()) && (
               <div style={{ position: "relative" }}>
                 <button onClick={() => setShowMineruOpts(v => !v)} style={{
                   display: "flex", alignItems: "center", gap: 5,

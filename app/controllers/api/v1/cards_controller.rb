@@ -73,30 +73,37 @@ class Api::V1::CardsController < Api::BaseController
     # 处理上传的文件
     text = nil
     if file_data
-      progress.set(:mineru, "文档解析中…")
       ext = File.extname(file_name || ".txt").downcase
       tmpfile = Tempfile.new([ "upload", ext ], binmode: true)
       tmpfile.binmode
       tmpfile.write(file_data)
       tmpfile.rewind
-
-      extractor = DocumentTextExtractor.new
       uploaded = ActionDispatch::Http::UploadedFile.new(
         filename: file_name || "file#{ext}",
         type: "application/octet-stream",
         tempfile: tmpfile
       )
+
+      use_mineru = mineru_enabled != "0" && Setting.bool("mineru_enabled") && ENV["MINERU_API_KEY"].present?
+      mineru_images = []
+      if use_mineru
+        progress.set(:mineru, "文档解析中…")
+        mineru_result = MineruService.new.parse(tmpfile.path, file_name: file_name)
+        mineru_images = mineru_result[:images] || []
+      end
+
+      extractor = DocumentTextExtractor.new
       text = extractor.call(uploaded)
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name
 
-      # MinerU 提取的图片 → 尝试识别老人像
-      if extractor.extracted_images.present? && portrait_detect != false
+      # 尝试识别人像
+      if mineru_images.present? && portrait_detect != "0"
         progress.set(:portrait, "人像识别中…")
         detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
-        found = detector.detect(extractor.extracted_images)
+        found = detector.detect(mineru_images)
         if found
-          img = extractor.extracted_images.find { |i| i[:path] == found }
+          img = mineru_images.find { |i| i[:path] == found }
           if img && img[:data].present?
             card.portrait.attach(io: StringIO.new(img[:data]),
               filename: File.basename(img[:path]),
