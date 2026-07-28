@@ -51,8 +51,14 @@ PIDFILE=tmp/pids/puma.pid bin/rails s -p 8000 -b 127.0.0.1
 
 ### 前端资源路径
 
+**Rails 本地开发模式（Rails 直接托管静态文件）：**
 - 前端构建产物放 `public/` 根目录时，`index.html` 引用的 `/assets/xxx.js` 才能被 Rails 正确托管。
 - 如果放在 `public/frontend/` 子目录，JS/CSS 会 404，因为 HTML 里的路径是 `/assets/xxx` 而非 `/frontend/assets/xxx`。
+
+**生产环境 nginx 部署（通过 `deploy/publish.sh`）：**
+- 构建产物通过 `rsync -a frontend/dist/ /var/www/badge-generator/` 发布到 nginx 站点目录。
+- nginx 在 8080 端口直接托管 `/var/www/badge-generator/` 下的所有文件（包括 `index.html` 和 `/assets/` 子目录）。
+- 前端构建工具（如 Vite）生成的 `dist/` 结构必须保持 `index.html` 和 `assets/` 在同一层级，否则资源引用会失败。
 
 ### Turbo 确认弹窗
 
