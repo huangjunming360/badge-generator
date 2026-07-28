@@ -38,6 +38,9 @@
       原始输入<% if @card.source_name.present? %>
         <span class="ml-1 normal-case tracking-normal text-stone-500">来自 <%= @card.source_name %></span>
       <% end %>
+      <% if @card.used_ocr? %>
+        <span class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 normal-case tracking-normal text-amber-700">OCR 识别，建议核对</span>
+      <% end %>
     </h2>
     <p class="rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-stone-500"><%= @card.raw_input %></p>
   </section>

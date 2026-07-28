@@ -11,6 +11,7 @@ class CardsController < ApplicationController
     @card = Card.new
     @card.raw_input = resolve_raw_input
     @card.source_name = @source_name
+    @card.used_ocr = @used_ocr
 
     unless @card.valid?
       return render :new, status: :unprocessable_content
@@ -21,6 +22,7 @@ class CardsController < ApplicationController
     redirect_to @card
   rescue DocumentTextExtractor::UnsupportedFormat,
          DocumentTextExtractor::ParseError,
+         OcrExtractor::OcrError,
          CardExtractor::ExtractionError,
          LlmService::Error,
          AnthropicClient::Error => e
@@ -40,7 +42,10 @@ class CardsController < ApplicationController
 
     if file.present?
       @source_name = file.original_filename
-      DocumentTextExtractor.new.call(file)
+      extractor = DocumentTextExtractor.new
+      text = extractor.call(file)
+      @used_ocr = extractor.used_ocr?
+      text
     else
       @source_name = nil
       params.require(:card).permit(:raw_input)[:raw_input]

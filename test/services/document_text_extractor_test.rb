@@ -46,9 +46,36 @@ class DocumentTextExtractorTest < ActiveSupport::TestCase
     assert_includes text, "刘洋"
   end
 
+  test "图片走 OCR 并标记 used_ocr" do
+    extractor = DocumentTextExtractor.new
+    text = extractor.call(upload("scan_card.png"))
+    assert_includes text, "孙丽华"
+    assert extractor.used_ocr?
+  end
+
+  test "扫描版 PDF 自动降级到 OCR" do
+    extractor = DocumentTextExtractor.new
+    text = extractor.call(upload("scanned.pdf"))
+    assert_includes text, "孙丽华"
+    assert extractor.used_ocr?, "文字层为空的 PDF 应走 OCR"
+  end
+
+  test "有文字层的 PDF 不走 OCR" do
+    extractor = DocumentTextExtractor.new
+    text = extractor.call(upload("profile.pdf"))
+    assert_includes text, "David Park"
+    assert_not extractor.used_ocr?
+  end
+
+  test "非 OCR 路径不标记 used_ocr" do
+    extractor = DocumentTextExtractor.new
+    extractor.call(upload("note.txt"))
+    assert_not extractor.used_ocr?
+  end
+
   test "不支持的扩展名报错并列出支持格式" do
     error = assert_raises(DocumentTextExtractor::UnsupportedFormat) do
-      extract("photo.png", content: "fake")
+      extract("archive.zip", content: "fake")
     end
     assert_match ".docx", error.message
   end
