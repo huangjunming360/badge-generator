@@ -12,8 +12,13 @@
   <td><input type="text" name="models[<%= i %>][api_base]" value="<%= m["api_base"] %>"></td>
   <td>
     <select name="models[<%= i %>][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
-      <% User.model_levels.each do |val, info| %>
-        <option value="<%= val %>" <%= "selected" if m["level"].to_i == val %>><%= info[:label] %></option>
+      <% levels = User.model_levels %>
+      <% cur = m["level"].to_i %>
+      <% unless levels.key?(cur) %>
+        <option value="<%= cur %>" selected>未知(<%= cur %>)</option>
+      <% end %>
+      <% levels.each do |val, info| %>
+        <option value="<%= val %>" <%= "selected" if cur == val %>><%= info[:label] %></option>
       <% end %>
     </select>
   </td>

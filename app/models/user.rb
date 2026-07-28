@@ -43,7 +43,7 @@ class User < ApplicationRecord
   end
 
   def model_level_label
-    User.model_levels.dig(model_level.to_i, :label) || "未知"
+    User.model_levels.dig(model_level.to_i, :label) || "未知(#{model_level})"
   end
 
   def ban!
