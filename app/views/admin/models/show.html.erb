@@ -81,7 +81,7 @@
         </table>
       </div>
 
-      <button type="button" class="add-btn" style="width:calc(100% - 32px);margin:0 16px" onclick="openModal()">+ 添加模型</button>
+      <button type="button" class="add-btn" style="width:calc(100% - 32px);margin:0 16px 16px" onclick="openModal()">+ 添加模型</button>
 
       <div class="save-bar">
         <%= f.submit "保存配置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
@@ -192,10 +192,10 @@
       document.getElementById("tab-json").style.display = "block";
       initJsonEditor();
     } else {
-      // Sync JSON editor → form
+      // Sync JSON editor → form（不标记脏，只是同步视图）
       if (jsonEditor) {
         try {
-          jsonToForm(JSON.parse(jsonEditor.getValue()));
+          jsonToForm(JSON.parse(jsonEditor.getValue()), false);
         } catch(e) {
           if (!confirm("JSON 格式有误，无法同步到可视化编辑。是否忽略？")) return;
         }
@@ -251,7 +251,7 @@
     return JSON.stringify({ default: data.get("default_model"), models: models }, null, 2);
   }
 
-  function jsonToForm(data) {
+  function jsonToForm(data, markDirty) {
     var tbody = document.getElementById("models-tbody");
     tbody.innerHTML = "";
     var select = document.getElementById("default-model-select");
@@ -260,6 +260,8 @@
     (data.models || []).forEach(function(m, i) {
       var tmpl = document.getElementById("model-row-template").content.cloneNode(true);
       fillRow(tmpl, m, i);
+      // 移除未保存高亮（同步操作不标记为脏）
+      tmpl.querySelector("tr").classList.remove("unsaved");
       tbody.appendChild(tmpl);
 
       var opt = document.createElement("option");
@@ -269,13 +271,13 @@
       select.appendChild(opt);
     });
     modelCount = (data.models || []).length;
-    trackDirty();
+    if (markDirty) trackDirty();
   }
 
   function saveFromJson() {
     // Sync JSON to form, then submit
     try {
-      jsonToForm(JSON.parse(jsonEditor.getValue()));
+      jsonToForm(JSON.parse(jsonEditor.getValue()), true);
     } catch(e) {
       alert("JSON 格式有误，无法保存：" + e.message);
       return;
@@ -348,9 +350,9 @@
       if (field === "level") { el.value = m.level || 0; return; }
       el.value = m[field] || "";
     });
-    // Fix index
+    // Fix index（处理 __IDX__ 和已有数字两种占位）
     inputs.forEach(function(el) {
-      el.setAttribute("name", el.getAttribute("name").replace(/\[\d+\]/, "[" + idx + "]"));
+      el.setAttribute("name", el.getAttribute("name").replace(/\[\d+\]|\[__IDX__\]/, "[" + idx + "]"));
     });
   }
 
