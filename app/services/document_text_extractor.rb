@@ -28,18 +28,33 @@ class DocumentTextExtractor
   # 扫描件常带一点页眉页脚文字，所以不能只判断完全为空。
   SCANNED_PDF_THRESHOLD = 20
 
-  ACCEPT_ATTRIBUTE = EXTENSIONS.keys.join(",").freeze
+  # 从设置读取允许的扩展名，如果没有则用内置默认
+  def self.accepted_extensions
+    raw = Setting.get("allowed_extensions")
+    return EXTENSIONS if raw.blank?
+    raw.split.map(&:strip).select { |e| e.start_with?(".") }
+  end
+
+  ACCEPT_ATTRIBUTE = -> { accepted_extensions.join(",") }
 
   # 本次解析是否走了 OCR，供界面提示识别质量可能有偏差。
   def used_ocr?
     @used_ocr.present?
   end
 
+  attr_reader :extracted_images
+
   def call(uploaded_file)
     raise ParseError, "没有选择文件" if uploaded_file.blank?
 
     validate_size!(uploaded_file)
     kind = detect_kind(uploaded_file.original_filename)
+
+    # 启用 MinerU 时优先走 MinerU（PDF/图片/Office 文档）
+    if mineru_enabled?
+      result = try_mineru(uploaded_file)
+      return result if result
+    end
 
     text = with_tempfile(uploaded_file) do |path|
       case kind
@@ -59,6 +74,35 @@ class DocumentTextExtractor
 
   private
 
+  def mineru_enabled?
+    Setting.bool("mineru_enabled", default: false) && ENV["MINERU_API_KEY"].present?
+  end
+
+  def try_mineru(uploaded_file)
+    model_id = Setting.get("mineru_model", default: nil).presence
+    ext = File.extname(uploaded_file.original_filename.to_s).downcase
+    file_path = save_tempfile(uploaded_file, ext)
+
+    result = MineruService.new(model_version: model_id).parse(file_path,
+      file_name: uploaded_file.original_filename)
+    @extracted_images = result[:images]
+    text = normalize_whitespace(result[:text])
+    return nil if text.blank?
+
+    text.truncate(MAX_CHARS)
+  rescue MineruService::Error => e
+    Rails.logger.warn("MinerU 解析失败，降级到旧解析器: #{e.message}")
+    nil
+  end
+
+  def save_tempfile(uploaded_file, ext)
+    tmp = Tempfile.new([ "mineru", ext ], binmode: true)
+    uploaded_file.rewind if uploaded_file.respond_to?(:rewind)
+    IO.copy_stream(uploaded_file.to_io, tmp)
+    tmp.flush
+    tmp.path
+  end
+
   def validate_size!(file)
     return unless file.size > MAX_BYTES
     raise ParseError, "文件太大（上限 #{MAX_BYTES / 1.megabyte}MB）"
@@ -66,8 +110,10 @@ class DocumentTextExtractor
 
   def detect_kind(filename)
     ext = File.extname(filename.to_s).downcase
+    allowed = self.class.accepted_extensions
+    raise UnsupportedFormat, "不支持 #{ext.presence || '这种'} 格式，支持：#{allowed.join(' ')}" if allowed.exclude?(ext)
     EXTENSIONS.fetch(ext) do
-      raise UnsupportedFormat, "不支持 #{ext.presence || '这种'} 格式，支持：#{EXTENSIONS.keys.join(' ')}"
+      raise UnsupportedFormat, "不支持 #{ext.presence || '这种'} 格式，支持：#{allowed.join(' ')}"
     end
   end
 

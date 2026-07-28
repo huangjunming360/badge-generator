@@ -9,7 +9,6 @@
       <div class="p-5">
         <label class="block text-sm font-medium mb-1">站点标题</label>
         <%= f.text_field :site_title, value: @settings[:site_title], class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
-        <p class="text-xs text-stone-400 mt-1">显示在浏览器标签页标题</p>
       </div>
 
       <div class="p-5 flex items-center justify-between">
@@ -18,8 +17,7 @@
           <p class="text-xs text-stone-400 mt-0.5">关闭后注册页面不可用</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
-          <%= f.check_box :allow_registration, checked: @settings[:allow_registration],
-                class: "sr-only peer" %>
+          <%= f.check_box :allow_registration, checked: @settings[:allow_registration], class: "sr-only peer" %>
           <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
         </label>
       </div>
@@ -30,10 +28,59 @@
           <p class="text-xs text-stone-400 mt-0.5">开启后未登录用户无法使用模型选择功能</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
-          <%= f.check_box :require_login_for_models, checked: @settings[:require_login_for_models],
-                class: "sr-only peer" %>
+          <%= f.check_box :require_login_for_models, checked: @settings[:require_login_for_models], class: "sr-only peer" %>
           <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
         </label>
+      </div>
+    </div>
+
+    <!-- MinerU 配置 -->
+    <h2 class="text-lg font-bold mt-8 mb-3">文档解析（MinerU）</h2>
+
+    <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
+      <div class="p-5 flex items-center justify-between">
+        <div>
+          <label class="text-sm font-medium">启用 MinerU 解析</label>
+          <p class="text-xs text-stone-400 mt-0.5">开启后优先使用 MinerU 解析文档（需在 .env 配置 MINERU_API_KEY）</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <%= f.check_box :mineru_enabled, checked: @settings[:mineru_enabled], class: "sr-only peer" %>
+          <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+        </label>
+      </div>
+
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-1">MinerU 模型版本</label>
+        <%= f.select :mineru_model,
+              options_for_select([["pipeline（默认）", "pipeline"], ["vlm", "vlm"], ["MinerU-HTML", "MinerU-HTML"]], @settings[:mineru_model]),
+              { include_blank: "使用默认 (pipeline)" },
+              class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+        <p class="text-xs text-stone-400 mt-1">pipeline=标准, vlm=视觉语言模型, MinerU-HTML=HTML专用</p>
+      </div>
+
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-1">提取步骤模型</label>
+        <p class="text-xs text-stone-400 mt-0.5 mb-2">指定每个步骤使用的模型 ID（不填则用默认模型）</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-stone-500 mb-1">文档提取</label>
+            <%= f.text_field :extract_model, value: @settings[:extract_model], placeholder: "默认", class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+          </div>
+          <div>
+            <label class="block text-xs text-stone-500 mb-1">大头照识别</label>
+            <%= f.text_field :portrait_model, value: @settings[:portrait_model], placeholder: "默认", class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="text-lg font-bold mt-8 mb-3">上传限制</h2>
+
+    <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-1">允许的文件扩展名</label>
+        <%= f.text_field :allowed_extensions, value: @settings[:allowed_extensions], placeholder: ".pdf .docx .png .jpg（空格分隔）", class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+        <p class="text-xs text-stone-400 mt-1">留空则使用默认列表</p>
       </div>
     </div>
 
@@ -46,18 +93,15 @@
 
 <script>
   var settingsDirty = false;
-
   document.addEventListener("turbo:load", function() {
     var form = document.getElementById("settings-form");
     form.addEventListener("change", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
     form.addEventListener("input", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
     form.addEventListener("submit", function() { settingsDirty = false; });
   });
-
   window.addEventListener("beforeunload", function(e) {
     if (settingsDirty) { e.preventDefault(); e.returnValue = ""; }
   });
-
   function warnSettingsUnsaved() {
     if (settingsDirty) return confirm("有未保存的更改，确定离开？");
     return true;

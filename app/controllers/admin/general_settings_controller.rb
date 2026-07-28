@@ -1,16 +1,22 @@
 class Admin::GeneralSettingsController < Admin::BaseController
+  SETTINGS_KEYS = %i[
+    site_title allow_registration require_login_for_models
+    mineru_enabled mineru_model extract_model portrait_model
+    allowed_extensions
+  ].freeze
+
   def show
-    @settings = {
-      site_title: Setting.get("site_title", default: "Badge Generator"),
-      allow_registration: Setting.bool("allow_registration", default: true),
-      require_login_for_models: Setting.bool("require_login_for_models", default: false)
-    }
+    @settings = {}
+    SETTINGS_KEYS.each do |key|
+      @settings[key] = Setting.get(key.to_s)
+    end
   end
 
   def update
-    Setting.set("site_title", params[:site_title])
-    Setting.set("allow_registration", params[:allow_registration] == "1")
-    Setting.set("require_login_for_models", params[:require_login_for_models] == "1")
+    SETTINGS_KEYS.each do |key|
+      val = params[key]
+      Setting.set(key.to_s, val.is_a?(String) ? val : (val == "1" ? "true" : "false"))
+    end
 
     redirect_to admin_general_settings_path, notice: "设置已保存"
   end
