@@ -22,7 +22,9 @@ class Api::V1::CardsController < Api::BaseController
 
     return render_validation_errors(card) unless card.valid?
 
-    card.data = CardExtractor.new.call(card.raw_input)
+    # 模型由请求参数指定：分离架构下前端不共享 cookie session。
+    # 不传就用 config/models.json 的 default。
+    card.data = CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
     card.save!
     render json: { card: serializer(card).as_detail }, status: :created
   rescue DocumentTextExtractor::UnsupportedFormat,
@@ -30,9 +32,13 @@ class Api::V1::CardsController < Api::BaseController
          OcrExtractor::OcrError,
          CardExtractor::ExtractionError => e
     render_error(e.message, status: :unprocessable_content)
+  rescue LlmService::UnknownModel => e
+    # 模型 id 传错是客户端的问题，不是上游故障。
+    # 必须写在 LlmService::Error 之前 —— 它是后者的子类。
+    render_error(e.message, status: :unprocessable_content)
   rescue LlmService::Error => e
     # LlmService::Error 会穿透 CardExtractor 且不被重试。
-    # 模型服务故障是上游问题，不是客户端请求的错，所以用 502。
+    # 上游模型服务故障不该报 500。
     render_error(e.message, status: :bad_gateway)
   end
 

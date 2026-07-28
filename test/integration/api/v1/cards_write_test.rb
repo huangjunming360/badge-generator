@@ -66,6 +66,14 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     assert_match(/AI 服务响应异常/, body["errors"].first)
   end
 
+  test "未知 model_id 返回 422 而非 502" do
+    # 模型 id 传错是客户端问题，不该和上游故障混为一谈
+    post api_v1_cards_path, params: { raw_input: "林思远", model_id: "no_such_model" }
+
+    assert_response :unprocessable_content
+    assert_match(/未知的模型/, body["errors"].first)
+  end
+
   test "update 合并字段而不整体覆盖" do
     card = Card.create!(raw_input: "x", data: { "name" => "林思远", "phone" => "13800138000" })
 

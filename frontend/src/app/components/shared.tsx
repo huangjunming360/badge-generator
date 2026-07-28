@@ -25,6 +25,8 @@ export interface CustomCfg {
 export interface NavState {
   rawText: string;
   fields: Field[];
+  // 后端建卡后的 id。刷新会丢 location.state，第二页据此回源重取。
+  cardId: number | null;
 }
 
 /* ── Easing ─────────────────────────────────────────────────── */
@@ -71,72 +73,9 @@ export const SAMPLE = `{
 }`;
 
 /* Field descriptor used by both JSON and line parsers */
-const FIELD_DEFS: {
-  keys: string[]; key: string; label: string;
-  cat: Field["category"]; selected: boolean;
-}[] = [
-  // ── AI output fields (always selected by default) ──────────────
-  { keys:["名称","姓名","名字","name"],                                             key:"name",        label:"姓名",   cat:"person",  selected:true },
-  { keys:["组织项目的机构","机构","单位","公司","organization","institution"],       key:"institution", label:"机构",   cat:"person",  selected:true },
-  { keys:["组织项目的机构部门","部门","department","dept"],                         key:"department",  label:"部门",   cat:"person",  selected:true },
-  { keys:["项目主题","主题","项目","project","theme"],                              key:"project",     label:"项目主题",cat:"access", selected:true },
-  // ── Supplementary fields ────────────────────────────────────────
-  { keys:["班级","class"],                                                          key:"class",       label:"班级",   cat:"person",  selected:false },
-  { keys:["组别","小组","组","group"],                                              key:"group",       label:"组别",   cat:"person",  selected:false },
-  { keys:["职务","职位","职称","title","position"],                                 key:"title",       label:"职务",   cat:"person",  selected:false },
-  { keys:["工号","编号","员工号","id"],                                             key:"id",          label:"工号",   cat:"access",  selected:false },
-  { keys:["电话","联系电话","手机","phone","mobile"],                               key:"phone",       label:"电话",   cat:"contact", selected:false },
-  { keys:["邮件","电子邮件","email","e-mail"],                                      key:"email",       label:"邮件",   cat:"contact", selected:false },
-  { keys:["日期","有效日期","date"],                                                key:"date",        label:"日期",   cat:"access",  selected:false },
-  { keys:["区域","访问区域","area"],                                                key:"area",        label:"区域",   cat:"access",  selected:false },
-];
-
-function makeField(def: typeof FIELD_DEFS[0], value: string): Field {
-  return { id:def.key, key:def.key, label:def.label, value, selected:def.selected, category:def.cat };
-}
-
-/* JSON parser — handles standard JSON and Chinese-punctuation JSON */
-function parseJSON(raw: string): Field[] {
-  const normalized = raw.replace(/：/g, ":").replace(/；/g, ",").replace(/"/g, '"').replace(/"/g, '"');
-  try {
-    const obj = JSON.parse(normalized);
-    if (typeof obj !== "object" || Array.isArray(obj) || !obj) return [];
-    const out: Field[] = [];
-    for (const [k, v] of Object.entries(obj)) {
-      const value = String(v ?? "").trim();
-      if (!value) continue;
-      const def = FIELD_DEFS.find(d => d.keys.some(dk => dk.toLowerCase() === k.trim().toLowerCase()));
-      if (def && !out.find(f => f.key === def.key)) out.push(makeField(def, value));
-    }
-    return out;
-  } catch { return []; }
-}
-
-/* Line-by-line parser for "key: value" text */
-function parseLines(raw: string): Field[] {
-  const out: Field[] = [];
-  for (const line of raw.split("\n").filter(l => l.trim())) {
-    for (const def of FIELD_DEFS) {
-      const pattern = new RegExp(`(?:${def.keys.join("|")})[：:]\\s*(.+)`, "i");
-      const m = line.match(pattern);
-      if (m && !out.find(f => f.key === def.key)) {
-        out.push(makeField(def, m[1].trim()));
-        break;
-      }
-    }
-  }
-  return out;
-}
-
-export function parseText(raw: string): Field[] {
-  const trimmed = raw.trim();
-  // Try JSON first if input looks like an object
-  if (trimmed.startsWith("{") || trimmed.startsWith("｛")) {
-    const result = parseJSON(trimmed);
-    if (result.length > 0) return result;
-  }
-  return parseLines(trimmed);
-}
+/* 本地解析已删除：提取统一由后端 CardExtractor 走 LLM 完成。
+   保留两套逻辑会让同一份资料得到两种结果，且前端正则质量远低于 LLM。
+   字段清单与中文标签改由 GET /api/v1/schema 提供。 */
 
 /* ── usePress hook ───────────────────────────────────────────── */
 export function usePress() {
@@ -217,19 +156,22 @@ export function Toggle({ value, onChange, label, icon }: {
 /* ── FIcon ───────────────────────────────────────────────────── */
 export function FIcon({ k, size=11 }: { k:string; size?:number }) {
   const m: Record<string, React.ReactNode> = {
-    name:        <User size={size}/>,
-    title:       <Layers size={size}/>,
-    institution: <Building2 size={size}/>,
-    company:     <Building2 size={size}/>,
-    department:  <Building2 size={size}/>,
-    project:     <Bookmark size={size}/>,
-    class:       <BookOpen size={size}/>,
-    group:       <Users size={size}/>,
-    id:          <Hash size={size}/>,
-    phone:       <Phone size={size}/>,
-    email:       <Mail size={size}/>,
-    date:        <Calendar size={size}/>,
-    area:        <MapPin size={size}/>,
+    // 键名对齐后端 Card::FIELDS，旧的 institution/project/class 等
+    // 是本地解析时代的产物，schema 里并不存在。
+    name:              <User size={size}/>,
+    name_en:           <User size={size}/>,
+    title:             <Layers size={size}/>,
+    department:        <Building2 size={size}/>,
+    organization:      <Building2 size={size}/>,
+    tagline:           <Bookmark size={size}/>,
+    phone:             <Phone size={size}/>,
+    email:             <Mail size={size}/>,
+    website:           <Columns size={size}/>,
+    address:           <MapPin size={size}/>,
+    employee_id:       <Hash size={size}/>,
+    host_organization: <Building2 size={size}/>,
+    host_department:   <Users size={size}/>,
+    event_topic:       <BookOpen size={size}/>,
   };
   return <>{m[k] ?? <Hash size={size}/>}</>;
 }

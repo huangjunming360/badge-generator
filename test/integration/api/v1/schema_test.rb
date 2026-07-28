@@ -33,4 +33,20 @@ class Api::V1::SchemaTest < ActionDispatch::IntegrationTest
     assert_equal Card::PORTRAIT_TYPES, @body.dig("portrait", "content_types")
     assert_equal Card::PORTRAIT_MAX_BYTES, @body.dig("portrait", "max_bytes")
   end
+
+  test "模型清单只暴露 id 与展示名，绝不含凭据" do
+    available = @body.dig("models", "available")
+    assert available.is_a?(Array)
+
+    available.each do |model|
+      assert_equal %w[id label].sort, model.keys.sort,
+        "模型条目只应有 id/label，实际有 #{model.keys}"
+    end
+
+    # 兜底：整个响应体里不能出现任何凭据字样
+    raw = @response.body
+    assert_no_match(/api_key/, raw)
+    assert_no_match(/api_base/, raw)
+    assert_no_match(/sk-/, raw)
+  end
 end

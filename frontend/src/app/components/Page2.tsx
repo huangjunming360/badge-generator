@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, Eye, Check, SlidersHorizontal } from "lucide-react";
 import {
@@ -6,6 +6,11 @@ import {
   E, U, ACCENTS,
   BadgeCard, PreviewSheet, OptionsSidebar, FIcon, RippleBtn,
 } from "./shared";
+import { BadgeCanvas, templateContentSize, canvasSizeMm } from "./BadgeCanvas";
+import { SizeControls } from "./SizeControls";
+import { fetchCard, fetchSchema, updateCardSize } from "../../api/cards";
+import { toFields } from "../../api/fields";
+import { ApiError } from "../../api/client";
 
 export default function Page2() {
   const navigate  = useNavigate();
@@ -24,11 +29,64 @@ export default function Page2() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [optPanelOpen, setOptPanelOpen] = useState(true);
 
+  const [cardId] = useState<number | null>(saved?.cardId ?? null);
+  // 实物尺寸以后端为准（默认 55×85mm）。刷新丢了 state 时用后端默认值兜底。
+  const [sizeMm, setSizeMm] = useState({ widthMm: 55, heightMm: 85 });
+  const [previewScale, setPreviewScale] = useState(1);
+  // 尺寸边界与缩放档位来自后端 schema，不在前端写死。
+  const [limits, setLimits] = useState({
+    minMm: 20, maxMm: 200, defaultWidthMm: 55, defaultHeightMm: 85,
+    scales: [ 1, 1.5, 2, 3 ],
+  });
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  // 刷新会丢 location.state。有 cardId 就回源重取，保证刷新不丢数据。
+  useEffect(() => {
+    if (!cardId) return;
+    let alive = true;
+
+    Promise.all([fetchCard(cardId), fetchSchema()])
+      .then(([card, schema]) => {
+        if (!alive) return;
+        setSizeMm({ widthMm: card.width_mm, heightMm: card.height_mm });
+        setPreviewScale(schema.preview.default_scale);
+        setLimits({
+          minMm: schema.size.min_mm,
+          maxMm: schema.size.max_mm,
+          defaultWidthMm: schema.size.default_width_mm,
+          defaultHeightMm: schema.size.default_height_mm,
+          scales: schema.preview.scales,
+        });
+        // 没有从上一页带过来字段时（直接刷新本页），用后端数据填充。
+        if (!saved?.fields?.length) setFields(toFields(card.fields, schema.fields));
+      })
+      .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "读取失败"); });
+
+    return () => { alive = false; };
+  }, [cardId, saved?.fields?.length]);
+
+  // 尺寸落库。勾选/配色/字号是纯展示配置不入库，
+  // 但 mm 尺寸决定印出来多大，必须持久化。
+  const persistSize = async (widthMm: number, heightMm: number) => {
+    setSizeMm({ widthMm, heightMm });
+    if (!cardId) return;
+    setSaveState("saving");
+    setError(null);
+    try {
+      await updateCardSize(cardId, widthMm, heightMm);
+      setSaveState("saved");
+    } catch (e) {
+      setSaveState("error");
+      setError(e instanceof ApiError ? e.message : "保存尺寸失败");
+    }
+  };
+
   const toggleField   = (key: string) => setFields(p => p.map(f => f.key===key ? {...f,selected:!f.selected} : f));
   const selectedCount = fields.filter(f => f.selected).length;
 
   const goBack = () => {
-    navigate("/", { state: { rawText: saved?.rawText ?? "", fields } satisfies NavState });
+    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId } satisfies NavState });
   };
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom };
@@ -90,6 +148,20 @@ export default function Page2() {
         </button>
       </div>
 
+      {/* 错误必须让用户看到，否则保存失败会静默丢改动 */}
+      {error && (
+        <div style={{
+          padding:"8px 20px", background:"#FDF0F2", borderBottom:"1px solid #F0D4DA",
+          fontSize:11.5, color:"#8A3448", display:"flex", alignItems:"center", gap:8,
+        }}>
+          <span style={{ flex:1 }}>{error}</span>
+          <button onClick={() => setError(null)} style={{
+            border:"none", background:"transparent", cursor:"pointer", color:"#8A3448",
+            fontSize:11.5, padding:"2px 6px",
+          }}>关闭</button>
+        </div>
+      )}
+
       {/* ── Main area ──────────────────────────────────── */}
       <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
 
@@ -114,8 +186,32 @@ export default function Page2() {
             alignItems:"center", gap:28 }}>
             <div style={{ animation:`floatIn .5s ${E.spring} both`,
               filter:"drop-shadow(0 16px 40px rgba(30,50,80,.13))" }}>
-              <BadgeCard {...badgeProps} scale={1.28}/>
+              {/* 外层是 mm 实物画布，内容等比缩放居中。设计稿模板是像素比例
+                  （竖版 2:3），与 55:85 不等，包一层才不会拉伸变形。 */}
+              <BadgeCanvas
+                {...canvasSizeMm(sizeMm.widthMm, sizeMm.heightMm, template, custom.orientation)}
+                contentWidth={templateContentSize(template, custom.orientation).width}
+                contentHeight={templateContentSize(template, custom.orientation).height}
+                previewScale={previewScale}
+              >
+                <BadgeCard {...badgeProps} scale={1}/>
+              </BadgeCanvas>
             </div>
+
+            {/* 实物尺寸与预览缩放 */}
+            <SizeControls
+              widthMm={sizeMm.widthMm}
+              heightMm={sizeMm.heightMm}
+              minMm={limits.minMm}
+              maxMm={limits.maxMm}
+              defaultWidthMm={limits.defaultWidthMm}
+              defaultHeightMm={limits.defaultHeightMm}
+              previewScale={previewScale}
+              scales={limits.scales}
+              saveState={saveState}
+              onCommitSize={persistSize}
+              onPreviewScale={setPreviewScale}
+            />
 
             {/* Field chips row */}
             {fields.length > 0 && (

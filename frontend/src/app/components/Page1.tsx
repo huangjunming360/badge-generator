@@ -6,9 +6,14 @@ import {
 } from "lucide-react";
 import {
   Field, NavState,
-  E, U, SAMPLE, parseText,
+  E, U, SAMPLE,
   usePress, RippleBtn, FIcon,
 } from "./shared";
+import { fetchSchema, createCardFromText, createCardFromDocument } from "../../api/cards";
+import { ModelPicker } from "./ModelPicker";
+import { toFields } from "../../api/fields";
+import { ApiError } from "../../api/client";
+import type { SchemaFieldDef } from "../../api/types";
 
 /* ── Editable field row ──────────────────────────────────────── */
 function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
@@ -111,6 +116,16 @@ export default function Page1() {
   const [phase, setPhase]       = useState<"idle" | "active">(
     saved?.fields?.length ? "active" : "idle"
   );
+  // 后端 schema：字段清单与中文标签的唯一来源，不在前端写死。
+  const [schema, setSchema] = useState<SchemaFieldDef[]>([]);
+  const [error, setError]   = useState<string | null>(null);
+  // 建卡后的 id，供第二页读取与后续更新。
+  const [cardId, setCardId] = useState<number | null>(saved?.cardId ?? null);
+  // 证件照留在本页，随建卡请求一起上传。
+  const [portraitFile, setPortraitFile] = useState<File | null>(null);
+  // 模型选择：分离架构下随请求参数发给后端，不走 cookie session。
+  const [models, setModels] = useState<{ id: string; label: string }[]>([]);
+  const [modelId, setModelId] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef     = useRef<HTMLInputElement>(null);
@@ -124,6 +139,20 @@ export default function Page1() {
     el.style.height = Math.min(el.scrollHeight, 420) + "px";
   }, [rawText]);
 
+  /* 拉取后端 schema。字段清单与中文标签都以后端为准。 */
+  useEffect(() => {
+    let alive = true;
+    fetchSchema()
+      .then(s => {
+        if (!alive) return;
+        setSchema(s.fields);
+        setModels(s.models.available);
+        setModelId(s.models.default);
+      })
+      .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "无法读取字段配置"); });
+    return () => { alive = false; };
+  }, []);
+
   const startStream = useCallback((parsed: Field[]) => {
     let i = 0;
     const tick = () => {
@@ -134,57 +163,56 @@ export default function Page1() {
     setTimeout(tick, 60);
   }, []);
 
+  /* 提取统一走后端 LLM。此前的本地正则解析已删除 ——
+     两套逻辑会对同一份资料给出不同结果。 */
+  const runExtraction = useCallback(async (work: () => Promise<{
+    fields: Record<string, string | null>; id: number;
+  }>) => {
+    setPhase("active");
+    setParsing(true);
+    setError(null);
+    setStreamIdx(-1);
+    setFields([]);
+
+    try {
+      const card = await work();
+      const parsed = toFields(card.fields, schema);
+      setCardId(card.id);
+      setFields(parsed);
+      startStream(parsed);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "提取失败，请重试");
+      setPhase(fields.length ? "active" : "idle");
+    } finally {
+      setParsing(false);
+    }
+  }, [schema, startStream, fields.length]);
+
   const handleParse = useCallback(() => {
     if (!rawText.trim() || parsing) return;
-    // Immediately push content to top
-    setPhase("active");
-    setParsing(true);
-    setStreamIdx(-1);
-    setFields([]);
-    setTimeout(() => {
-      const parsed = parseText(rawText);
-      setFields(parsed);
-      setParsing(false);
-      startStream(parsed);
-    }, 820);
-  }, [rawText, parsing, startStream]);
+    runExtraction(() => createCardFromText(rawText, modelId));
+  }, [rawText, parsing, runExtraction, modelId]);
 
+  // 文档不再由前端 FileReader 读文本：后端能按扩展名处理
+  // docx/pdf/xlsx/csv，扫描件还会自动走 OCR，前端读不了这些。
   const handleFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target?.result as string;
-      setRawText(text);
-      setPhase("active");
-      setParsing(true);
-      setStreamIdx(-1);
-      setFields([]);
-      setTimeout(() => {
-        const parsed = parseText(text);
-        setFields(parsed);
-        setParsing(false);
-        startStream(parsed);
-      }, 820);
-    };
-    reader.readAsText(file);
-  }, [startStream]);
+    if (parsing) return;
+    setRawText(`（已上传文件：${file.name}）`);
+    runExtraction(() => createCardFromDocument(file, portraitFile, modelId));
+  }, [parsing, runExtraction, portraitFile, modelId]);
 
+  // 证件照只记下来，随下一次建卡一起提交。
   const handleImg = useCallback((file: File) => {
     setImgName(file.name);
-    setPhase("active");
-    setParsing(true);
-    setStreamIdx(-1);
-    setFields([]);
-    setTimeout(() => {
-      const parsed = parseText(rawText || "");
-      setFields(parsed);
-      setParsing(false);
-      startStream(parsed);
-    }, 1500);
-  }, [rawText, startStream]);
+    setPortraitFile(file);
+  }, []);
 
   const toggleField  = (key: string) => setFields(p => p.map(f => f.key === key ? { ...f, selected: !f.selected } : f));
   const changeValue  = (key: string, v: string) => setFields(p => p.map(f => f.key === key ? { ...f, value: v } : f));
-  const deleteField  = (key: string) => setFields(p => p.filter(f => f.key !== key));
+  // 后端是固定 schema，字段删不掉。这里的语义是清空值并取消勾选，
+  // 字段留在列表里但不出现在挂牌上。
+  const deleteField  = (key: string) =>
+    setFields(p => p.map(f => f.key === key ? { ...f, value: "", selected: false } : f));
 
   const hasFields     = fields.length > 0;
   const hasSelected   = fields.some(f => f.selected);
@@ -194,7 +222,7 @@ export default function Page1() {
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
 
   const goToDesign = () => {
-    navigate("/design", { state: { rawText, fields } as NavState });
+    navigate("/design", { state: { rawText, fields, cardId } as NavState });
   };
 
   /* Padding-top drives the centering ↔ top animation */
@@ -230,7 +258,43 @@ export default function Page1() {
         <div style={{ fontSize: 10, color: "rgba(255,255,255,.38)", letterSpacing: ".26em" }}>
           BADGE GENERATOR
         </div>
+
+        {/* 模型选择与历史入口 */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 16, marginTop: 12,
+        }}>
+          <ModelPicker
+            models={models}
+            value={modelId}
+            onChange={setModelId}
+            disabled={parsing}
+          />
+          <button onClick={() => navigate("/history")} style={{
+            border: "1px solid rgba(255,255,255,.22)", background: "rgba(255,255,255,.12)",
+            color: "#fff", fontSize: 11, padding: "4px 11px", borderRadius: 7,
+            cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+            transition: `all .16s ${E.smooth}`,
+          }}>
+            历史记录
+          </button>
+        </div>
       </div>
+
+      {/* 提取失败必须显式告知：静默失败会让用户以为资料没问题 */}
+      {error && (
+        <div style={{
+          padding: "8px 20px", background: "#FDF0F2", borderBottom: "1px solid #F0D4DA",
+          fontSize: 11.5, color: "#8A3448", display: "flex", alignItems: "center", gap: 8,
+          flexShrink: 0,
+        }}>
+          <span style={{ flex: 1 }}>{error}</span>
+          <button onClick={() => setError(null)} style={{
+            border: "none", background: "transparent", cursor: "pointer",
+            color: "#8A3448", fontSize: 11.5, padding: "2px 6px",
+          }}>关闭</button>
+        </div>
+      )}
 
       {/* ── Scrollable content ─────────────────────────── */}
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column" }}>

@@ -24,7 +24,19 @@ class Api::V1::SchemaController < Api::BaseController
       portrait: {
         content_types: Card::PORTRAIT_TYPES,
         max_bytes: Card::PORTRAIT_MAX_BYTES
+      },
+      # 可选模型清单。只暴露 id 与展示名 —— api_key / api_base 是凭据，
+      # 绝不能出现在响应里。
+      models: {
+        available: models_config["models"].to_a.map { |m| m.slice("id", "label") },
+        default: models_config["default"]
       }
     }
+  end
+
+  private
+
+  def models_config
+    Rails.application.config.x.models || {}
   end
 end
