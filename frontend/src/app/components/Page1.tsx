@@ -9,7 +9,7 @@ import {
   E, U, SAMPLE,
   usePress, RippleBtn, FIcon,
 } from "./shared";
-import { fetchSchema, createCardFromText, createCardFromDocument } from "../../api/cards";
+import { fetchSchema, pollCard, fetchCard } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import { toFields } from "../../api/fields";
@@ -109,6 +109,8 @@ export default function Page1() {
   const [rawText, setRawText] = useState(saved?.rawText ?? SAMPLE);
   const [fields, setFields]   = useState<Field[]>(saved?.fields ?? []);
   const [parsing, setParsing] = useState(false);
+  const [progressMsg, setProgressMsg] = useState<string | null>(null);
+  const [progressStage, setProgressStage] = useState<string | null>(null);
   const [streamIdx, setStreamIdx] = useState(
     saved?.fields ? saved.fields.length - 1 : -1
   );
@@ -169,17 +171,23 @@ export default function Page1() {
 
   /* 提取统一走后端 LLM。此前的本地正则解析已删除 ——
      两套逻辑会对同一份资料给出不同结果。 */
-  const runExtraction = useCallback(async (work: () => Promise<{
-    fields: Record<string, string | null>; id: number;
-  }>) => {
+  const runExtraction = useCallback(async (params: {
+    rawInput?: string; file?: File; portrait?: File | null; modelId?: string | null;
+  }) => {
     setPhase("active");
     setParsing(true);
     setError(null);
     setStreamIdx(-1);
     setFields([]);
+    setProgressMsg("提交中…");
+    setProgressStage("uploading");
 
     try {
-      const card = await work();
+      const cardId = await pollCard(params, (p) => {
+        setProgressMsg(p.message);
+        setProgressStage(p.stage);
+      });
+      const card = await fetchCard(cardId);
       const parsed = toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
@@ -189,15 +197,18 @@ export default function Page1() {
       setPhase(fields.length ? "active" : "idle");
     } finally {
       setParsing(false);
+      setProgressMsg(null);
+      setProgressStage(null);
     }
   }, [schema, startStream, fields.length]);
 
   const handleParse = useCallback(() => {
     if (parsing) return;
     if (pendingFile) {
-      runExtraction(() => createCardFromDocument(pendingFile, portraitFile, modelId).then(r => { setPendingFile(null); return r; }));
+      runExtraction({ file: pendingFile, portrait: portraitFile, modelId });
+      setPendingFile(null);
     } else if (rawText.trim()) {
-      runExtraction(() => createCardFromText(rawText, modelId));
+      runExtraction({ rawInput: rawText, modelId });
     }
   }, [rawText, parsing, runExtraction, modelId, pendingFile, portraitFile]);
 
@@ -394,15 +405,24 @@ export default function Page1() {
               fontSize: 12, color: U.textMid,
             }}>
               <div style={{ flex: 1, display: "flex", gap: 4 }}>
-                {["上传中", "文档解析", "AI 提取", "完成"].map((label, i) => (
-                  <div key={i} style={{
-                    flex: 1, height: 3, borderRadius: 2,
-                    background: i <= 1 ? U.blue : U.borderLight,
-                    transition: `background .4s ${E.smooth}`,
-                  }} />
-                ))}
+                {[
+                  { key: "uploading", label: "提交" },
+                  { key: "mineru", label: "文档解析" },
+                  { key: "extracting", label: "AI 提取" },
+                  { key: "done", label: "完成" },
+                ].map((s, i) => {
+                  const stages = ["uploading", "mineru", "extracting", "done"];
+                  const idx = stages.indexOf(progressStage || "uploading");
+                  return (
+                    <div key={i} style={{
+                      flex: 1, height: 3, borderRadius: 2,
+                      background: i <= idx ? U.blue : U.borderLight,
+                      transition: `background .4s ${E.smooth}`,
+                    }} />
+                  );
+                })}
               </div>
-              <span style={{ whiteSpace: "nowrap", fontSize: 11 }}>文档解析中…</span>
+              <span style={{ whiteSpace: "nowrap", fontSize: 11 }}>{progressMsg || "解析中…"}</span>
             </div>
           )}
 

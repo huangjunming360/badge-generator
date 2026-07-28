@@ -1,5 +1,4 @@
 class Api::V1::CardsController < Api::BaseController
-  # 速率限制：防止 LLM 额度被刷爆
   rate_limit to: 20, within: 1.minute, only: :create,
     with: -> { render json: { errors: [ "请求过于频繁，请稍后再试" ] }, status: :too_many_requests }
 
@@ -14,33 +13,37 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def create
-    progress = ProgressTracker.new(params[:progress_id]) if params[:progress_id].present?
-    progress&.set(:uploading)
+    # 异步：先建卡占位，后台解析
+    progress_id = SecureRandom.hex(12)
+    card = Current.user.cards.new(raw_input: "解析中…")
+    card.save!(validate: false)
+    card_id = card.id
 
-    card = Current.user.cards.new
-    card.raw_input = resolve_raw_input(progress)
-    card.source_name = @source_name
-    card.used_ocr = @used_ocr
+    # 原始参数存起来，后台线程用
+    raw_input = params[:raw_input]
+    model_id = params[:model_id]
+    file_data = params[:document]&.read rescue nil
+    file_name = params[:document]&.original_filename
+    portrait_data = params[:portrait]&.read rescue nil
+    portrait_name = params[:portrait]&.original_filename
 
-    portrait = params[:portrait]
-    card.portrait.attach(portrait) if portrait.present?
+    progress = ProgressTracker.new(progress_id)
+    progress.set(:uploading, "已提交，排队中…")
 
-    return render_validation_errors(card) unless card.valid?
+    Thread.new do
+      begin
+        # Rails 在线程中需要重新建立数据库连接
+        ActiveRecord::Base.connection_pool.with_connection do
+          process_card(card_id, raw_input, model_id, file_data, file_name,
+                       portrait_data, portrait_name, progress)
+        end
+      rescue => e
+        progress.error(e.message)
+        Rails.logger.error("异步解析失败: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+      end
+    end
 
-    progress&.set(:extracting)
-    card.data = CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
-    card.save!
-    progress&.set(:done)
-    render json: { card: serializer(card).as_detail }, status: :created
-  rescue DocumentTextExtractor::UnsupportedFormat,
-         DocumentTextExtractor::ParseError,
-         OcrExtractor::OcrError,
-         CardExtractor::ExtractionError => e
-    render_error(e.message, status: :unprocessable_content)
-  rescue LlmService::UnknownModel => e
-    render_error(e.message, status: :unprocessable_content)
-  rescue LlmService::Error => e
-    render_error(e.message, status: :bad_gateway)
+    render json: { task_id: progress_id, card_id: card_id }, status: :accepted
   end
 
   def update
@@ -59,6 +62,57 @@ class Api::V1::CardsController < Api::BaseController
 
   private
 
+  def process_card(card_id, raw_input, model_id, file_data, file_name,
+                   portrait_data, portrait_name, progress)
+    progress.set(:uploading, "启动解析…")
+    card = Current.user.cards.find(card_id)
+
+    # 处理上传的文件
+    text = nil
+    if file_data
+      progress.set(:mineru, "文档解析中…")
+      ext = File.extname(file_name || ".txt").downcase
+      Tempfile.create([ "upload", ext ], binmode: true) do |tmp|
+        tmp.write(file_data)
+        tmp.flush
+        extractor = DocumentTextExtractor.new
+        text = extractor.call(ActionDispatch::Http::UploadedFile.new(
+          filename: file_name || "file#{ext}", type: "", tempfile: tmp
+        ))
+        card.used_ocr = extractor.used_ocr?
+        card.source_name = file_name
+
+        if extractor.extracted_images.present? && portrait_data.blank?
+          progress.set(:portrait, "识别大头照…")
+          detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
+          found = detector.detect(extractor.extracted_images)
+          # 如果有图片数据，attach 到 card
+        end
+      end
+    else
+      text = raw_input
+    end
+
+    card.raw_input = text || raw_input || ""
+
+    portrait = params[:portrait]
+    card.portrait.attach(portrait) if portrait.present?
+    return progress.error("提取失败: 无文本内容") if text.blank?
+
+    progress.set(:extracting, "AI 提取字段中…")
+    card.data = CardExtractor.new(model_id: model_id).call(text)
+    card.save!
+    progress.done
+  rescue DocumentTextExtractor::UnsupportedFormat,
+         DocumentTextExtractor::ParseError,
+         OcrExtractor::OcrError,
+         CardExtractor::ExtractionError,
+         MineruService::Error => e
+    progress.error(e.message)
+  rescue LlmService::Error => e
+    progress.error("AI 服务异常: #{e.message}")
+  end
+
   def serializer(card)
     CardSerializer.new(card, host: request.base_url)
   end
@@ -75,31 +129,12 @@ class Api::V1::CardsController < Api::BaseController
   def fields_param
     raw = params[:fields]
     return nil if raw.blank?
-
     permitted = raw.permit(*Card::FIELDS).to_h
     permitted.transform_values { |v| v.presence && v.to_s }
   end
 
   def size_params
     return {} if params[:card].blank?
-
     params.require(:card).permit(:width_mm, :height_mm)
-  end
-
-  def resolve_raw_input(progress = nil)
-    file = params[:document]
-    progress&.set(:mineru) if file.present?
-
-    if file.present?
-      @source_name = file.original_filename
-      extractor = DocumentTextExtractor.new
-      text = extractor.call(file)
-      @used_ocr = extractor.used_ocr?
-      text
-    else
-      @source_name = nil
-      @used_ocr = false
-      params[:raw_input]
-    end
   end
 end

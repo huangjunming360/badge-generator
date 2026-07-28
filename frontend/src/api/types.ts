@@ -59,3 +59,9 @@ export interface SchemaPayload {
     max_bytes: number;
   };
 }
+
+export interface ProgressStatus {
+  stage: string;
+  message: string;
+  updated_at: string;
+}
