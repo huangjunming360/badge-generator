@@ -1,6 +1,9 @@
 <div class="mx-auto max-w-7xl px-4 py-8">
   <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold">用户管理</h1>
+    <div class="flex items-center gap-4">
+      <%= link_to "← 后台首页", admin_root_path, class: "text-sm text-stone-500 hover:text-stone-800" %>
+      <h1 class="text-2xl font-bold">用户管理</h1>
+    </div>
     <%= link_to "新建用户", new_admin_user_path, class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700" %>
   </div>
 
@@ -26,11 +29,15 @@
               </span>
             </td>
             <td class="px-4 py-3 text-center">
-              <%= button_to user.active? ? "✓ 已激活" : "未激活", toggle_active_admin_user_path(user), method: :patch, class: "px-2 py-1 rounded text-xs #{user.active? ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}" %>
+              <%= button_to user.active? ? "✓ 已激活" : "未激活", toggle_active_admin_user_path(user), method: :patch,
+                    data: { confirm: "确定#{user.active? ? '停用' : '激活'}该用户？" },
+                    class: "px-2 py-1 rounded text-xs #{user.active? ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}" %>
             </td>
             <td class="px-4 py-3 text-center">
               <% if user.banned? %>
-                <%= button_to "已封禁", toggle_ban_admin_user_path(user), method: :patch, class: "px-2 py-1 rounded text-xs bg-red-100 text-red-700" %>
+                <%= button_to "已封禁", toggle_ban_admin_user_path(user), method: :patch,
+                      data: { confirm: "确定解封该用户？" },
+                      class: "px-2 py-1 rounded text-xs bg-red-100 text-red-700" %>
               <% else %>
                 <span class="text-stone-400 text-xs">正常</span>
               <% end %>
@@ -38,8 +45,14 @@
             <td class="px-4 py-3 text-stone-500"><%= l user.created_at, format: :short %></td>
             <td class="px-4 py-3 text-right">
               <% unless user == Current.user %>
-                <%= button_to "删除", admin_user_path(user), method: :delete, data: { confirm: "确定删除？" }, class: "text-red-500 hover:text-red-700 text-xs" %>
-                <%= button_to "封禁", toggle_ban_admin_user_path(user), method: :patch, class: "text-red-500 hover:text-red-700 text-xs ml-2" %>
+                <%= button_to "删除", admin_user_path(user), method: :delete,
+                      data: { confirm: "确定删除用户 #{user.email_address}？此操作不可恢复！" },
+                      class: "text-red-500 hover:text-red-700 text-xs" %>
+                <% unless user.banned? %>
+                  <%= button_to "封禁", toggle_ban_admin_user_path(user), method: :patch,
+                        data: { confirm: "确定封禁 #{user.email_address}？" },
+                        class: "text-red-500 hover:text-red-700 text-xs ml-2" %>
+                <% end %>
               <% end %>
             </td>
           </tr>

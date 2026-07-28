@@ -4,6 +4,8 @@ class User < ApplicationRecord
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
+  validates :password, length: { minimum: 6, message: "密码至少6位" }, if: :password_required?
+
   scope :admins, -> { where(role: "admin") }
   scope :active_users, -> { where(active: true) }
   scope :inactive_users, -> { where(active: false) }
@@ -18,7 +20,7 @@ class User < ApplicationRecord
     banned_at.present?
   end
 
-  def ban!(reason: nil)
+  def ban!
     update!(banned_at: Time.current)
   end
 
@@ -36,5 +38,11 @@ class User < ApplicationRecord
 
   def active_for_authentication?
     active? && !banned?
+  end
+
+  private
+
+  def password_required?
+    new_record? || password.present?
   end
 end
