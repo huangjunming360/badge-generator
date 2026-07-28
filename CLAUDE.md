@@ -8,6 +8,38 @@
 - `master` / `main` 是稳定分支，禁止直接 push，只通过 PR 从 `dev` 合入
 - commit message 用中文，遵循 `feat:` / `fix:` / `docs:` / `chore:` / `style:` 前缀
 
+## 安全铁律（必须先读再写代码）
+
+默认不信任任何请求、任何参数、任何用户。每写一行代码前过三遍：
+
+### 第一遍：写之前
+
+1. 这个 endpoint 需要登录吗？→ 加 `require_authentication`
+2. 这个 endpoint 花钱吗？（LLM、存储、网络）→ 加 `rate_limit`
+3. 这个数据属于哪个用户？→ 从 `Current.user` 出发
+
+### 第二遍：写的时候
+
+```
+Current.user.resources.find(params[:id])   // ✅ 正确
+Resource.find(params[:id])                  // ❌ 立即删除这行
+```
+
+新 endpoint 默认 `require_authentication`，公开访问是例外。
+`allow_unauthenticated_access` / `skip_before_action` 必须有注释写明为什么。
+
+### 第三遍：写完检查（三行清单）
+
+| 类型 | 自查 |
+|------|------|
+| 数据隔离 | 所有 find/index 都 scope 在 `Current.user` 下吗？ |
+| 创建归属 | new 用的 `Current.user.resources.new` 吗？不是 `Resource.new`？ |
+| 速率限制 | 花钱的路径有 rate_limit 吗？ |
+| 管理员操作用户 | user_params 里 permit 了 role / model_level / 敏感字段吗？ |
+| 死代码 | 旧的 endpoint/controller 被取代后删了吗？ |
+
+哪行答不上来就不提交。
+
 ## 提交前必须验证
 
 ```bash
@@ -16,6 +48,7 @@ bin/rubocop       # 无 offense
 ```
 
 两者任一不通过就不提交。
+Failing = 不提交。不提交。不提交。不。提。交。
 
 ## LLM 调用
 
