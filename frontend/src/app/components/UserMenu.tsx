@@ -4,11 +4,12 @@ import { U, E } from "./shared";
 import { useAuth } from "./useAuth";
 import { User } from "lucide-react";
 
-export default function UserMenu() {
+export default function UserMenu({ dark }: { dark?: boolean }) {
   const { user, loading, logout } = useAuth();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const c = dark ? "#fff" : U.textMid;
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -27,15 +28,15 @@ export default function UserMenu() {
           display: "flex", alignItems: "center", gap: 5,
           padding: "5px 10px", borderRadius: 8, border: "none",
           background: open ? U.surfaceBlue : "transparent",
-          cursor: "pointer", fontSize: 12, color: U.textMid,
+          cursor: "pointer", fontSize: 12, color: c,
           transition: `all .15s ${E.smooth}`,
         }}>
           <User size={14} />
         </button>
       ) : (
         <div style={{ display: "flex", gap: 4 }}>
-          <a href="/login" style={linkStyle}>登录</a>
-          <a href="/register" style={linkStyle}>注册</a>
+          <a href="/login" style={linkStyle(c)}>登录</a>
+          <a href="/register" style={linkStyle(c)}>注册</a>
         </div>
       )}
 
@@ -61,10 +62,10 @@ export default function UserMenu() {
   );
 }
 
-const linkStyle: React.CSSProperties = {
+const linkStyle = (c: string): React.CSSProperties => ({
   padding: "4px 8px", borderRadius: 6, fontSize: 12,
-  color: U.textMid, textDecoration: "none",
-};
+  color: c, textDecoration: "none",
+});
 
 const itemStyle: React.CSSProperties = {
   display: "block", width: "100%", padding: "8px 12px", borderRadius: 6,
