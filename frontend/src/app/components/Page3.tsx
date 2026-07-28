@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Clock, FileText, ScanLine } from "lucide-react";
 import { E, U } from "./shared";
+import UserMenu from "./UserMenu";
 import { fetchCards, fetchSchema } from "../../api/cards";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
@@ -70,6 +71,8 @@ export default function Page3() {
         {cards && (
           <div style={{ fontSize: 11, color: U.textFaint }}>共 {cards.length} 条</div>
         )}
+        <div style={{ flex: 1 }} />
+        <UserMenu />
       </div>
 
       {error && (

@@ -11,6 +11,7 @@ import {
 } from "./shared";
 import { fetchSchema, createCardFromText, createCardFromDocument } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
+import UserMenu from "./UserMenu";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef } from "../../api/types";
@@ -278,6 +279,7 @@ export default function Page1() {
           }}>
             历史记录
           </button>
+          <UserMenu />
         </div>
       </div>
 
