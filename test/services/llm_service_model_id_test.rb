@@ -1,0 +1,52 @@
+require "test_helper"
+
+# 分离架构下模型由请求参数指定（无 cookie session），
+# 这里验证 model_id 的优先级与未知 id 的处理。
+class LlmServiceModelIdTest < ActiveSupport::TestCase
+  MODELS = {
+    "default" => "model_a",
+    "models" => [
+      { "id" => "model_a", "label" => "A", "api" => "anthropic", "model" => "m-a" },
+      { "id" => "model_b", "label" => "B", "api" => "openai", "model" => "m-b" }
+    ]
+  }.freeze
+
+  def with_models(&)
+    original = Rails.application.config.x.models
+    Rails.application.config.x.models = MODELS
+    yield
+  ensure
+    Rails.application.config.x.models = original
+  end
+
+  def config_of(**kwargs)
+    LlmService.new(**kwargs).instance_variable_get(:@config)
+  end
+
+  test "指定 model_id 时用该模型" do
+    with_models do
+      assert_equal "m-b", config_of(model_id: "model_b")["model"]
+    end
+  end
+
+  test "model_id 优先于 session" do
+    with_models do
+      session = { selected_model: MODELS["models"].first }
+      assert_equal "m-b", config_of(session: session, model_id: "model_b")["model"]
+    end
+  end
+
+  test "未指定时回落到默认模型" do
+    with_models do
+      assert_equal "m-a", config_of["model"]
+    end
+  end
+
+  test "未知的 model_id 报错而不是静默用默认模型" do
+    with_models do
+      # 静默回落会让用户以为换了模型其实没换
+      error = assert_raises(LlmService::UnknownModel) { config_of(model_id: "nope") }
+      assert_match(/未知的模型/, error.message)
+    end
+  end
+end

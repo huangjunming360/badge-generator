@@ -1,7 +1,7 @@
 <%# 挂牌模板。数据来自 card.normalized_data，样式见 app/assets/stylesheets/badge.css %>
 <div class="badge" id="badge"
      data-badge-target="badge"
-     style="--badge-width: <%= card.width %>mm; --badge-height: <%= card.height %>mm;">
+     style="--badge-width: <%= card.width %>mm; --badge-height: <%= card.height %>mm; --badge-scale: <%= Card::DEFAULT_PREVIEW_SCALE %>;">
   <div class="badge__punch"></div>
 
   <%# 主办方抬头：机构 → 部门 → 项目主题，信息层级从大到小。 %>

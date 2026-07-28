@@ -9,6 +9,7 @@ Rails.application.routes.draw do
 
   resources :cards, only: %i[index new create show update]
 
+  # 管理后台
   namespace :admin do
     root "dashboard#index"
     resources :users, only: %i[index new create destroy] do
@@ -22,6 +23,14 @@ Rails.application.routes.draw do
     resource :general_settings, only: %i[show update], controller: "general_settings", path: "site-settings"
     resource :models, only: %i[show update], controller: "models"
     resource :permissions, only: %i[show update], controller: "permissions", path: "permissions"
+  end
+
+  # 前后端分离 JSON API
+  namespace :api do
+    namespace :v1 do
+      resource :schema, only: %i[show], controller: "schema"
+      resources :cards, only: %i[index show create update]
+    end
   end
 
   root "cards#new"

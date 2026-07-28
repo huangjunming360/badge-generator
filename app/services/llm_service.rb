@@ -8,9 +8,15 @@
 
 class LlmService
   class Error < StandardError; end
+  # 模型 id 传错是客户端的问题，与上游服务故障要分开处理，
+  # 所以单独一个类型 —— 靠匹配错误消息文字来区分太脆弱。
+  class UnknownModel < Error; end
 
-  def initialize(session: nil)
+  # model_id 供无状态的 JSON API 使用：分离架构下前端不共享 cookie session，
+  # 选中的模型随请求参数传入。session 仍供 ERB 页面使用。
+  def initialize(session: nil, model_id: nil)
     @session = session
+    @model_id = model_id
     @config = resolve_config
   end
 
@@ -50,13 +56,22 @@ class LlmService
   private
 
   def resolve_config
-    # 用户在前端选的模型优先
+    models = all_models
+
+    # 显式指定的模型 id 最优先（无状态 API 路径）。
+    # 认不出的 id 不静默退回默认：那会让用户以为换了模型其实没换。
+    if @model_id.present?
+      found = models.find { |m| m["id"] == @model_id }
+      raise UnknownModel, "未知的模型：#{@model_id}" if found.nil?
+      return found
+    end
+
+    # 其次用用户在前端选的模型（ERB 页面的 session 路径）
     if @session && (selected = @session[:selected_model])
       return selected
     end
 
     # 否则用默认模型
-    models = all_models
     default_id = models_config["default"]
     models.find { |m| m["id"] == default_id } || models.first || {}
   end
