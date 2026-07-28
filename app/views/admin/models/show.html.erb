@@ -9,13 +9,26 @@
     .tab-btn.active { background:#fff; color:#44403c; border-bottom-color:#fff; font-weight:600 }
     .tab-btn:first-child { border-radius:8px 0 0 0 }
     .tab-btn:last-child { border-radius:0 8px 0 0 }
-    .model-row td { vertical-align:top; padding:8px 6px }
-    .model-row input, .model-row select { width:100%; padding:6px 8px; border:1px solid #e7e5e4; border-radius:6px; font-size:13px; box-sizing:border-box }
+    .model-row td { vertical-align:middle; padding:6px }
+    .model-row input, .model-row select { width:100%; padding:5px 6px; border:1px solid #e7e5e4; border-radius:6px; font-size:12px; box-sizing:border-box; background:#fff }
     .model-row input:focus, .model-row select:focus { outline:2px solid #44403c; outline-offset:-1px; border-color:transparent }
-    .remove-btn { color:#ef4444; cursor:pointer; font-size:18px; background:none; border:none; padding:4px }
-    .remove-btn:hover { color:#dc2626 }
+    .remove-btn { color:#ef4444; cursor:pointer; font-size:16px; background:none; border:none; padding:2px 6px; border-radius:4px }
+    .remove-btn:hover { background:#fef2f2 }
     .add-btn { padding:8px 16px; background:#f5f5f4; border:1px dashed #d6d3d1; border-radius:8px; cursor:pointer; color:#44403c; font-size:13px; width:100% }
     .add-btn:hover { background:#e7e5e4 }
+    /* Modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center }
+    .modal-overlay.open { display:flex }
+    .modal-box { background:#fff; border-radius:12px; padding:24px; width:480px; max-width:90vw; box-shadow:0 20px 60px rgba(0,0,0,0.2) }
+    .modal-box h2 { font-size:18px; font-weight:600; margin-bottom:16px }
+    .modal-field { margin-bottom:12px }
+    .modal-field label { display:block; font-size:12px; font-weight:500; color:#78716c; margin-bottom:3px }
+    .modal-field input, .modal-field select { width:100%; padding:7px 10px; border:1px solid #e7e5e4; border-radius:6px; font-size:13px; box-sizing:border-box }
+    /* JSON editor fill */
+    .json-tab { display:none; padding:0 !important }
+    .json-tab .CodeMirror { height:500px }
+    /* Compact table for visual tab */
+    #tab-visual { padding:16px }
   </style>
 <% end %>
 
@@ -34,9 +47,9 @@
   </div>
 
   <!-- Visual editor tab -->
-  <div id="tab-visual" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl p-6">
+  <div id="tab-visual" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl">
     <%= form_with url: admin_models_path, method: :patch, local: true, id: "models-form", html: { autocomplete: "off" } do |f| %>
-      <div class="mb-5 flex items-center gap-3">
+      <div class="mb-4 flex items-center gap-3">
         <label class="text-sm font-medium">默认模型：</label>
         <select name="default_model" id="default-model-select" class="border border-stone-300 rounded-lg px-3 py-1.5 text-sm">
           <% @models.each do |m| %>
@@ -46,17 +59,17 @@
       </div>
 
       <div style="overflow-x:auto">
-        <table style="width:100%;min-width:900px;border-collapse:collapse">
+        <table style="width:100%;min-width:800px;border-collapse:collapse">
           <thead>
-            <tr style="text-align:left;font-size:12px;color:#78716c;border-bottom:1px solid #e7e5e4">
-              <th style="padding:8px 6px;width:120px">标识</th>
-              <th style="padding:8px 6px;width:140px">名称</th>
-              <th style="padding:8px 6px;width:90px">API</th>
-              <th style="padding:8px 6px;width:130px">模型名</th>
-              <th style="padding:8px 6px;width:160px">API Key</th>
-              <th style="padding:8px 6px;width:160px">API Base</th>
-              <th style="padding:8px 6px;width:50px">等级</th>
-              <th style="padding:8px 6px;width:30px"></th>
+            <tr style="text-align:left;font-size:11px;color:#78716c;border-bottom:1px solid #e7e5e4">
+              <th style="padding:6px;width:100px">标识 ID</th>
+              <th style="padding:6px;width:130px">名称</th>
+              <th style="padding:6px;width:80px">API</th>
+              <th style="padding:6px;width:110px">模型名</th>
+              <th style="padding:6px;width:140px">API Key</th>
+              <th style="padding:6px;width:140px">API Base</th>
+              <th style="padding:6px;width:45px">等级</th>
+              <th style="padding:6px;width:30px"></th>
             </tr>
           </thead>
           <tbody id="models-tbody">
@@ -67,7 +80,7 @@
         </table>
       </div>
 
-      <button type="button" class="add-btn mt-4" onclick="addModel()">+ 添加模型</button>
+      <button type="button" class="add-btn mt-4" onclick="openModal()">+ 添加模型</button>
 
       <div class="mt-6 flex gap-3">
         <%= f.submit "保存配置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
@@ -77,43 +90,75 @@
   </div>
 
   <!-- JSON editor tab -->
-  <div id="tab-json" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl p-6" style="display:none">
+  <div id="tab-json" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl json-tab">
     <%= form_with url: admin_settings_path, method: :patch, local: true, id: "json-form" do |f| %>
       <%= f.text_area :config_content, id: "json-editor-src", style: "display:none" %>
       <div id="json-editor-wrap" style="min-height:500px"></div>
-      <div class="mt-4">
+      <div style="padding:12px 16px;border-top:1px solid #e7e5e4">
         <%= f.submit "保存 JSON", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
       </div>
     <% end %>
   </div>
 </div>
 
-<!-- Model row template -->
-<template id="model-row-tmpl">
-  <%= render "model_row", m: { "id" => "", "label" => "", "api" => "anthropic", "model" => "", "api_key" => "", "api_base" => "", "level" => 0 }, i: "__INDEX__" %>
-</template>
+<!-- Add model modal -->
+<div class="modal-overlay" id="add-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <h2>添加模型</h2>
+    <div class="modal-field">
+      <label>标识 ID</label>
+      <input type="text" id="modal-id" placeholder="deepseek_v4">
+    </div>
+    <div class="modal-field">
+      <label>名称</label>
+      <input type="text" id="modal-label" placeholder="DeepSeek V4">
+    </div>
+    <div class="modal-field">
+      <label>API</label>
+      <select id="modal-api">
+        <option value="anthropic">Anthropic</option>
+        <option value="openai">OpenAI</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>模型名</label>
+      <input type="text" id="modal-model" placeholder="deepseek-v4-pro">
+    </div>
+    <div class="modal-field">
+      <label>API Key</label>
+      <input type="text" id="modal-key" placeholder="sk-...">
+    </div>
+    <div class="modal-field">
+      <label>API Base</label>
+      <input type="text" id="modal-base" placeholder="https://api.xxx.com">
+    </div>
+    <div class="modal-field">
+      <label>权限等级</label>
+      <input type="number" id="modal-level" value="0" min="0" style="width:80px">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button type="button" onclick="closeModal()" style="padding:7px 16px;border:1px solid #e7e5e4;border-radius:8px;background:#fff;cursor:pointer">取消</button>
+      <button type="button" onclick="confirmAdd()" style="padding:7px 16px;border:none;border-radius:8px;background:#44403c;color:#fff;cursor:pointer">添加</button>
+    </div>
+  </div>
+</div>
 
 <script>
   var jsonEditor = null;
   var modelCount = <%= @models.length %>;
   var dirty = false;
 
-  // Track changes
-  document.addEventListener("DOMContentLoaded", function() {
-    document.getElementById("models-form").addEventListener("change", function() {
-      dirty = true;
-      document.getElementById("unsaved-warning").style.display = "inline";
-    });
-    document.getElementById("models-form").addEventListener("input", function() {
-      dirty = true;
-      document.getElementById("unsaved-warning").style.display = "inline";
-    });
-    document.getElementById("models-form").addEventListener("submit", function() {
-      dirty = false;
+  function trackDirty() { dirty = true; document.getElementById("unsaved-warning").style.display = "inline"; }
+
+  document.addEventListener("turbo:load", function() {
+    document.getElementById("models-form").addEventListener("change", trackDirty);
+    document.getElementById("models-form").addEventListener("input", trackDirty);
+    document.getElementById("models-form").addEventListener("submit", function() { dirty = false; });
+    document.getElementById("json-form").addEventListener("submit", function(e) {
+      if (jsonEditor) document.getElementById("json-editor-src").value = jsonEditor.getValue();
     });
   });
 
-  // Warn on leave
   window.addEventListener("beforeunload", function(e) {
     if (dirty) { e.preventDefault(); e.returnValue = ""; }
   });
@@ -123,16 +168,12 @@
     document.getElementById("tab-visual").style.display = tab === "visual" ? "block" : "none";
     document.getElementById("tab-json").style.display = tab === "json" ? "block" : "none";
     event.target.classList.add("active");
-
-    if (tab === "json") {
-      initJsonEditor();
-    }
+    if (tab === "json") initJsonEditor();
   }
 
   function initJsonEditor() {
     if (jsonEditor) return;
     var src = document.getElementById("json-editor-src");
-    // Populate JSON from current form state
     src.value = buildJsonFromForm();
     var wrap = document.getElementById("json-editor-wrap");
     jsonEditor = CodeMirror(wrap, {
@@ -144,16 +185,15 @@
       tabSize: 2,
       styleActiveLine: true,
       autoCloseBrackets: true,
-      matchBrackets: true
+      matchBrackets: true,
+      extraKeys: { "Ctrl-S": function() { document.getElementById("json-form").requestSubmit(); } }
     });
     jsonEditor.on("change", function() { src.value = jsonEditor.getValue(); });
   }
 
   function buildJsonFromForm() {
-    var form = document.getElementById("models-form");
-    var data = new FormData(form);
-    var models = [];
-    var i = 0;
+    var data = new FormData(document.getElementById("models-form"));
+    var models = [], i = 0;
     while (data.has("models[" + i + "][id]")) {
       models.push({
         id: data.get("models[" + i + "][id]"),
@@ -169,35 +209,54 @@
     return JSON.stringify({ default: data.get("default_model"), models: models }, null, 2);
   }
 
-  function addModel() {
-    var tmpl = document.getElementById("model-row-tmpl").innerHTML.replace(/__INDEX__/g, modelCount);
-    var div = document.createElement("div");
-    div.innerHTML = tmpl;
-    document.getElementById("models-tbody").appendChild(div.firstElementChild);
-    // Add to default model select
+  // Modal
+  function openModal() { document.getElementById("add-modal").classList.add("open"); }
+  function closeModal() { document.getElementById("add-modal").classList.remove("open"); }
+
+  function confirmAdd() {
+    var id = document.getElementById("modal-id").value.trim();
+    var label = document.getElementById("modal-label").value.trim();
+    if (!id || !label) { alert("标识和名称不能为空"); return; }
+
+    var idx = modelCount;
+    var html = '<tr class="model-row">' +
+      '<td><input type="text" name="models[' + idx + '][id]" value="' + escapeHtml(id) + '"></td>' +
+      '<td><input type="text" name="models[' + idx + '][label]" value="' + escapeHtml(label) + '"></td>' +
+      '<td><select name="models[' + idx + '][api]"><option value="anthropic" selected>Anthropic</option><option value="openai">OpenAI</option></select></td>' +
+      '<td><input type="text" name="models[' + idx + '][model_name]" value="' + escapeHtml(document.getElementById("modal-model").value) + '"></td>' +
+      '<td><input type="text" name="models[' + idx + '][api_key]" value="' + escapeHtml(document.getElementById("modal-key").value) + '"></td>' +
+      '<td><input type="text" name="models[' + idx + '][api_base]" value="' + escapeHtml(document.getElementById("modal-base").value) + '"></td>' +
+      '<td><input type="number" name="models[' + idx + '][level]" value="' + document.getElementById("modal-level").value + '" min="0" style="width:50px"></td>' +
+      '<td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td></tr>';
+
+    var tbody = document.getElementById("models-tbody");
+    var temp = document.createElement("div");
+    temp.innerHTML = html;
+    tbody.appendChild(temp.firstElementChild);
+
+    // Add to default select
     var opt = document.createElement("option");
-    opt.value = "";
-    opt.text = "新模型";
+    opt.value = id;
+    opt.text = label;
     document.getElementById("default-model-select").appendChild(opt);
+
     modelCount++;
-    dirty = true;
-    document.getElementById("unsaved-warning").style.display = "inline";
+    closeModal();
+    // Clear modal fields
+    document.getElementById("modal-id").value = "";
+    document.getElementById("modal-label").value = "";
+    document.getElementById("modal-model").value = "";
+    document.getElementById("modal-key").value = "";
+    document.getElementById("modal-base").value = "";
+    document.getElementById("modal-level").value = "0";
+    trackDirty();
   }
+
+  function escapeHtml(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
   function removeModel(btn) {
     if (!confirm("确定删除此模型？")) return;
-    var row = btn.closest("tr");
-    row.parentNode.removeChild(row);
-    dirty = true;
-    document.getElementById("unsaved-warning").style.display = "inline";
+    btn.closest("tr").remove();
+    trackDirty();
   }
-
-  // JSON form submit
-  document.addEventListener("DOMContentLoaded", function() {
-    document.getElementById("json-form").addEventListener("submit", function(e) {
-      if (jsonEditor) {
-        document.getElementById("json-editor-src").value = jsonEditor.getValue();
-      }
-    });
-  });
 </script>

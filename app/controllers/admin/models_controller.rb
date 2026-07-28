@@ -9,7 +9,10 @@ class Admin::ModelsController < Admin::BaseController
 
     raw["default"] = params[:default_model]
 
-    models = params[:models] || []
+    # 用 permit 处理 ActionController::Parameters
+    models = params.fetch(:models, {}).values.map do |m|
+      m.permit(:id, :label, :api, :model_name, :api_key, :api_base, :level)
+    end
     raw["models"] = models.map do |m|
       {
         "id" => m["id"],

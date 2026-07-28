@@ -12,6 +12,6 @@ class Admin::GeneralSettingsController < Admin::BaseController
     Setting.set("allow_registration", params[:allow_registration] == "1")
     Setting.set("require_login_for_models", params[:require_login_for_models] == "1")
 
-    redirect_to admin_settings_path, notice: "设置已保存"
+    redirect_to admin_general_settings_path, notice: "设置已保存"
   end
 end
