@@ -7,7 +7,7 @@ class Api::V1::SetupController < Api::BaseController
 
   def create
     if User.admins.any?
-      return render json: { errors: ["管理员已存在"] }, status: :forbidden
+      return render json: { errors: [ "管理员已存在" ] }, status: :forbidden
     end
 
     user = User.new(admin_params)

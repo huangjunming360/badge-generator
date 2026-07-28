@@ -9,6 +9,8 @@ class Admin::UsersController < Admin::BaseController
 
   def create
     @user = User.new(user_params)
+    @user.role = "user"  # 防止通过请求参数提权
+    @user.model_level = 4
     if @user.save
       redirect_to admin_users_path, notice: "用户创建成功"
     else
@@ -49,6 +51,6 @@ class Admin::UsersController < Admin::BaseController
   private
 
   def user_params
-    params.require(:user).permit(:email_address, :password, :password_confirmation, :role, :model_level)
+    params.require(:user).permit(:email_address, :password, :password_confirmation)
   end
 end
