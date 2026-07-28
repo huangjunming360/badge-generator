@@ -222,14 +222,21 @@ class MineruService
   end
 
   def download_file(url)
-    uri = URI(url)
+    uri = URI.parse(url)
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == "https"
     http.read_timeout = 120
+    http.open_timeout = 30
+    # macOS 代理工具（Surge/ClashX）可能拦截连接
+    http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
     res = http.request(Net::HTTP::Get.new(uri))
     raise Error, "下载失败: HTTP #{res.code}" unless res.code.to_i == 200
     res.body
+  rescue OpenSSL::SSL::SSLError => e
+    # 重试一次，跳过 SSL 验证（部分 CDN/代理环境需要）
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    retry
   end
 
   def download_text(url)
