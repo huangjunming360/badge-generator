@@ -94,7 +94,7 @@
       <div id="json-editor-wrap"></div>
       <div class="save-bar">
         <button type="button" onclick="saveFromJson()" class="px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer">保存配置</button>
-        <span id="json-status" style="font-size:12px;color:#78716c">同步中…</span>
+        <span id="json-unsaved" style="display:none;color:#d97706;font-size:13px">⚠ 有未保存的更改</span>
       </div>
     </div>
   <% end %>
@@ -171,7 +171,11 @@
   document.addEventListener("turbo:load", function() {
     document.getElementById("models-form").addEventListener("change", trackDirty);
     document.getElementById("models-form").addEventListener("input", trackDirty);
-    document.getElementById("models-form").addEventListener("submit", function() { dirty = false; });
+    document.getElementById("models-form").addEventListener("submit", function() {
+      dirty = false;
+      document.getElementById("unsaved-warning").style.display = "none";
+      document.getElementById("json-unsaved").style.display = "none";
+    });
   });
 
   window.addEventListener("beforeunload", function(e) {
@@ -213,7 +217,7 @@
       suppressChange = true;
       jsonEditor.setValue(buildJsonFromForm());
       suppressChange = false;
-      document.getElementById("json-status").textContent = "已同步";
+      document.getElementById("json-unsaved").style.display = "none";
       return;
     }
     var wrap = document.getElementById("json-editor-wrap");
@@ -230,9 +234,9 @@
     });
     jsonEditor.on("change", function() {
       if (suppressChange) return;
-      document.getElementById("json-status").textContent = "⚠ 未保存到可视化";
       dirty = true;
       document.getElementById("unsaved-warning").style.display = "inline";
+      document.getElementById("json-unsaved").style.display = "inline";
     });
     document.getElementById("json-status").textContent = "已同步";
   }
