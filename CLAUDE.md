@@ -36,6 +36,65 @@ PIDFILE=tmp/pids/puma.pid bin/rails s -p 8000 -b 127.0.0.1
 
 `.env`、`config/master.key`、`storage/` 含密钥和本地开发数据，均已 gitignore，不要提交也不要删。
 
+## API 鉴权守则（必读）
+
+### 原则
+
+所有数据访问必须基于 `Current.user`。绝对不能用 `Model.all` / `Model.find` 无 scope 查询。
+
+### 三必须检查清单
+
+每条 API 端点写完后自查：
+
+| 检查项 | 正确做法 | 错误例子 |
+|--------|---------|---------|
+| 数据隔离 | `Current.user.cards.find(params[:id])` | `Card.find(params[:id])` |
+| 创建归属 | `Current.user.cards.new(...)` | `Card.new(...)` 不设 user |
+| 列表 scope | `Current.user.cards.order(...)` | `Card.order(...)` |
+
+### 速率限制
+
+调用 LLM 的端点（建卡）必须加 `rate_limit`，防止 API Key 被盗刷：
+
+```ruby
+rate_limit to: 20, within: 1.minute, only: :create,
+  with: -> { render json: { errors: ["请求过于频繁"] }, status: :too_many_requests }
+```
+
+### API 鉴权流程
+
+```
+Api::BaseController
+  ├── skip_before_action :require_authentication  // 不用 redirect 方式
+  ├── before_action :require_api_authentication   // 改为 JSON 401
+  │
+  └── 公开端点（如 schema, setup）加：
+       skip_before_action :require_api_authentication, only: :show
+```
+
+### 管理员鉴权
+
+```
+Admin::BaseController
+  ├── 检查 authenticated? → 否则弹 401
+  ├── 检查 Current.user.admin? → 否则弹 alert 踢回首页
+  ├── 检查 Current.user.banned? → terminate_session
+  └── 检查 Current.user.active? → 否则拒绝
+```
+
+### 管理员创建用户
+
+永远不要在 `user_params` 里 permit `:role` 或 `:model_level`：
+
+```ruby
+# 错误：攻击者可伪造请求提权
+params.require(:user).permit(:email_address, :password, :role, :model_level)
+
+# 正确：在 action 中显式赋值
+@user.role = "user"
+@user.model_level = 4
+```
+
 ## 从错误中吸取的教训
 
 ### Brakeman 安全扫描

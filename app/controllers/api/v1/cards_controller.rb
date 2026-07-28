@@ -1,18 +1,20 @@
 class Api::V1::CardsController < Api::BaseController
+  # 速率限制：防止 LLM 额度被刷爆
+  rate_limit to: 20, within: 1.minute, only: :create,
+    with: -> { render json: { errors: ["请求过于频繁，请稍后再试"] }, status: :too_many_requests }
+
   def index
-    cards = Card.order(created_at: :desc)
+    cards = Current.user.cards.order(created_at: :desc)
     render json: { cards: cards.map { |c| serializer(c).as_summary } }
   end
 
   def show
-    card = Card.find(params[:id])
+    card = Current.user.cards.find(params[:id])
     render json: { card: serializer(card).as_detail }
   end
 
-  # 建卡 = 拿到原始资料 → LLM 提取 → 落库。
-  # 支持 multipart（上传文档/照片）和纯 JSON（粘贴文本）两种请求。
   def create
-    card = Card.new
+    card = Current.user.cards.new
     card.raw_input = resolve_raw_input
     card.source_name = @source_name
     card.used_ocr = @used_ocr
@@ -22,8 +24,6 @@ class Api::V1::CardsController < Api::BaseController
 
     return render_validation_errors(card) unless card.valid?
 
-    # 模型由请求参数指定：分离架构下前端不共享 cookie session。
-    # 不传就用 config/models.json 的 default。
     card.data = CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
     card.save!
     render json: { card: serializer(card).as_detail }, status: :created
@@ -33,19 +33,13 @@ class Api::V1::CardsController < Api::BaseController
          CardExtractor::ExtractionError => e
     render_error(e.message, status: :unprocessable_content)
   rescue LlmService::UnknownModel => e
-    # 模型 id 传错是客户端的问题，不是上游故障。
-    # 必须写在 LlmService::Error 之前 —— 它是后者的子类。
     render_error(e.message, status: :unprocessable_content)
   rescue LlmService::Error => e
-    # LlmService::Error 会穿透 CardExtractor 且不被重试。
-    # 上游模型服务故障不该报 500。
     render_error(e.message, status: :bad_gateway)
   end
 
-  # 更新字段值与尺寸。字段走整体合并写回：data 列没有默认值，
-  # 新记录是 nil，不能直接 data["name"] = x。
   def update
-    card = Card.find(params[:id])
+    card = Current.user.cards.find(params[:id])
 
     card.assign_attributes(size_params)
     if (incoming = fields_param)
@@ -64,9 +58,6 @@ class Api::V1::CardsController < Api::BaseController
     CardSerializer.new(card, host: request.base_url)
   end
 
-  # 不用 full_messages：它会前缀英文属性名（"Raw input 请先输入个人资料"），
-  # 而本项目的校验消息本身已是完整中文句子。字段归属另用 details 给出，
-  # 便于前端把错误标在对应输入框上。
   def render_validation_errors(card)
     render json: {
       errors: card.errors.map(&:message),
@@ -76,8 +67,6 @@ class Api::V1::CardsController < Api::BaseController
     }, status: :unprocessable_content
   end
 
-  # 只接受 schema 内的字段，schema 外的键直接丢弃 ——
-  # 固定 schema 是产品决策，API 不该成为绕过它的后门。
   def fields_param
     raw = params[:fields]
     return nil if raw.blank?
@@ -92,7 +81,6 @@ class Api::V1::CardsController < Api::BaseController
     params.require(:card).permit(:width_mm, :height_mm)
   end
 
-  # 上传了文件就用文件内容，否则用请求里的文本。
   def resolve_raw_input
     file = params[:document]
 

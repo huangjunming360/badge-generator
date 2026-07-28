@@ -7,6 +7,7 @@ class Api::V1::CardsTest < ActionDispatch::IntegrationTest
       data: { "name" => "林思远", "organization" => "清华大学" }
     )
     @user = User.create!(email_address: "api-test@test.com", password: "test123", password_confirmation: "test123")
+    @card.update!(user: @user)
     post session_url, params: { email_address: "api-test@test.com", password: "test123" }
     follow_redirect!
   end
