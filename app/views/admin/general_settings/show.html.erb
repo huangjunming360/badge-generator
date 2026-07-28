@@ -25,7 +25,7 @@
       <div class="p-5 flex items-center justify-between">
         <div>
           <label class="text-sm font-medium">模型使用需登录</label>
-          <p class="text-xs text-stone-400 mt-0.5">开启后未登录用户无法使用模型选择功能</p>
+          <p class="text-xs text-stone-400 mt-0.5">开启后未登录用户无法使用模型</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
           <%= f.check_box :require_login_for_models, checked: @settings[:require_login_for_models], class: "sr-only peer" %>
@@ -35,7 +35,9 @@
     </div>
 
     <!-- MinerU 配置 -->
-    <h2 class="text-lg font-bold mt-8 mb-3">文档解析（MinerU）</h2>
+    <div class="mt-8 mb-2">
+      <h2 class="text-lg font-bold">文档解析（MinerU）</h2>
+    </div>
 
     <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
       <div class="p-5 flex items-center justify-between">
@@ -52,35 +54,64 @@
       <div class="p-5">
         <label class="block text-sm font-medium mb-1">MinerU 模型版本</label>
         <%= f.select :mineru_model,
-              options_for_select([["pipeline（默认）", "pipeline"], ["vlm", "vlm"], ["MinerU-HTML", "MinerU-HTML"]], @settings[:mineru_model]),
-              { include_blank: "使用默认 (pipeline)" },
+              options_for_select([["pipeline（标准）", "pipeline"], ["vlm（视觉语言）", "vlm"], ["MinerU-HTML", "MinerU-HTML"]], @settings[:mineru_model]),
+              { include_blank: "默认 (pipeline)" },
               class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
-        <p class="text-xs text-stone-400 mt-1">pipeline=标准, vlm=视觉语言模型, MinerU-HTML=HTML专用</p>
       </div>
 
       <div class="p-5">
-        <label class="block text-sm font-medium mb-1">提取步骤模型</label>
-        <p class="text-xs text-stone-400 mt-0.5 mb-2">指定每个步骤使用的模型 ID（不填则用默认模型）</p>
-        <div class="grid grid-cols-2 gap-3">
+        <label class="block text-sm font-medium mb-1">各步骤使用的模型</label>
+        <p class="text-xs text-stone-400 mt-0.5 mb-3">不选则使用全局默认模型</p>
+        <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs text-stone-500 mb-1">文档提取</label>
-            <%= f.text_field :extract_model, value: @settings[:extract_model], placeholder: "默认", class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+            <label class="block text-xs font-medium text-stone-500 mb-1">文档内容提取</label>
+            <%= f.select :extract_model,
+                  options_for_select(@all_models, @settings[:extract_model]),
+                  { include_blank: "默认模型" },
+                  class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
           </div>
           <div>
-            <label class="block text-xs text-stone-500 mb-1">大头照识别</label>
-            <%= f.text_field :portrait_model, value: @settings[:portrait_model], placeholder: "默认", class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+            <label class="block text-xs font-medium text-stone-500 mb-1">大头照识别</label>
+            <%= f.select :portrait_model,
+                  options_for_select(@all_models, @settings[:portrait_model]),
+                  { include_blank: "默认模型" },
+                  class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
           </div>
         </div>
       </div>
     </div>
 
-    <h2 class="text-lg font-bold mt-8 mb-3">上传限制</h2>
+    <div style="margin-bottom:24px"></div>
+
+    <!-- 上传限制 -->
+    <div class="mt-8 mb-2">
+      <h2 class="text-lg font-bold">上传限制</h2>
+    </div>
 
     <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
       <div class="p-5">
-        <label class="block text-sm font-medium mb-1">允许的文件扩展名</label>
-        <%= f.text_field :allowed_extensions, value: @settings[:allowed_extensions], placeholder: ".pdf .docx .png .jpg（空格分隔）", class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
-        <p class="text-xs text-stone-400 mt-1">留空则使用默认列表</p>
+        <label class="block text-sm font-medium mb-2">允许上传的文件类型</label>
+        <div class="flex flex-wrap gap-2 mb-3" id="extension-tags">
+          <% default_exts = %w[.docx .pdf .xlsx .csv .txt .md .png .jpg .jpeg .bmp] %>
+          <% current_exts = @settings[:allowed_extensions].blank? ? default_exts : @settings[:allowed_extensions].split %>
+          <% current_exts.each do |ext| %>
+            <span class="inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700">
+              <%= ext %>
+              <button type="button" onclick="this.parentElement.remove(); updateExtensions()" class="text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>
+            </span>
+          <% end %>
+        </div>
+        <div class="flex gap-2">
+          <input type="text" id="new-ext" placeholder=".pdf" class="block w-24 rounded-lg border border-stone-300 px-3 py-2 text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();addExt()}">
+          <button type="button" onclick="addExt()" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none">添加</button>
+        </div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <% templates = { "文档" => %w[.docx .pdf .txt .md], "表格" => %w[.xlsx .csv], "图片" => %w[.png .jpg .jpeg .bmp .tiff], "全部" => default_exts } %>
+          <% templates.each do |name, exts| %>
+            <button type="button" onclick="setExtensions(<%= exts.to_json %>)" class="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs text-stone-500 hover:bg-stone-100 cursor-pointer"><%= name %></button>
+          <% end %>
+        </div>
+        <%= f.hidden_field :allowed_extensions, id: "allowed-extensions-field", value: current_exts.join(" ") %>
       </div>
     </div>
 
@@ -105,5 +136,38 @@
   function warnSettingsUnsaved() {
     if (settingsDirty) return confirm("有未保存的更改，确定离开？");
     return true;
+  }
+  function addExt() {
+    var input = document.getElementById("new-ext");
+    var ext = input.value.trim().toLowerCase();
+    if (!ext.startsWith(".")) ext = "." + ext;
+    if (ext.length < 2) return;
+    var tags = document.getElementById("extension-tags");
+    // 去重
+    if (tags.querySelector(`[data-ext="${ext}"`)) return;
+    var span = document.createElement("span");
+    span.className = "inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700";
+    span.innerHTML = ext + '<button type="button" onclick="this.parentElement.remove();updateExtensions()" class="text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+    tags.appendChild(span);
+    input.value = "";
+    updateExtensions();
+  }
+  function updateExtensions() {
+    var exts = [];
+    document.querySelectorAll("#extension-tags span").forEach(function(s) {
+      exts.push(s.textContent.replace("×","").trim());
+    });
+    document.getElementById("allowed-extensions-field").value = exts.join(" ");
+  }
+  function setExtensions(exts) {
+    var tags = document.getElementById("extension-tags");
+    tags.innerHTML = "";
+    exts.forEach(function(e) {
+      var span = document.createElement("span");
+      span.className = "inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700";
+      span.innerHTML = e + '<button type="button" onclick="this.parentElement.remove();updateExtensions()" class="text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+      tags.appendChild(span);
+    });
+    updateExtensions();
   }
 </script>
