@@ -196,6 +196,7 @@ export default function Page1() {
       const parsed = toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
+      setPendingFile(null);
       startStream(parsed);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "提取失败，请重试");
@@ -212,7 +213,6 @@ export default function Page1() {
     const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect };
     if (pendingFile) {
       runExtraction({ file: pendingFile, portrait: portraitFile, modelId, ...opts });
-      setPendingFile(null);
     } else if (rawText.trim()) {
       runExtraction({ rawInput: rawText, modelId, ...opts });
     }
@@ -459,7 +459,7 @@ export default function Page1() {
             <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
               onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
 
-            {mineruCfg?.available && (!!pendingFile || rawText.trim()) && (
+            {mineruCfg?.available && !!pendingFile && (
               <div style={{ position: "relative" }}>
                 <button onClick={() => setShowMineruOpts(v => !v)} style={{
                   display: "flex", alignItems: "center", gap: 5,
