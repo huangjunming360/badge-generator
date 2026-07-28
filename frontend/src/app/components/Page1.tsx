@@ -499,11 +499,11 @@ export default function Page1() {
             <RippleBtn onClick={handleParse} disabled={(!rawText.trim() && !pendingFile) || parsing} style={{
               display: "flex", alignItems: "center", gap: 7, padding: "9px 22px",
               borderRadius: 9, border: "none",
-              cursor: rawText.trim() && !parsing ? "pointer" : "default",
-              background: rawText.trim() && !parsing ? U.blue : U.border,
+              cursor: (!rawText.trim() && !pendingFile) || parsing ? "default" : "pointer",
+              background: (!rawText.trim() && !pendingFile) || parsing ? U.border : U.blue,
               color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: ".04em",
-              boxShadow: rawText.trim() && !parsing
-                ? "0 4px 16px rgba(58,118,196,.38)" : "none",
+              boxShadow: (!rawText.trim() && !pendingFile) || parsing
+                ? "none" : "0 4px 16px rgba(58,118,196,.38)",
               transition: `all .2s ${E.smooth}`,
             }}>
               {parsing
