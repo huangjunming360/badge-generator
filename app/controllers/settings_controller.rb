@@ -1,4 +1,5 @@
 class SettingsController < ApplicationController
+  allow_unauthenticated_access
   def update
     models = available_models
     index  = params[:model_index].to_i

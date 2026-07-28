@@ -1,4 +1,5 @@
 class CardsController < ApplicationController
+  allow_unauthenticated_access
   def index
     @cards = Card.order(created_at: :desc)
   end

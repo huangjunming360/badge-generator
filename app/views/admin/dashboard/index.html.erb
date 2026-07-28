@@ -1,0 +1,23 @@
+<div class="mx-auto max-w-7xl px-4 py-8">
+  <h1 class="text-2xl font-bold mb-6">管理后台</h1>
+
+  <div class="grid grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl p-6 border border-stone-200">
+      <p class="text-sm text-stone-500">总用户</p>
+      <p class="text-3xl font-bold mt-1"><%= @user_count %></p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-stone-200">
+      <p class="text-sm text-stone-500">已激活</p>
+      <p class="text-3xl font-bold mt-1 text-green-600"><%= @active_count %></p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-stone-200">
+      <p class="text-sm text-stone-500">已封禁</p>
+      <p class="text-3xl font-bold mt-1 text-red-600"><%= @banned_count %></p>
+    </div>
+  </div>
+
+  <div class="flex gap-4">
+    <%= link_to "用户管理", admin_users_path, class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700" %>
+    <%= link_to "模型配置", edit_admin_settings_path, class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700" %>
+  </div>
+</div>

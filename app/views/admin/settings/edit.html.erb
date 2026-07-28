@@ -1,0 +1,24 @@
+<div class="mx-auto max-w-4xl px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">模型配置</h1>
+    <%= link_to "返回后台", admin_root_path, class: "px-4 py-2 border border-stone-300 rounded-lg hover:bg-stone-50" %>
+  </div>
+
+  <%= form_with url: admin_settings_path, method: :patch, local: true do |f| %>
+    <div class="bg-white rounded-xl border border-stone-200 overflow-hidden mb-4">
+      <div class="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+        <span class="text-sm font-medium text-stone-600">config/models.json</span>
+        <span class="text-xs text-stone-400">JSON 格式，修改后自动重载</span>
+      </div>
+      <%= f.text_area :config_content, value: @config_content,
+            style: "width:100%;min-height:500px;font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;padding:16px;border:none;resize:vertical;tab-size:2",
+            spellcheck: false %>
+    </div>
+
+    <% if flash[:alert] %>
+      <p class="text-red-500 text-sm mb-4"><%= flash[:alert] %></p>
+    <% end %>
+
+    <%= f.submit "保存配置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+  <% end %>
+</div>
