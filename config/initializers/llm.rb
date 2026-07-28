@@ -11,7 +11,7 @@ llm_config_path = Rails.root.join("config/llm.yml")
 
 if File.exist?(llm_config_path)
   yaml_content = ERB.new(File.read(llm_config_path)).result
-  parsed = YAML.safe_load(yaml_content, permitted_classes: [Symbol]) || {}
+  parsed = YAML.safe_load(yaml_content, permitted_classes: [ Symbol ]) || {}
   raw_config = parsed.deep_symbolize_keys
 
   Rails.application.config.x.llm_config = raw_config

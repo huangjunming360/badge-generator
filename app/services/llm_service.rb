@@ -37,9 +37,9 @@ class LlmService
     }
     user_content = if user_msg
                      user_msg[:content] || user_msg["content"]
-                   else
+    else
                      messages.dig(-1, :content) || messages.dig(-1, "content")
-                   end.to_s
+    end.to_s
 
     response = chat.ask(user_content)
     response.content.to_s
