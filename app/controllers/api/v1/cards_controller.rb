@@ -37,7 +37,7 @@ class Api::V1::CardsController < Api::BaseController
           card_id = process_card(raw_input, model_id, file_data, file_name,
                                  portrait_data, portrait_name, progress,
                                  mineru_enabled:, portrait_detect:)
-          progress.set(:done, "解析完成", card_id: card_id) if card_id
+          progress.done(card_id: card_id) if card_id
         end
       rescue => e
         progress.error(e.message)
