@@ -20,7 +20,7 @@ export default function TopBar() {
   if (loading) return null;
 
   return (
-    <div ref={ref} style={{ position: "fixed", top: 12, right: 12, zIndex: 999 }}>
+    <div ref={ref} style={{ position: "fixed", top: 12, left: 12, zIndex: 999 }}>
       {user ? (
         <>
           <button onClick={() => setOpen(!open)} style={{
