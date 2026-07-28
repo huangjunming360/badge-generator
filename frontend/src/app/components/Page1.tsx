@@ -473,17 +473,17 @@ export default function Page1() {
                 {showMineruOpts && (
                   <div style={{
                     position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 100,
-                    width: 160, background: "#fff", borderRadius: 8,
+                    width: 140, background: "#fff", borderRadius: 8,
                     border: `1px solid ${U.border}`, boxShadow: "0 4px 16px rgba(0,0,0,.08)",
-                    padding: 6, fontSize: 11,
+                    padding: "4px 6px", fontSize: 10.5,
                   }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 2", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
                       <input type="checkbox" checked={mineruEnabled} onChange={e => setMineruEnabled(e.target.checked)}
                              style={{ width: 14, height: 14, cursor: "pointer" }} />
                       <span style={{ color: U.textMid }}>文档解析</span>
                     </label>
                     {mineruEnabled && (
-                      <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4", cursor: "pointer" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
                         <input type="checkbox" checked={portraitDetect} onChange={e => setPortraitDetect(e.target.checked)}
                                style={{ width: 14, height: 14, cursor: "pointer" }} />
                         <span style={{ color: U.textMid }}>人像识别</span>
