@@ -25,6 +25,8 @@ Rails.application.routes.draw do
   # JSON API
   namespace :api do
     namespace :v1 do
+      resource :session, only: %i[show create destroy], controller: "sessions"
+      resource :registration, only: :create, controller: "registrations"
       resource :schema, only: %i[show], controller: "schema"
       resources :cards, only: %i[index show create update]
     end
