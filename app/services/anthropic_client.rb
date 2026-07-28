@@ -7,7 +7,7 @@ require "json"
 # 保留以兼容尚未迁移的调用方，新代码请用 LlmService。
 #
 # 迁移方式：
-#   AnthropicClient.new  →  LlmService.new(function: :card_extraction)
+#   AnthropicClient.new  →  LlmService.new(session: session)
 #   client.complete(...)  →  same interface
 class AnthropicClient
   class Error < StandardError; end

@@ -25,13 +25,16 @@ class CardExtractor
     - address: 办公地址
     - employee_id: 工号、编号
     - tagline: 一句话简介或个人标语
+    - host_organization: 组织项目的机构
+    - host_department: 组织项目的机构部门
+    - event_topic: 项目主题（活动/课程名称）
 
     输出示例：
-    {"name":"林小明","name_en":"Xiaoming Lin","title":"高级产品经理","department":"用户增长部","organization":"某某科技有限公司","phone":"13800138000","email":"lin@example.com","website":null,"address":"深圳市南山区科技园","employee_id":null,"tagline":"让增长有迹可循"}
+    {"name":"林小明","name_en":"Xiaoming Lin","title":"高级产品经理","department":"用户增长部","organization":"某某科技有限公司","phone":"13800138000","email":"lin@example.com","website":null,"address":"深圳市南山区科技园","employee_id":null,"tagline":"让增长有迹可循","host_organization":null,"host_department":null,"event_topic":null}
   PROMPT
 
-  def initialize(client: LlmService.new(function: :card_extraction))
-    @client = client
+  def initialize(client: nil, session: nil)
+    @client = client || LlmService.new(session: session)
   end
 
   # 返回 key 为 Card::FIELDS、值为 String 或 nil 的 Hash。

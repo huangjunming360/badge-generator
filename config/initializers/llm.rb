@@ -1,34 +1,36 @@
 # frozen_string_literal: true
 
-# 大模型接入配置
-# 读取 config/llm.yml → 配置 RubyLLM，同时将完整配置树存入
-# Rails.application.config.x.llm_config 供 LlmService 运行时查表。
+# 模型配置 & RubyLLM 初始化
+# 读取 config/models.json，配置全局 RubyLLM，同时将完整配置
+# 存入 Rails.application.config.x.models 供运行时查表。
 
-require "erb"
-require "yaml"
+require "json"
 
-llm_config_path = Rails.root.join("config/llm.yml")
+models_path = Rails.root.join("config/models.json")
 
-if File.exist?(llm_config_path)
-  yaml_content = ERB.new(File.read(llm_config_path)).result
-  parsed = YAML.safe_load(yaml_content, permitted_classes: [ Symbol ]) || {}
-  raw_config = parsed.deep_symbolize_keys
+if File.exist?(models_path)
+  raw = JSON.parse(File.read(models_path))
+  models = raw["models"] || []
 
-  Rails.application.config.x.llm_config = raw_config
+  Rails.application.config.x.models = {
+    "default" => raw["default"],
+    "models"  => models
+  }
 
-  RubyLLM.configure do |config|
-    config.request_timeout = 120
-
-    anthropic = raw_config[:anthropic]
-    if anthropic
-      config.anthropic_api_key = anthropic[:api_key] if anthropic[:api_key]
-      config.anthropic_api_base = anthropic[:api_base] if anthropic[:api_base]
-    end
-
-    openai = raw_config[:openai]
-    if openai
-      config.openai_api_key = openai[:api_key] if openai[:api_key]
-      config.openai_api_base = openai[:api_base] if openai[:api_base]
+  # RubyLLM 全局默认用第一个模型配
+  default_model = models.find { |m| m["id"] == raw["default"] } || models.first
+  if default_model
+    RubyLLM.configure do |config|
+      config.request_timeout = 120
+      if default_model["api"] == "anthropic"
+        config.anthropic_api_key  = default_model["api_key"]
+        config.anthropic_api_base = default_model["api_base"]
+      else
+        config.openai_api_key  = default_model["api_key"]
+        config.openai_api_base = default_model["api_base"]
+      end
     end
   end
+else
+  Rails.application.config.x.models = { "default" => nil, "models" => [] }
 end

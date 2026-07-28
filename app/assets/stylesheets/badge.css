@@ -36,10 +36,45 @@
 .badge__punch {
   width: 12mm;
   height: 2.5mm;
-  margin-bottom: 5mm;
+  margin-bottom: 4mm;
   border: 1px solid var(--badge-line);
   border-radius: 1.25mm;
   background: #fafaf9;
+}
+
+/* 主办方抬头区。整块下方留一条浅线与个人信息分区。 */
+.badge__header {
+  width: 100%;
+  margin-bottom: 4.5mm;
+  padding-bottom: 3.5mm;
+  border-bottom: 1px solid var(--badge-line);
+}
+
+.badge__host-org {
+  margin: 0;
+  font-size: 4mm;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.2mm;
+}
+
+.badge__host-dept {
+  margin: 0.8mm 0 0;
+  font-size: 3.2mm;
+  line-height: 1.3;
+  color: var(--badge-muted);
+}
+
+/* 项目主题用底色块强调，是胸牌上最需要一眼看到的活动标识。 */
+.badge__topic {
+  margin: 2.5mm 0 0;
+  padding: 1.2mm 1.5mm;
+  border-radius: 1mm;
+  background: #f5f5f4;
+  font-size: 3.2mm;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--badge-accent);
 }
 
 /* 一寸照，保持 25:35 比例。用挂牌宽度的百分比，
