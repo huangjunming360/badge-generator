@@ -16,6 +16,15 @@ class Admin::UsersController < Admin::BaseController
     end
   end
 
+  def update_level
+    @user = User.find(params[:id])
+    if @user.update(model_level: params[:model_level].to_i)
+      redirect_to admin_users_path, notice: "权限等级已更新"
+    else
+      redirect_to admin_users_path, alert: "更新失败"
+    end
+  end
+
   def toggle_active
     @user = User.find(params[:id])
     @user.active? ? @user.deactivate! : @user.activate!
@@ -37,6 +46,6 @@ class Admin::UsersController < Admin::BaseController
   private
 
   def user_params
-    params.require(:user).permit(:email_address, :password, :password_confirmation, :role)
+    params.require(:user).permit(:email_address, :password, :password_confirmation, :role, :model_level)
   end
 end

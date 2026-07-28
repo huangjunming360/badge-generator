@@ -15,10 +15,12 @@ Rails.application.routes.draw do
       member do
         patch :toggle_active
         patch :toggle_ban
+        patch :update_level
       end
     end
     resource :settings, only: %i[edit update], controller: "settings"
     resource :general_settings, only: %i[show update], controller: "general_settings", path: "site-settings"
+    resource :models, only: %i[show update], controller: "models"
   end
 
   root "cards#new"

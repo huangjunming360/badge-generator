@@ -1,0 +1,210 @@
+<% content_for :head do %>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+  <style>
+    .tab-btn { padding:8px 20px; font-size:14px; cursor:pointer; border:1px solid #e7e5e4; background:#f5f5f4; color:#78716c }
+    .tab-btn.active { background:#fff; color:#44403c; border-bottom-color:#fff; font-weight:600 }
+    .tab-btn:first-child { border-radius:8px 0 0 0 }
+    .tab-btn:last-child { border-radius:0 8px 0 0 }
+    .model-row td { vertical-align:top; padding:8px 6px }
+    .model-row input, .model-row select { width:100%; padding:6px 8px; border:1px solid #e7e5e4; border-radius:6px; font-size:13px; box-sizing:border-box }
+    .model-row input:focus, .model-row select:focus { outline:2px solid #44403c; outline-offset:-1px; border-color:transparent }
+    .remove-btn { color:#ef4444; cursor:pointer; font-size:18px; background:none; border:none; padding:4px }
+    .remove-btn:hover { color:#dc2626 }
+    .add-btn { padding:8px 16px; background:#f5f5f4; border:1px dashed #d6d3d1; border-radius:8px; cursor:pointer; color:#44403c; font-size:13px; width:100% }
+    .add-btn:hover { background:#e7e5e4 }
+  </style>
+<% end %>
+
+<div class="mx-auto max-w-7xl px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <%= link_to "← 后台首页", admin_root_path, class: "text-sm text-stone-500 hover:text-stone-800", style: "text-decoration:none" %>
+      <h1 class="text-2xl font-bold">模型配置</h1>
+    </div>
+  </div>
+
+  <% if flash[:alert] %>
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"><p class="text-red-600 text-sm"><%= flash[:alert] %></p></div>
+  <% end %>
+  <% if flash[:notice] %>
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4"><p class="text-green-600 text-sm"><%= flash[:notice] %></p></div>
+  <% end %>
+
+  <!-- Tab switcher -->
+  <div style="display:flex">
+    <button type="button" class="tab-btn active" onclick="switchTab('visual')">可视化编辑</button>
+    <button type="button" class="tab-btn" onclick="switchTab('json')">JSON 编辑</button>
+  </div>
+
+  <!-- Visual editor tab -->
+  <div id="tab-visual" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl p-6">
+    <%= form_with url: admin_models_path, method: :patch, local: true, id: "models-form", html: { autocomplete: "off" } do |f| %>
+      <div class="mb-5 flex items-center gap-3">
+        <label class="text-sm font-medium">默认模型：</label>
+        <select name="default_model" id="default-model-select" class="border border-stone-300 rounded-lg px-3 py-1.5 text-sm">
+          <% @models.each do |m| %>
+            <option value="<%= m["id"] %>" <%= m["id"] == @default_model ? "selected" : "" %>><%= m["label"] %></option>
+          <% end %>
+        </select>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:900px;border-collapse:collapse">
+          <thead>
+            <tr style="text-align:left;font-size:12px;color:#78716c;border-bottom:1px solid #e7e5e4">
+              <th style="padding:8px 6px;width:120px">标识</th>
+              <th style="padding:8px 6px;width:140px">名称</th>
+              <th style="padding:8px 6px;width:90px">API</th>
+              <th style="padding:8px 6px;width:130px">模型名</th>
+              <th style="padding:8px 6px;width:160px">API Key</th>
+              <th style="padding:8px 6px;width:160px">API Base</th>
+              <th style="padding:8px 6px;width:50px">等级</th>
+              <th style="padding:8px 6px;width:30px"></th>
+            </tr>
+          </thead>
+          <tbody id="models-tbody">
+            <% @models.each_with_index do |m, i| %>
+              <%= render "model_row", m: m, i: i %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <button type="button" class="add-btn mt-4" onclick="addModel()">+ 添加模型</button>
+
+      <div class="mt-6 flex gap-3">
+        <%= f.submit "保存配置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+        <span id="unsaved-warning" style="display:none;color:#d97706;font-size:13px;align-self:center">⚠ 有未保存的更改</span>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- JSON editor tab -->
+  <div id="tab-json" class="bg-white border border-t-0 border-stone-200 rounded-bl-xl rounded-br-xl p-6" style="display:none">
+    <%= form_with url: admin_settings_path, method: :patch, local: true, id: "json-form" do |f| %>
+      <%= f.text_area :config_content, id: "json-editor-src", style: "display:none" %>
+      <div id="json-editor-wrap" style="min-height:500px"></div>
+      <div class="mt-4">
+        <%= f.submit "保存 JSON", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<!-- Model row template -->
+<template id="model-row-tmpl">
+  <%= render "model_row", m: { "id" => "", "label" => "", "api" => "anthropic", "model" => "", "api_key" => "", "api_base" => "", "level" => 0 }, i: "__INDEX__" %>
+</template>
+
+<script>
+  var jsonEditor = null;
+  var modelCount = <%= @models.length %>;
+  var dirty = false;
+
+  // Track changes
+  document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("models-form").addEventListener("change", function() {
+      dirty = true;
+      document.getElementById("unsaved-warning").style.display = "inline";
+    });
+    document.getElementById("models-form").addEventListener("input", function() {
+      dirty = true;
+      document.getElementById("unsaved-warning").style.display = "inline";
+    });
+    document.getElementById("models-form").addEventListener("submit", function() {
+      dirty = false;
+    });
+  });
+
+  // Warn on leave
+  window.addEventListener("beforeunload", function(e) {
+    if (dirty) { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  function switchTab(tab) {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById("tab-visual").style.display = tab === "visual" ? "block" : "none";
+    document.getElementById("tab-json").style.display = tab === "json" ? "block" : "none";
+    event.target.classList.add("active");
+
+    if (tab === "json") {
+      initJsonEditor();
+    }
+  }
+
+  function initJsonEditor() {
+    if (jsonEditor) return;
+    var src = document.getElementById("json-editor-src");
+    // Populate JSON from current form state
+    src.value = buildJsonFromForm();
+    var wrap = document.getElementById("json-editor-wrap");
+    jsonEditor = CodeMirror(wrap, {
+      value: src.value,
+      mode: { name: "javascript", json: true },
+      lineNumbers: true,
+      lineWrapping: true,
+      indentUnit: 2,
+      tabSize: 2,
+      styleActiveLine: true,
+      autoCloseBrackets: true,
+      matchBrackets: true
+    });
+    jsonEditor.on("change", function() { src.value = jsonEditor.getValue(); });
+  }
+
+  function buildJsonFromForm() {
+    var form = document.getElementById("models-form");
+    var data = new FormData(form);
+    var models = [];
+    var i = 0;
+    while (data.has("models[" + i + "][id]")) {
+      models.push({
+        id: data.get("models[" + i + "][id]"),
+        label: data.get("models[" + i + "][label]"),
+        api: data.get("models[" + i + "][api]"),
+        model: data.get("models[" + i + "][model_name]"),
+        api_key: data.get("models[" + i + "][api_key]") || "",
+        api_base: data.get("models[" + i + "][api_base]") || "",
+        level: parseInt(data.get("models[" + i + "][level]")) || 0
+      });
+      i++;
+    }
+    return JSON.stringify({ default: data.get("default_model"), models: models }, null, 2);
+  }
+
+  function addModel() {
+    var tmpl = document.getElementById("model-row-tmpl").innerHTML.replace(/__INDEX__/g, modelCount);
+    var div = document.createElement("div");
+    div.innerHTML = tmpl;
+    document.getElementById("models-tbody").appendChild(div.firstElementChild);
+    // Add to default model select
+    var opt = document.createElement("option");
+    opt.value = "";
+    opt.text = "新模型";
+    document.getElementById("default-model-select").appendChild(opt);
+    modelCount++;
+    dirty = true;
+    document.getElementById("unsaved-warning").style.display = "inline";
+  }
+
+  function removeModel(btn) {
+    if (!confirm("确定删除此模型？")) return;
+    var row = btn.closest("tr");
+    row.parentNode.removeChild(row);
+    dirty = true;
+    document.getElementById("unsaved-warning").style.display = "inline";
+  }
+
+  // JSON form submit
+  document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("json-form").addEventListener("submit", function(e) {
+      if (jsonEditor) {
+        document.getElementById("json-editor-src").value = jsonEditor.getValue();
+      }
+    });
+  });
+</script>

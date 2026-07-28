@@ -13,6 +13,7 @@
         <tr>
           <th class="text-left px-4 py-3 font-medium text-stone-600">邮箱</th>
           <th class="text-left px-4 py-3 font-medium text-stone-600">角色</th>
+          <th class="text-center px-4 py-3 font-medium text-stone-600">权限等级</th>
           <th class="text-center px-4 py-3 font-medium text-stone-600">激活</th>
           <th class="text-center px-4 py-3 font-medium text-stone-600">封禁</th>
           <th class="text-left px-4 py-3 font-medium text-stone-600">注册时间</th>
@@ -27,6 +28,13 @@
               <span class="px-2 py-0.5 rounded-full text-xs <%= user.admin? ? "bg-purple-100 text-purple-700" : "bg-stone-100 text-stone-600" %>">
                 <%= user.admin? ? "管理员" : "用户" %>
               </span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <%= form_with url: update_level_admin_user_path(user), method: :patch, local: true, style: "display:inline" do |f| %>
+                <%= f.number_field :model_level, value: user.model_level, min: 0,
+                      style: "width:50px;padding:2px 4px;border:1px solid #e7e5e4;border-radius:4px;font-size:12px;text-align:center",
+                      onchange: "this.form.requestSubmit()" %>
+              <% end %>
             </td>
             <td class="px-4 py-3 text-center">
               <%= button_to user.active? ? "✓ 已激活" : "未激活", toggle_active_admin_user_path(user), method: :patch,
