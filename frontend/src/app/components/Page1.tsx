@@ -196,7 +196,6 @@ export default function Page1() {
       const parsed = toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
-      setPendingFile(null);
       startStream(parsed);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "提取失败，请重试");
