@@ -33,8 +33,8 @@ class CardExtractor
     {"name":"林小明","name_en":"Xiaoming Lin","title":"高级产品经理","department":"用户增长部","organization":"某某科技有限公司","phone":"13800138000","email":"lin@example.com","website":null,"address":"深圳市南山区科技园","employee_id":null,"tagline":"让增长有迹可循","host_organization":null,"host_department":null,"event_topic":null}
   PROMPT
 
-  def initialize(client: nil, session: nil)
-    @client = client || LlmService.new(session: session)
+  def initialize(client: nil, session: nil, model_id: nil)
+    @client = client || LlmService.new(session: session, model_id: model_id)
   end
 
   # 返回 key 为 Card::FIELDS、值为 String 或 nil 的 Hash。

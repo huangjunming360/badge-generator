@@ -1,0 +1,63 @@
+<% content_for :head do %>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/lint/lint.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+<% end %>
+
+<div class="mx-auto max-w-4xl px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <%= link_to "← 后台首页", admin_root_path, class: "text-sm text-stone-500 hover:text-stone-800" %>
+      <h1 class="text-2xl font-bold">模型配置</h1>
+    </div>
+    <span class="text-xs text-stone-400">config/models.json</span>
+  </div>
+
+  <%= form_with url: admin_settings_path, method: :patch, local: true, id: "config-form" do |f| %>
+    <div class="bg-white rounded-xl border border-stone-200 overflow-hidden mb-4">
+      <%= f.text_area :config_content, value: @config_content,
+            id: "config-editor",
+            style: "display:none" %>
+      <div id="editor-wrapper" style="border:none;min-height:500px"></div>
+    </div>
+
+    <% if flash[:alert] %>
+      <p class="text-red-500 text-sm mb-4"><%= flash[:alert] %></p>
+    <% end %>
+
+    <%= f.submit "保存配置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+  <% end %>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var textarea = document.getElementById("config-editor");
+    var wrapper = document.getElementById("editor-wrapper");
+
+    var editor = CodeMirror(wrapper, {
+      value: textarea.value,
+      mode: { name: "javascript", json: true },
+      theme: "default",
+      lineNumbers: true,
+      lineWrapping: true,
+      indentUnit: 2,
+      tabSize: 2,
+      indentWithTabs: false,
+      styleActiveLine: true,
+      autoCloseBrackets: true,
+      matchBrackets: true,
+      gutters: ["CodeMirror-lint-markers"],
+      extraKeys: {
+        "Ctrl-S": function() { document.getElementById("config-form").requestSubmit(); }
+      }
+    });
+
+    // 提交时把编辑器内容写回 textarea
+    document.getElementById("config-form").addEventListener("submit", function() {
+      textarea.value = editor.getValue();
+    });
+  });
+</script>

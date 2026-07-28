@@ -8,6 +8,38 @@
 - `master` / `main` 是稳定分支，禁止直接 push，只通过 PR 从 `dev` 合入
 - commit message 用中文，遵循 `feat:` / `fix:` / `docs:` / `chore:` / `style:` 前缀
 
+## 安全铁律（必须先读再写代码）
+
+默认不信任任何请求、任何参数、任何用户。每写一行代码前过三遍：
+
+### 第一遍：写之前
+
+1. 这个 endpoint 需要登录吗？→ 加 `require_authentication`
+2. 这个 endpoint 花钱吗？（LLM、存储、网络）→ 加 `rate_limit`
+3. 这个数据属于哪个用户？→ 从 `Current.user` 出发
+
+### 第二遍：写的时候
+
+```
+Current.user.resources.find(params[:id])   // ✅ 正确
+Resource.find(params[:id])                  // ❌ 立即删除这行
+```
+
+新 endpoint 默认 `require_authentication`，公开访问是例外。
+`allow_unauthenticated_access` / `skip_before_action` 必须有注释写明为什么。
+
+### 第三遍：写完检查（三行清单）
+
+| 类型 | 自查 |
+|------|------|
+| 数据隔离 | 所有 find/index 都 scope 在 `Current.user` 下吗？ |
+| 创建归属 | new 用的 `Current.user.resources.new` 吗？不是 `Resource.new`？ |
+| 速率限制 | 花钱的路径有 rate_limit 吗？ |
+| 管理员操作用户 | user_params 里 permit 了 role / model_level / 敏感字段吗？ |
+| 死代码 | 旧的 endpoint/controller 被取代后删了吗？ |
+
+哪行答不上来就不提交。
+
 ## 提交前必须验证
 
 ```bash
@@ -16,6 +48,7 @@ bin/rubocop       # 无 offense
 ```
 
 两者任一不通过就不提交。
+Failing = 不提交。不提交。不提交。不。提。交。
 
 ## LLM 调用
 
@@ -35,6 +68,108 @@ PIDFILE=tmp/pids/puma.pid bin/rails s -p 8000 -b 127.0.0.1
 ## 不要动的文件
 
 `.env`、`config/master.key`、`storage/` 含密钥和本地开发数据，均已 gitignore，不要提交也不要删。
+
+## API 鉴权守则（必读）
+
+### 原则
+
+所有数据访问必须基于 `Current.user`。绝对不能用 `Model.all` / `Model.find` 无 scope 查询。
+
+### 三必须检查清单
+
+每条 API 端点写完后自查：
+
+| 检查项 | 正确做法 | 错误例子 |
+|--------|---------|---------|
+| 数据隔离 | `Current.user.cards.find(params[:id])` | `Card.find(params[:id])` |
+| 创建归属 | `Current.user.cards.new(...)` | `Card.new(...)` 不设 user |
+| 列表 scope | `Current.user.cards.order(...)` | `Card.order(...)` |
+
+### 速率限制
+
+调用 LLM 的端点（建卡）必须加 `rate_limit`，防止 API Key 被盗刷：
+
+```ruby
+rate_limit to: 20, within: 1.minute, only: :create,
+  with: -> { render json: { errors: ["请求过于频繁"] }, status: :too_many_requests }
+```
+
+### API 鉴权流程
+
+```
+Api::BaseController
+  ├── skip_before_action :require_authentication  // 不用 redirect 方式
+  ├── before_action :require_api_authentication   // 改为 JSON 401
+  │
+  └── 公开端点（如 schema, setup）加：
+       skip_before_action :require_api_authentication, only: :show
+```
+
+### 管理员鉴权
+
+```
+Admin::BaseController
+  ├── 检查 authenticated? → 否则弹 401
+  ├── 检查 Current.user.admin? → 否则弹 alert 踢回首页
+  ├── 检查 Current.user.banned? → terminate_session
+  └── 检查 Current.user.active? → 否则拒绝
+```
+
+### 管理员创建用户
+
+永远不要在 `user_params` 里 permit `:role` 或 `:model_level`：
+
+```ruby
+# 错误：攻击者可伪造请求提权
+params.require(:user).permit(:email_address, :password, :role, :model_level)
+
+# 正确：在 action 中显式赋值
+@user.role = "user"
+@user.model_level = 4
+```
+
+## 从错误中吸取的教训
+
+### Brakeman 安全扫描
+
+- `params.permit(:role, :model_level, ...)` 属于危险的大规模赋值漏洞，攻击者可伪造请求提权。
+- 敏感字段（角色、权限等级）不能放在 `user_params` 里，要在 `create` action 中显式赋值。
+- 新建用户的 `role` 永远从代码设为 `"user"`，`model_level` 设为最低权限 `4`。管理员有专门的 `update_level` 端点来改权限。
+
+### RuboCop 数组空格
+
+- `["管理员已存在"]` 会被 RuboCop 的 `Layout/SpaceInsideArrayLiteralBrackets` 报错，需要写成 `[ "管理员已存在" ]`。
+- 本地跑 `bin/rubocop` 就能在提交前发现，不要在 CI 才暴露。
+
+### 前端资源路径
+
+**Rails 本地开发模式（Rails 直接托管静态文件）：**
+- 前端构建产物放 `public/` 根目录时，`index.html` 引用的 `/assets/xxx.js` 才能被 Rails 正确托管。
+- 如果放在 `public/frontend/` 子目录，JS/CSS 会 404，因为 HTML 里的路径是 `/assets/xxx` 而非 `/frontend/assets/xxx`。
+
+**生产环境 nginx 部署（通过 `deploy/publish.sh`）：**
+- 构建产物通过 `rsync -a frontend/dist/ /var/www/badge-generator/` 发布到 nginx 站点目录。
+- nginx 在 8080 端口直接托管 `/var/www/badge-generator/` 下的所有文件（包括 `index.html` 和 `/assets/` 子目录）。
+- 前端构建工具（如 Vite）生成的 `dist/` 结构必须保持 `index.html` 和 `assets/` 在同一层级，否则资源引用会失败。
+
+### Turbo 确认弹窗
+
+- `button_to data: { confirm: "..." }` 在 Turbo 环境下无效，需要用 `data: { turbo_confirm: "..." }`。
+- 同理，`DOMContentLoaded` 事件在 Turbo Drive 导航时不会重新触发，需要用 `turbo:load` 事件。
+
+### ERB 中 case/when
+
+- ERB 模板中 `case/when` 跨多个 `<% %>` 标签会导致解析错误，必须用 `if/elsif/else` 或内联 hash 查询替代。
+
+### CodeMirror setValue 触发 change
+
+- CodeMirror 的 `setValue()` 会触发 `change` 事件，导致编辑器上的 `on("change")` 回调误判为脏数据。
+- 需要用 `suppressChange` 标志在同步期间忽略 change 事件。
+
+### 模型配置 model 键名
+
+- `config/models.json` 里存的是 `"model"` 键，但 HTML 表单的 name 是 `model_name`（Rails 的 params permit 要求）。
+- `fillRow` 从 JSON 读数据时要用 `field === "model_name" ? m.model : m[field]` 做映射，否则提交时 model 字段为空。
 
 ## 已知风险
 

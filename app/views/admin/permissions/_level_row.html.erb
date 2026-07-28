@@ -1,0 +1,11 @@
+<div class="p-4 flex items-center gap-3 group" data-level>
+  <div class="flex-1">
+    <input type="text" name="levels[<%= val %>][label]" value="<%= info[:label] %>" placeholder="等级名称"
+           class="block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+  </div>
+  <div class="flex-[2]">
+    <input type="text" name="levels[<%= val %>][desc]" value="<%= info[:desc] %>" placeholder="等级说明"
+           class="block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+  </div>
+  <button type="button" onclick="removeLevel(this)" class="text-red-400 hover:text-red-600 text-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity bg-transparent border-none cursor-pointer">×</button>
+</div>

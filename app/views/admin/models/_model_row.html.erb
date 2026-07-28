@@ -1,0 +1,26 @@
+<tr class="model-row">
+  <td><input type="text" name="models[<%= i %>][id]" value="<%= m["id"] %>"></td>
+  <td><input type="text" name="models[<%= i %>][label]" value="<%= m["label"] %>"></td>
+  <td>
+    <select name="models[<%= i %>][api]">
+      <option value="anthropic" <%= "selected" if m["api"] == "anthropic" %>>Anthropic</option>
+      <option value="openai" <%= "selected" if m["api"] == "openai" %>>OpenAI</option>
+    </select>
+  </td>
+  <td><input type="text" name="models[<%= i %>][model_name]" value="<%= m["model"] %>"></td>
+  <td><input type="text" name="models[<%= i %>][api_key]" value="<%= m["api_key"] %>"></td>
+  <td><input type="text" name="models[<%= i %>][api_base]" value="<%= m["api_base"] %>"></td>
+  <td>
+    <select name="models[<%= i %>][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
+      <% levels = User.model_levels %>
+      <% cur = m["level"].to_i %>
+      <% unless levels.key?(cur) %>
+        <option value="<%= cur %>" selected>未知(<%= cur %>)</option>
+      <% end %>
+      <% levels.each do |val, info| %>
+        <option value="<%= val %>" <%= "selected" if cur == val %>><%= info[:label] %></option>
+      <% end %>
+    </select>
+  </td>
+  <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>
+</tr>

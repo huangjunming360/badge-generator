@@ -1,0 +1,65 @@
+<div class="mx-auto max-w-3xl px-4 py-8">
+  <div class="flex items-center gap-4 mb-6">
+    <a href="<%= admin_root_path %>" class="text-sm text-stone-500 hover:text-stone-800" style="text-decoration:none" onclick="return warnSettingsUnsaved()">← 后台首页</a>
+    <h1 class="text-2xl font-bold">通用设置</h1>
+  </div>
+
+  <%= form_with url: admin_general_settings_path, method: :patch, local: true, class: "contents", id: "settings-form" do |f| %>
+    <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-1">站点标题</label>
+        <%= f.text_field :site_title, value: @settings[:site_title], class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
+        <p class="text-xs text-stone-400 mt-1">显示在浏览器标签页标题</p>
+      </div>
+
+      <div class="p-5 flex items-center justify-between">
+        <div>
+          <label class="text-sm font-medium">开放注册</label>
+          <p class="text-xs text-stone-400 mt-0.5">关闭后注册页面不可用</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <%= f.check_box :allow_registration, checked: @settings[:allow_registration],
+                class: "sr-only peer" %>
+          <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+        </label>
+      </div>
+
+      <div class="p-5 flex items-center justify-between">
+        <div>
+          <label class="text-sm font-medium">模型使用需登录</label>
+          <p class="text-xs text-stone-400 mt-0.5">开启后未登录用户无法使用模型选择功能</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <%= f.check_box :require_login_for_models, checked: @settings[:require_login_for_models],
+                class: "sr-only peer" %>
+          <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="mt-6 flex items-center gap-3">
+      <%= f.submit "保存设置", class: "px-6 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
+      <span id="settings-unsaved" style="display:none;color:#d97706;font-size:13px">⚠ 有未保存的更改</span>
+    </div>
+  <% end %>
+</div>
+
+<script>
+  var settingsDirty = false;
+
+  document.addEventListener("turbo:load", function() {
+    var form = document.getElementById("settings-form");
+    form.addEventListener("change", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
+    form.addEventListener("input", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
+    form.addEventListener("submit", function() { settingsDirty = false; });
+  });
+
+  window.addEventListener("beforeunload", function(e) {
+    if (settingsDirty) { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  function warnSettingsUnsaved() {
+    if (settingsDirty) return confirm("有未保存的更改，确定离开？");
+    return true;
+  }
+</script>
