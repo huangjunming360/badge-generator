@@ -115,6 +115,7 @@ export default function Page1() {
     saved?.fields ? saved.fields.length - 1 : -1
   );
   const [imgName, setImgName]   = useState<string | null>(null);
+  const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
@@ -184,6 +185,8 @@ export default function Page1() {
     setError(null);
     setStreamIdx(-1);
     setFields([]);
+    setPortraitUrl(null);
+    setImgName(null);
     setProgressMsg("提交中…");
     setProgressStage("uploading");
 
@@ -196,6 +199,11 @@ export default function Page1() {
       const parsed = toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
+      // 自动识别的证件照
+      if (card.portrait) {
+        setPortraitUrl(card.portrait.url);
+        setImgName("📷 " + card.portrait.filename);
+      }
       startStream(parsed);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "提取失败，请重试");
@@ -379,6 +387,9 @@ export default function Page1() {
                 }}>
                   <ImageIcon size={10} color={U.green} />
                   <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName}</span>
+                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
+                    style={{ background: "none", border: "none", cursor: "pointer",
+                      color: U.green, padding: 0, fontSize: 12, lineHeight: 1, marginLeft: 2 }}>×</button>
                 </div>
               )}
             </div>
@@ -510,6 +521,23 @@ export default function Page1() {
                 : <><Sparkles size={13} /> 开始解析</>}
             </RippleBtn>
           </div>
+
+          {/* ── 证件照预览 ──────────────────────────────── */}
+          {portraitUrl && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
+              animation: `fadeSlideIn .3s ${E.smooth} both`,
+            }}>
+              <img src={portraitUrl} alt="证件照"
+                style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover",
+                  border: `2px solid ${U.green}44`, boxShadow: "0 2px 8px rgba(0,0,0,.06)" }}
+                onError={() => setPortraitUrl(null)} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: U.green }}>已识别到证件照</div>
+                <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
+              </div>
+            </div>
+          )}
 
           {/* ── AI result section ───────────────────────── */}
           {hasFields && (

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# 从一组图片中识别哪张是证件照。
-# 先用大小启发式筛选候选，再调用 LLM 视觉模型确认。
+# 从一组图片中识别哪张是证件照。直接调用 LLM 视觉 API，
+# 不走 RubyLLM（它的 add_message 不支持多模态 content 数组）。
 class PortraitDetector
   class Error < StandardError; end
 
@@ -11,54 +11,93 @@ class PortraitDetector
     @model_id = model_id
   end
 
-  # images: [{ path:, data: }] → 返回匹配的图片数据 hash，或 nil
+  # images: [{ path:, data: }] → 返回匹配的图片 hash，或 nil
   def detect(images)
     return nil if images.blank?
     return images.first if images.one?
 
-    # 启发式：排除过小（图标）和过大（全页扫描）的图片
+    # 启发式筛选：排除过小（图标）和过大（全页扫描）
     candidates = images.select { |img|
       sz = img[:data].bytesize
       (8_000..500_000).cover?(sz)
     }
     return candidates.first if candidates.one?
-    return images.first if candidates.empty?
+    return candidates.first if candidates.empty?
 
-    # 用 LLM 视觉判断，只传候选图片（减少 token）
     ask_llm(candidates)
   rescue => e
     Rails.logger.warn("Portrait detection failed: #{e.message}")
-    candidates&.first || images.first
+    candidates.first
   end
 
   private
 
   def ask_llm(candidates)
-    client = LlmService.new(model_id: @model_id)
+    config = resolve_config
+    base = config["api_base"].to_s
+    endpoint = base.end_with?("/chat/completions") ? base : "#{base}/chat/completions"
 
-    # 构建多模态消息：文字描述 + 实际图片
-    content = candidates.map.with_index do |img, i|
-      { type: "text", text: "图片 #{i + 1}: #{img[:path]}" }
-    end
-    content << { type: "text", text: "\n哪张是证件照？只回答序号（1-#{candidates.length}）或 null。" }
-
-    # 附上实际图片（base64）
+    # 构建 OpenAI 格式的多模态消息
+    content = []
     candidates.each_with_index do |img, i|
       ext = File.extname(img[:path]).downcase
       mime = ext == ".png" ? "image/png" : "image/jpeg"
       encoded = Base64.strict_encode64(img[:data])
+      next if encoded.bytesize > 500_000  # 单图限制 500KB
+
+      content << { type: "text", text: "图片 #{i + 1}: #{img[:path]}" }
       content << {
         type: "image_url",
         image_url: { url: "data:#{mime};base64,#{encoded}" }
-      } if encoded.bytesize < 500_000  # 限制单图 500KB
+      }
     end
 
-    messages = [ { role: "user", content: content } ]
-    response = client.complete(messages, system: PROMPT, max_tokens: 32)
-    idx = response.strip.to_i - 1
+    # 如果没有图片能成功编码，退回启发式结果
+    return candidates.first if content.empty?
+
+    content << { type: "text", text: "\n哪张是证件照？只回答序号（1-#{candidates.length}）或 null。" }
+
+    body = {
+      model: config["model"],
+      messages: [
+        { role: "system", content: PROMPT },
+        { role: "user", content: content }
+      ],
+      max_tokens: 32
+    }
+
+    response = http_post(endpoint, body.to_json, config["api_key"])
+    text = response.dig("choices", 0, "message", "content") || ""
+    idx = text.strip.to_i - 1
     (idx >= 0 && idx < candidates.length) ? candidates[idx] : candidates.first
-  rescue => e
-    Rails.logger.warn("LLM portrait detection failed: #{e.message}")
-    candidates.first
+  end
+
+  def resolve_config
+    models = Rails.application.config.x.models["models"] || []
+    model = @model_id ? models.find { |m| m["id"] == @model_id } : nil
+    model || models.find { |m| m["id"] == models_config["default"] } || models.first || {}
+  end
+
+  def models_config
+    Rails.application.config.x.models || {}
+  end
+
+  def http_post(url, body_json, api_key)
+    uri = URI(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == "https"
+    http.read_timeout = 60
+    http.open_timeout = 15
+
+    req = Net::HTTP::Post.new(uri)
+    req["Content-Type"] = "application/json"
+    req["Authorization"] = "Bearer #{api_key}"
+    req.body = body_json
+
+    res = http.request(req)
+    raise Error, "HTTP #{res.code}" unless res.code.to_i == 200
+    JSON.parse(res.body)
+  rescue JSON::ParserError
+    raise Error, "非 JSON 响应"
   end
 end
