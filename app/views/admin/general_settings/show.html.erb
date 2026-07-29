@@ -183,7 +183,13 @@
     if (tags.querySelector(`[data-ext="${ext}"]`)) return;
     var span = document.createElement("span");
     span.className = "inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700";
-    span.innerHTML = ext + '<button type="button" onclick="this.parentElement.remove();updateExtensions()" class="text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+    span.appendChild(document.createTextNode(ext));
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs";
+    button.textContent = "×";
+    button.addEventListener("click", function() { span.remove(); updateExtensions(); });
+    span.appendChild(button);
     tags.appendChild(span);
     input.value = "";
     updateExtensions();
@@ -201,7 +207,13 @@
     exts.forEach(function(e) {
       var span = document.createElement("span");
       span.className = "inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700";
-      span.innerHTML = e + '<button type="button" onclick="this.parentElement.remove();updateExtensions()" class="text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+      span.appendChild(document.createTextNode(e));
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs";
+      button.textContent = "×";
+      button.addEventListener("click", function() { span.remove(); updateExtensions(); });
+      span.appendChild(button);
       tags.appendChild(span);
     });
     updateExtensions();
