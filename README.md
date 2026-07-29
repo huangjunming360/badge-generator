@@ -23,7 +23,9 @@ bundle install
 
 # 2. 数据库
 rails db:create db:migrate db:seed
-# 创建初始管理员: admin@example.com / admin123
+# 默认账号 admin@example.com，密码随机生成（控制台可见）
+# 或通过环境变量指定：ADMIN_PASSWORD=mypassword rails db:seed
+# 首次启动无管理员时自动跳转 /setup 页面在线创建
 
 # 3. 模型配置
 cp config/models.example.json config/models.json
