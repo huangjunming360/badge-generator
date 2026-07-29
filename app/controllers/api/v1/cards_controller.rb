@@ -125,11 +125,8 @@ class Api::V1::CardsController < Api::BaseController
           if mime
             card.portrait.attach(io: StringIO.new(found[:data]),
               filename: File.basename(found[:path]),
-              content_type: mime)
-            if card.portrait.attached?
-              blob = card.portrait.blob
-              blob.update_column(:content_type, mime) if blob.persisted? && blob.content_type != mime
-            end
+              content_type: mime,
+              identify: false)
           end
         end
       end
