@@ -18,7 +18,7 @@ class Api::V1::CardsController < Api::BaseController
     progress_id = SecureRandom.hex(12)
     raw_input = params[:raw_input]
     model_id = params[:model_id]
-    return unless check_model_level!(model_id)
+    return if model_id.present? && !check_model_level!(model_id)
 
     mineru_enabled = params[:mineru_enabled]
     portrait_detect = params[:portrait_detect]
@@ -102,6 +102,7 @@ class Api::V1::CardsController < Api::BaseController
 
     # 处理上传的文件
     text = nil
+    tmpfile = nil
     if file_data
       ext = File.extname(file_name || ".txt").downcase
       tmpfile = Tempfile.new([ "upload", ext ], binmode: true)
@@ -170,8 +171,17 @@ class Api::V1::CardsController < Api::BaseController
     end
 
     progress.set(:extracting, "AI 提取字段中…")
-    card.data = CardExtractor.new(model_id: model_id).call(text)
+    card.data = CardExtractor.new(model_id: model_id).call(raw)
     card.save!
+
+    # 用户手动上传的头像在异步流程中也要 attach
+    if portrait_data.present? && card.portrait.blank?
+      card.portrait.attach(io: StringIO.new(portrait_data),
+        filename: portrait_name || "portrait.jpg",
+        content_type: "image/jpeg",
+        identify: false)
+    end
+
     card.id
   rescue DocumentTextExtractor::UnsupportedFormat,
          DocumentTextExtractor::ParseError,
@@ -181,6 +191,8 @@ class Api::V1::CardsController < Api::BaseController
     progress.error(e.message)
   rescue LlmService::Error => e
     progress.error("AI 服务异常: #{e.message}")
+  ensure
+    tmpfile&.close!
   end
 
   def create_sync

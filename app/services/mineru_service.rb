@@ -50,19 +50,23 @@ class MineruService
   end
 
   def poll_batch(batch_id)
-    TIMEOUT.times do
+    elapsed = 0
+    loop do
       resp = http_get("#{PRECISION_BASE}/api/v4/extract-results/batch/#{batch_id}", headers: auth_header)
-      result = resp.dig("data", "extract_result")&.first
-      return result if result.nil?
+      results = resp.dig("data", "extract_result") || []
+      result = results.first
 
-      case result["state"]
+      case result&.[]("state")
       when "done" then return result
       when "failed" then raise Error, "MinerU 解析失败: #{result['err_msg']}"
       when "pending", "running", "converting", "waiting-file", "uploading"
         sleep POLL_INTERVAL
+        elapsed += POLL_INTERVAL
+        raise TimeoutError, "MinerU 解析超时" if elapsed >= TIMEOUT
+      else
+        raise Error, "MinerU 未知状态: #{result&.[]("state").inspect}"
       end
     end
-    raise TimeoutError, "MinerU 解析超时"
   end
 
   def extract_result(result)
@@ -155,17 +159,21 @@ class MineruService
   end
 
   def poll_agent(task_id)
-    TIMEOUT.times do
+    elapsed = 0
+    loop do
       resp = http_get("#{AGENT_BASE}/parse/#{task_id}")
       data = resp["data"]
-      case data["state"]
+      case data&.[]("state")
       when "done" then return data["markdown_url"]
       when "failed" then raise Error, "MinerU Agent 解析失败: #{data['err_msg']}"
       when "waiting-file", "pending", "running", "uploading"
         sleep POLL_INTERVAL
+        elapsed += POLL_INTERVAL
+        raise TimeoutError, "MinerU Agent 解析超时" if elapsed >= TIMEOUT
+      else
+        raise Error, "MinerU Agent 未知状态: #{data&.[]("state").inspect}"
       end
     end
-    raise TimeoutError, "MinerU Agent 解析超时"
   end
 
   # ===== HTTP =====
