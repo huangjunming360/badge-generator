@@ -17,11 +17,10 @@ class CardExtractorTest < ActiveSupport::TestCase
   end
 
   FULL_JSON = {
-    "name" => "林小明", "name_en" => "Xiaoming Lin", "title" => "高级产品经理",
-    "department" => "用户增长部", "organization" => "某某科技有限公司",
-    "phone" => "13800138000", "email" => "lin@example.com",
-    "website" => nil, "address" => "深圳市南山区科技园",
-    "employee_id" => nil, "tagline" => "让增长有迹可循"
+    "name" => "林小明", "name_en" => "Xiaoming Lin",
+    "organization" => "某某科技有限公司",
+    "host_organization" => "清华大学", "host_department" => "人工智能研究院",
+    "event_topic" => nil
   }.freeze
 
   def extract(*replies)
@@ -29,12 +28,12 @@ class CardExtractorTest < ActiveSupport::TestCase
     [ CardExtractor.new(client: client).call("随便一段资料"), client ]
   end
 
-  test "正常 JSON 提取出全部 11 个字段" do
+  test "正常 JSON 提取出 FIELDS 全部字段" do
     result, = extract(JSON.generate(FULL_JSON))
     assert_equal Card::FIELDS.sort, result.keys.sort
     assert_equal "林小明", result["name"]
-    assert_equal "让增长有迹可循", result["tagline"]
-    assert_nil result["website"]
+    assert_equal "清华大学", result["host_organization"]
+    assert_nil result["event_topic"]
   end
 
   test "剥离 markdown 代码围栏" do
@@ -57,24 +56,24 @@ class CardExtractorTest < ActiveSupport::TestCase
     result, = extract(JSON.generate({ "name" => "林小明" }))
     assert_equal Card::FIELDS.size, result.size
     assert_equal "林小明", result["name"]
-    assert_nil result["phone"]
+    assert_nil result["organization"]
   end
 
   test "空串和字面 null 归一为 nil" do
-    result, = extract(JSON.generate({ "name" => "林小明", "phone" => "  ", "email" => "null" }))
-    assert_nil result["phone"]
-    assert_nil result["email"]
+    result, = extract(JSON.generate({ "name" => "林小明", "organization" => "  ", "name_en" => "null" }))
+    assert_nil result["organization"]
+    assert_nil result["name_en"]
   end
 
   test "嵌套结构的值当作缺失处理" do
-    result, = extract(JSON.generate({ "name" => "林小明", "phone" => %w[1 2] }))
-    assert_nil result["phone"]
+    result, = extract(JSON.generate({ "name" => "林小明", "organization" => %w[1 2] }))
+    assert_nil result["organization"]
   end
 
   test "值统一去空白并转字符串" do
-    result, = extract(JSON.generate({ "name" => "  林小明  ", "employee_id" => 10086 }))
+    result, = extract(JSON.generate({ "name" => "  林小明  ", "organization" => 10086 }))
     assert_equal "林小明", result["name"]
-    assert_equal "10086", result["employee_id"]
+    assert_equal "10086", result["organization"]
   end
 
   test "首次返回非 JSON 时重试一次即成功" do

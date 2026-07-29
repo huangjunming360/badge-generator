@@ -16,21 +16,13 @@ class CardExtractor
     字段说明：
     - name: 中文姓名
     - name_en: 英文名或拼音
-    - title: 职位、职称
-    - department: 所属部门
     - organization: 公司、机构、单位名称
-    - phone: 电话号码
-    - email: 电子邮箱
-    - website: 网站地址
-    - address: 办公地址
-    - employee_id: 工号、编号
-    - tagline: 一句话简介或个人标语
     - host_organization: 组织项目的机构
     - host_department: 组织项目的机构部门
     - event_topic: 项目主题（活动/课程名称）
 
     输出示例：
-    {"name":"林小明","name_en":"Xiaoming Lin","title":"高级产品经理","department":"用户增长部","organization":"某某科技有限公司","phone":"13800138000","email":"lin@example.com","website":null,"address":"深圳市南山区科技园","employee_id":null,"tagline":"让增长有迹可循","host_organization":null,"host_department":null,"event_topic":null}
+    {"name":"林小明","name_en":"Xiaoming Lin","organization":"某某科技有限公司","host_organization":null,"host_department":null,"event_topic":null}
   PROMPT
 
   def initialize(client: nil, session: nil, model_id: nil)

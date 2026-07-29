@@ -161,15 +161,7 @@ export function FIcon({ k, size=11 }: { k:string; size?:number }) {
     // 是本地解析时代的产物，schema 里并不存在。
     name:              <User size={size}/>,
     name_en:           <User size={size}/>,
-    title:             <Layers size={size}/>,
-    department:        <Building2 size={size}/>,
     organization:      <Building2 size={size}/>,
-    tagline:           <Bookmark size={size}/>,
-    phone:             <Phone size={size}/>,
-    email:             <Mail size={size}/>,
-    website:           <Columns size={size}/>,
-    address:           <MapPin size={size}/>,
-    employee_id:       <Hash size={size}/>,
     host_organization: <Building2 size={size}/>,
     host_department:   <Users size={size}/>,
     event_topic:       <BookOpen size={size}/>,
@@ -237,7 +229,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
   if (template === "custom") {
     const isL = custom.orientation === "landscape";
     const W = isL ? 320 : 200, H = isL ? 190 : 300;
-    const others = sel.filter(f => !["name","title"].includes(f.key));
+    const others = sel.filter(f => f.key !== "name");
     return (
       <div style={{ width:W*scale, height:H*scale, background:bg, borderRadius:rad*scale,
         border:`1px solid ${bdr}`, boxShadow:SH, overflow:"hidden",
@@ -263,7 +255,6 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
           )}
           <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
             {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:13*scale*fz, fontWeight:600, color:"#1A2C40", lineHeight:1.2 }}>{get("name")}</div>}
-            {has("title") && <div style={{ fontSize:7.5*scale*fz, color:"#8AABBB", marginTop:2*scale }}>{get("title")}</div>}
             {!isL && <div style={{ height:1*scale, background:bdr, margin:`${7*scale}px 0` }}/>}
             <div style={{ display:"flex", flexDirection:"column", gap:4.5*scale, flex:1 }}>
               {others.slice(0,5).map(f => (
@@ -309,13 +300,13 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
         </div>
         <div style={{ marginBottom:10*scale }}>
           {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:21*scale*fz, fontWeight:600, color:"#1A2C40" }}>{get("name")}</div>}
-          {has("title") && <div style={{ fontSize:9*scale*fz, color:"#8AABBB", letterSpacing:".14em", marginTop:2*scale }}>{get("title")}</div>}
         </div>
         <div style={{ height:1*scale, background:bdr, marginBottom:10*scale }}/>
         <div style={{ display:"flex", flexDirection:"column", gap:5*scale }}>
           {has("phone") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Phone size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("phone")}</span></div>}
           {has("email") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Mail size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("email")}</span></div>}
           {has("address")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("address")}</span></div>}
+          {has("area")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("area")}</span></div>}
         </div>
         <div style={{ height:3*scale, background:ac.main, position:"absolute", bottom:0, left:0, right:0 }}/>
       </div>
@@ -323,7 +314,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
   }
 
   const isVisitor = template === "visitor";
-  const others    = sel.filter(f => !["name","title"].includes(f.key));
+  const others    = sel.filter(f => f.key !== "name");
   return (
     <div style={{ width:200*scale, height:300*scale, background:bg, borderRadius:rad*scale,
       border:`1px solid ${bdr}`, boxShadow:SH, display:"flex", flexDirection:"column",
@@ -346,7 +337,6 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
           </div>
           <div>
             {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:13*scale*fz, fontWeight:600, color:"#1A2C40", lineHeight:1.2 }}>{get("name")}</div>}
-            {has("title") && <div style={{ fontSize:7.5*scale*fz, color:"#8AABBB", marginTop:2*scale }}>{get("title")}</div>}
           </div>
         </div>
         <div style={{ height:1*scale, background:bdr, marginBottom:8*scale }}/>
