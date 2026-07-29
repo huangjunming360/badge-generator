@@ -42,10 +42,12 @@ export function pollCard(params: {
   rawInput?: string; file?: File; portrait?: File | null; modelId?: string | null;
   mineru_enabled?: boolean; portrait_detect?: boolean;
 }, onProgress: (p: ProgressStatus) => void): Promise<number> {
-  const work = params.file
+  // 有文件或手动上传了照片 → 走 FormData，否则走 JSON
+  const needsForm = params.file || params.portrait;
+  const work = needsForm
     ? (() => {
         const form = new FormData();
-        form.append("document", params.file);
+        if (params.file) form.append("document", params.file);
         if (params.portrait) form.append("portrait", params.portrait);
         if (params.modelId) form.append("model_id", params.modelId);
         form.append("mineru_enabled", params.mineru_enabled !== false ? "1" : "0");

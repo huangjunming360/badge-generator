@@ -190,8 +190,11 @@ export default function Page1() {
     setError(null);
     setStreamIdx(-1);
     setFields([]);
-    setPortraitUrl(null);
-    setImgName(null);
+    // 用户手动上传的照片在解析期间保留预览，不清掉
+    if (!portraitFile) {
+      setPortraitUrl(null);
+      setImgName(null);
+    }
     setProgressMsg("提交中…");
     setProgressStage("uploading");
 
@@ -230,9 +233,9 @@ export default function Page1() {
 
   const handleParse = useCallback(() => {
     if (parsing) return;
-    const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect };
+    const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect, portrait: portraitFile };
     if (pendingFile) {
-      runExtraction({ file: pendingFile, portrait: portraitFile, modelId, ...opts });
+      runExtraction({ file: pendingFile, modelId, ...opts });
     } else if (rawText.trim()) {
       runExtraction({ rawInput: rawText, modelId, ...opts });
     }
