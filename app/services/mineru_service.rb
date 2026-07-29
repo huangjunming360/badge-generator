@@ -222,6 +222,7 @@ class MineruService
     end
     res.body
   rescue OpenSSL::SSL::SSLError
+    raise unless Rails.env.development?
     http.verify_mode = OpenSSL::SSL::VERIFY_NONE
     retry
   end
