@@ -118,19 +118,12 @@ class Api::V1::CardsController < Api::BaseController
         found = detector.detect(mineru_images)
         Rails.logger.info("人像结果: found=#{found.class}")
         if found && found[:data].present?
-          data = found[:data]
-          data = data.is_a?(StringIO) ? data.string : data
-          # 从二进制头部检测实际格式
-          mime = case data[0, 4]
-                 when /\A\xFF\xD8\xFF/ then "image/jpeg"
-                 when /\A\x89PNG/ then "image/png"
-                 when /\ARIFF/ then "image/webp"
-                 else nil
-                 end
+          ext = File.extname(found[:path].to_s).downcase.delete(".")
+          mime = { "jpg" => "image/jpeg", "jpeg" => "image/jpeg", "png" => "image/png" }[ext]
           if mime
-            ext = File.extname(found[:path].to_s).downcase.delete(".")
-            filename = ext.empty? ? "portrait.#{mime.split('/').last}" : File.basename(found[:path])
-            card.portrait.attach(io: StringIO.new(data), filename: filename, content_type: mime)
+            card.portrait.attach(io: StringIO.new(found[:data]),
+              filename: File.basename(found[:path]),
+              content_type: mime)
           end
         end
       end
