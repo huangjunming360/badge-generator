@@ -551,8 +551,7 @@ export default function Page1() {
             }}>
               <img src={portraitUrl} alt="证件照"
                 style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover",
-                  border: `2px solid ${U.green}44`, boxShadow: "0 2px 8px rgba(0,0,0,.06)" }}
-                onError={() => setPortraitUrl(null)} />
+                  border: `2px solid ${U.green}44`, boxShadow: "0 2px 8px rgba(0,0,0,.06)" }} />
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: U.green }}>已识别到证件照</div>
                 <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
