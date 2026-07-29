@@ -120,17 +120,13 @@ class Api::V1::CardsController < Api::BaseController
         allowed = %w[.pdf .docx .png .jpg .jpeg] if allowed.empty?
         use_mineru = allowed.include?(ext)
       end
-      mineru_images = []
-      if use_mineru
-        progress.set(:mineru, "文档解析中…")
-        mineru_result = MineruService.new.parse(tmpfile.path, file_name: file_name)
-        mineru_images = mineru_result[:images] || []
-      end
+      progress.set(:mineru, "文档解析中…") if use_mineru
 
       extractor = DocumentTextExtractor.new
       text = extractor.call(uploaded)
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name
+      mineru_images = extractor.extracted_images || []
 
       # 先落库（绕过模型验证），以便 portrait attach 前记录已存在
       card.raw_input = "temp"

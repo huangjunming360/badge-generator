@@ -16,7 +16,7 @@ class LlmService
   class UnknownModel < Error; end
 
   # 全局并发控制：默认最多 3 个 LLM 请求同时运行
-  MAX_CONCURRENCY = ENV.fetch("LLM_MAX_CONCURRENCY", 3).to_i
+  MAX_CONCURRENCY = [ ENV.fetch("LLM_MAX_CONCURRENCY", 3).to_i, 1 ].max
   SEMAPHORE = Mutex.new
   @@active_requests = 0
 
@@ -52,7 +52,9 @@ class LlmService
 
   def complete(messages, system: nil, max_tokens: 4096)
     # 等待并发槽位
+    acquired = false
     self.class.await_slot
+    acquired = true
 
     # 每个模型独立密钥 → 调用前配置
     configure_provider!
@@ -84,7 +86,7 @@ class LlmService
   rescue => e
     raise Error, "LLM 调用失败: #{e.message}"
   ensure
-    self.class.release_slot
+    self.class.release_slot if acquired
   end
 
   def embed(text)

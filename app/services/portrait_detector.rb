@@ -65,8 +65,10 @@ class PortraitDetector
     chat.add_message(role: :user, content: content)
     response = chat.complete
     text = response.content.to_s.strip
+    return nil if text.match?(/\Anull\z/i) || text !~ /\d/
+
     idx = text.to_i - 1
-    (idx >= 0 && idx < candidates.length) ? candidates[idx] : candidates.first
+    (idx >= 0 && idx < candidates.length) ? candidates[idx] : nil
   end
 
   def resolve_config

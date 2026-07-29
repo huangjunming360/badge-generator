@@ -9,14 +9,6 @@ class Admin::ModelsController < Admin::BaseController
 
     raw["default"] = params[:default_model]
 
-    # 默认模型强制设为最低权限等级，确保所有用户能用
-    levels = User.model_levels
-    lowest = levels.keys.max  # 数字最大的等级 = 权限最低
-    default = raw["models"]&.find { |m| m["id"] == raw["default"] }
-    if default
-      default["level"] = lowest
-    end
-
     # 用 permit 处理 ActionController::Parameters
     models = params.fetch(:models, {}).values.map do |m|
       m.permit(:id, :label, :api, :model_name, :api_key, :api_base, :level, :no_thinking)
@@ -33,6 +25,12 @@ class Admin::ModelsController < Admin::BaseController
         "no_thinking" => m["no_thinking"] == "1" || m["no_thinking"] == true
       }
     end
+
+    # 默认模型强制设为最低权限等级，确保所有用户能用
+    levels = User.model_levels
+    lowest = levels.keys.max
+    default = raw["models"].find { |m| m["id"] == raw["default"] }
+    default["level"] = lowest if default
 
     errors = validate_models_config!(raw)
     unless errors.empty?
