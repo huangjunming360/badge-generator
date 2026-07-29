@@ -110,7 +110,7 @@ class Api::V1::CardsController < Api::BaseController
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name
 
-      # 尝试识别人像
+      # 尝试从 MinerU 图片中识别人像
       if mineru_images.present? && portrait_detect != "0"
         progress.set(:portrait, "人像识别中…")
         detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)

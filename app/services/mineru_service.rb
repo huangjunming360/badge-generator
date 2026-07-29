@@ -133,6 +133,7 @@ class MineruService
       end
     end
 
+    Rails.logger.info("MinerU ZIP: #{images.length} images, #{image_refs.length} refs, md=#{markdown ? markdown.length : 0}bytes")
     [ markdown || "", images ]
   end
 
