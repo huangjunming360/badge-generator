@@ -16,7 +16,7 @@ class PortraitDetector
     return images.first if images.one?
 
     candidates = images.select { |img|
-      img.is_a?(Hash) && (data = img[:data]) && data.is_a?(String) && (8_000..500_000).cover?(data.bytesize)
+      img.is_a?(Hash) && (data = img[:data]) && data.is_a?(String) && data.bytesize >= 512
     }
     return candidates.first if candidates.one? || candidates.empty?
 
