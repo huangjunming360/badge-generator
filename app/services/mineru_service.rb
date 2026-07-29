@@ -127,8 +127,8 @@ class MineruService
         else
           zip_entry_data(zip_data, ref[:path])
         end
+        data = data.is_a?(StringIO) ? data.string : data
         images << { path: ref[:path], data: data, bbox: ref[:bbox] } if data
-        Rails.logger.info("MinerU img: #{ref[:path]}=#{data.class}(#{data.bytesize})")
       rescue => e
         Rails.logger.warn("MinerU 图片下载失败: #{ref[:path]}: #{e.message}")
       end
