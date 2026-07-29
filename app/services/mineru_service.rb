@@ -128,6 +128,7 @@ class MineruService
           zip_entry_data(zip_data, ref[:path])
         end
         images << { path: ref[:path], data: data, bbox: ref[:bbox] } if data
+        Rails.logger.info("MinerU img: #{ref[:path]}=#{data.class}(#{data.bytesize})")
       rescue => e
         Rails.logger.warn("MinerU 图片下载失败: #{ref[:path]}: #{e.message}")
       end
@@ -169,7 +170,9 @@ class MineruService
   def zip_entry_data(zip_data, path)
     Zip::File.open_buffer(zip_data) do |zip|
       entry = zip.find { |e| e.name == path || e.name.end_with?("/#{path}") }
-      entry ? entry.get_input_stream.read : nil
+      data = entry ? entry.get_input_stream.read : nil
+      data = data.is_a?(StringIO) ? data.string : data if data
+      data
     end
   end
 
