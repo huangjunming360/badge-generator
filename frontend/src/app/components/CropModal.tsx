@@ -11,7 +11,7 @@ interface Props {
 }
 
 const RATIOS = [
-  { label: "自由", value: undefined as number | undefined },
+  { label: "自由", value: -1 },
   { label: "1:1", value: 1 },
   { label: "3:4", value: 3 / 4 },
   { label: "4:3", value: 4 / 3 },
@@ -59,7 +59,7 @@ export default function CropModal({ src, open, onClose, onCrop }: Props) {
 
         {/* Crop area */}
         <div style={{ position: "relative", width: "100%", height: 340, background: "#111" }}>
-          <Cropper image={src} crop={crop} zoom={zoom} aspect={ratio}
+          <Cropper image={src} crop={crop} zoom={zoom} {...(ratio >= 0 ? { aspect: ratio } : {})}
             onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete}
             cropShape="rect" showGrid={false} />
         </div>
