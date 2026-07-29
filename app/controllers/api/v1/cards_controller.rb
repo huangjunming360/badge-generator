@@ -87,7 +87,7 @@ class Api::V1::CardsController < Api::BaseController
     return unless model_id.present?
     models = models_config["models"] || []
     selected = models.find { |m| m["id"] == model_id }
-    if selected && selected["level"].to_i < Current.user.model_level.to_i
+    if selected && selected["level"].to_i < Current.user.model_level.to_i && selected["level"].to_i >= 0
       render json: { errors: [ "无权限使用该模型" ] }, status: :forbidden
       return false
     end
