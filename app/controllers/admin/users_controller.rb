@@ -21,7 +21,6 @@ class Admin::UsersController < Admin::BaseController
   def toggle_role
     @user = User.find(params[:id])
     return redirect_to admin_users_path, alert: "不能操作自己的账号" if @user == Current.user
-    return redirect_to admin_users_path, alert: "不能修改其他管理员的角色" if @user.admin? && @user != Current.user
     @user.update!(role: @user.admin? ? "user" : "admin")
     redirect_to admin_users_path, notice: "角色已更新"
   end
@@ -29,9 +28,6 @@ class Admin::UsersController < Admin::BaseController
   def update_level
     @user = User.find(params[:id])
     return redirect_to admin_users_path, alert: "不能操作自己的账号" if @user == Current.user
-    if @user.admin?
-      return redirect_to admin_users_path, alert: "管理员权限不可修改"
-    end
     if @user.update(model_level: params[:model_level].to_i)
       redirect_to admin_users_path, notice: "权限等级已更新"
     else
