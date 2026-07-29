@@ -123,7 +123,6 @@ export default function Page1() {
   );
   const [imgName, setImgName]   = useState<string | null>(saved?.imgName ?? null);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
-  const [originalPortraitUrl, setOriginalPortraitUrl] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
@@ -252,7 +251,6 @@ export default function Page1() {
   const handleImg = useCallback((file: File) => {
     setImgName(file.name);
     setPortraitFile(file);
-    setOriginalPortraitUrl(null);
     // 已有 card → 立即上传替换
     if (cardId) {
       uploadPortrait(cardId, file).then(card => {
@@ -589,7 +587,7 @@ export default function Page1() {
                 </div>
                 <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
               </div>
-              <button onClick={() => { setCropSrc(originalPortraitUrl || portraitUrl); }} style={{
+              <button onClick={() => { setCropSrc(portraitUrl); }} style={{
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
               }}>裁切</button>
@@ -731,8 +729,6 @@ export default function Page1() {
           onCrop={(blob, fullScreen) => {
             const file = new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" });
             setCropSrc(null);
-            // 记录原始 URL（用于下次裁切时恢复原图）
-            if (portraitUrl && !originalPortraitUrl) setOriginalPortraitUrl(portraitUrl);
             setPortraitFile(file);
             setImgName(fullScreen ? (portraitFile ? "📷 已上传照片" : "📷 证件照") : "📷 已裁切");
             // 已有 card → 立即上传，拿到真实 URL
