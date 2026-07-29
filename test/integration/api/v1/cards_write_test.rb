@@ -1,6 +1,12 @@
 require "test_helper"
 
 class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
+  setup do
+    @_user = User.create!(email_address: "api-write@test.com", password: "test123", password_confirmation: "test123")
+    post session_url, params: { email_address: "api-write@test.com", password: "test123" }
+    follow_redirect!
+  end
+
   # 不打真实模型：提取行为在 card_extractor_test 里已覆盖，
   # 这里只验 HTTP 层的契约。
   class FakeClient
@@ -31,7 +37,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     reply = { "name" => "林思远", "organization" => "清华大学" }.to_json
 
     stub_extractor(reply) do
-      post api_v1_cards_path, params: { raw_input: "林思远 清华大学" }
+      post api_v1_cards_path, params: { sync: "1", raw_input: "林思远 清华大学" }
     end
 
     assert_response :created
@@ -45,7 +51,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     probe.define_singleton_method(:call) { |*| called = true; {} }
 
     with_extractor(probe) do
-      post api_v1_cards_path, params: { raw_input: "" }
+      post api_v1_cards_path, params: { sync: "1", raw_input: "" }
     end
 
     assert_response :unprocessable_content
@@ -59,7 +65,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     end.new
 
     with_extractor(CardExtractor.new(client: boom)) do
-      post api_v1_cards_path, params: { raw_input: "林思远" }
+      post api_v1_cards_path, params: { sync: "1", raw_input: "林思远" }
     end
 
     assert_response :bad_gateway
@@ -68,14 +74,14 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
 
   test "未知 model_id 返回 422 而非 502" do
     # 模型 id 传错是客户端问题，不该和上游故障混为一谈
-    post api_v1_cards_path, params: { raw_input: "林思远", model_id: "no_such_model" }
+    post api_v1_cards_path, params: { sync: "1", raw_input: "林思远", model_id: "no_such_model" }
 
     assert_response :unprocessable_content
     assert_match(/未知的模型/, body["errors"].first)
   end
 
   test "update 合并字段而不整体覆盖" do
-    card = Card.create!(raw_input: "x", data: { "name" => "林思远", "name_en" => "Siyuan Lin" })
+    card = Card.create!(user: @_user, raw_input: "x", data: { "name" => "林思远", "name_en" => "Siyuan Lin" })
 
     patch api_v1_card_path(card), params: { fields: { organization: "清华大学" } }
 
@@ -88,7 +94,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "update 丢弃 schema 外的字段" do
-    card = Card.create!(raw_input: "x", data: { "name" => "林思远" })
+    card = Card.create!(user: @_user, raw_input: "x", data: { "name" => "林思远" })
 
     patch api_v1_card_path(card), params: { fields: { name: "王五", evil_key: "x" } }
 
@@ -99,7 +105,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "update 尺寸越界返回 422" do
-    card = Card.create!(raw_input: "x")
+    card = Card.create!(user: @_user, raw_input: "x")
 
     patch api_v1_card_path(card), params: { card: { width_mm: Card::MAX_SIZE_MM + 1 } }
 
@@ -108,7 +114,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "上传照片后 portrait 返回 URL 而非 base64" do
-    card = Card.create!(raw_input: "x")
+    card = Card.create!(user: @_user, raw_input: "x")
     file = Rack::Test::UploadedFile.new(
       Rails.root.join("test/fixtures/files/portrait.png"), "image/png"
     )
@@ -119,11 +125,11 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     portrait = body.dig("card", "portrait")
     assert_equal "portrait.png", portrait["filename"]
     assert_equal "image/png", portrait["content_type"]
-    assert_match %r{\Ahttps?://}, portrait["url"]
+    assert_match %r{\A/rails/active_storage/}, portrait["url"]
   end
 
   test "拒绝非图片格式的照片" do
-    card = Card.create!(raw_input: "x")
+    card = Card.create!(user: @_user, raw_input: "x")
     file = Rack::Test::UploadedFile.new(
       Rails.root.join("test/fixtures/files/note.txt"), "text/plain"
     )

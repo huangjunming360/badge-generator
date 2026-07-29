@@ -57,13 +57,6 @@ export interface SchemaPayload {
     content_types: string[];
     max_bytes: number;
   };
-  // 资料文件上传约束。accept 直接给 <input accept>，与后端
-  // DocumentTextExtractor::EXTENSIONS 同源。
-  document: {
-    accept: string;
-    extensions: string[];
-    max_bytes: number;
-  };
   // 可选模型清单。后端只暴露 id/label，凭据不外泄。
   models: {
     available: { id: string; label: string }[];
