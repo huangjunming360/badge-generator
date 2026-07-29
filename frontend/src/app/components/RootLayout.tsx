@@ -4,6 +4,7 @@ import { useAuth } from "./useAuth";
 import { getJson } from "../../api/client";
 
 const PROTECTED = ["/design", "/history"];
+const PUBLIC = ["/login", "/register", "/setup", "/inactive"];
 
 export default function RootLayout() {
   const { user, loading } = useAuth();
@@ -21,8 +22,10 @@ export default function RootLayout() {
     }).catch(() => setSetupChecked(true));
   }, []);
 
+  // 登录/权限检查（公共页面跳过）
   useEffect(() => {
     if (loading || !setupChecked) return;
+    if (PUBLIC.some(p => loc.pathname.startsWith(p))) return;
     if (PROTECTED.some(p => loc.pathname.startsWith(p)) && !user) {
       nav("/login", { replace: true });
     }
