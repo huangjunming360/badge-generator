@@ -12,7 +12,6 @@ class Api::BaseController < ActionController::API
   end
 
   before_action :require_api_authentication
-  skip_before_action :require_active_user
 
   private
 
