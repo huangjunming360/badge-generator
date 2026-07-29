@@ -112,9 +112,11 @@ class Api::V1::CardsController < Api::BaseController
 
       # 尝试从 MinerU 图片中识别人像
       if mineru_images.present? && portrait_detect != "0"
+        Rails.logger.info("人像: #{mineru_images.length}张图, sizes=#{mineru_images.map { |i| i[:data]&.bytesize }.inspect}")
         progress.set(:portrait, "人像识别中…")
         detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
         found = detector.detect(mineru_images)
+        Rails.logger.info("人像结果: found=#{found.class}")
         if found
           img = mineru_images.find { |i| i[:path] == found }
           if img && img[:data].present?
