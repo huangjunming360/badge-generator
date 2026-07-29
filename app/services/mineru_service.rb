@@ -128,7 +128,7 @@ class MineruService
           # 重新打开 ZIP 读取图片
           data = zip_entry_data(zip_data, ref[:path])
         end
-        images << { path: ref[:path], data: data, bbox: ref[:bbox] }
+        images << { path: ref[:path], data: data, bbox: ref[:bbox] } if data
       rescue => e
         Rails.logger.warn("MinerU 图片下载失败: #{ref[:path]}: #{e.message}")
       end
