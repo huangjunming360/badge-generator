@@ -87,15 +87,31 @@ class AiFieldParser
     raise Error, "AI 未返回数组" unless fields.is_a?(Array)
 
     fields.each do |f|
+      raise Error, "字段必须是对象" unless f.is_a?(Hash)
       raise Error, "字段缺少 key" if f["key"].blank?
       raise Error, "字段缺少 value" if f["value"].blank?
-      next if f["icon"].blank?
+      raise Error, "字段缺少 label" if f["label"].blank?
+      raise Error, "字段缺少 selected" unless f.key?("selected") && [ true, false ].include?(f["selected"])
 
+      # Normalize and clean string fields
+      f["key"] = sanitize_string(f["key"].to_s, 50)
+      f["value"] = sanitize_string(f["value"].to_s, 500)
+      f["label"] = sanitize_string(f["label"].to_s, 50)
+
+      # Validate icon
+      next if f["icon"].blank?
       unless FA_ICONS.key?(f["icon"])
         f["icon"] = "fa-tag" # 不合法的图标替换为默认
       end
     end
 
     fields
+  end
+
+  def sanitize_string(str, max_length)
+    str.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+       .gsub(/[^\p{Print}\p{Space}]/, "")
+       .strip
+       .truncate(max_length)
   end
 end

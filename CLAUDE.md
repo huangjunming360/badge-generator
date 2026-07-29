@@ -204,15 +204,15 @@ params.require(:user).permit(:email_address, :password, :role, :model_level)
 
 - **双模式**：有 Key 走精准 API（上传→OSS→轮询→ZIP），无 Key 走 Agent（仅 Markdown）
 - **图片在 ZIP 里**：直接在 `Zip::File.open_buffer` 块内读，别两阶段（先收集 refs 再读）
-- **ZIP 图片是真实 JPEG**：`entry.get_input_stream.read` 返回二进制，检查 `\xFF\xD8` 头
+- **图片筛选**：`process_zip` 按扩展名匹配 `\.(png|jpg|jpeg|webp)$`，并过滤掉小于 512 字节的文件
+- **StringIO 陷阱**：rubyzip 某些版本 `get_input_stream.read` 返回 StringIO 而非 String，到处要 `.is_a?(StringIO) ? data.string : data`
 - **轮询要加超时**：不能用 `TIMEOUT.times`（时间不准），用 `elapsed` 累加
 - **MineruService 重试 SSL**：别做，CI 会报。用 `cert_store`
 
 ### 人像识别
 
 - **单独服务**：`PortraitDetector`，走 RubyLLM 多模态，不要自己拼 HTTP
-- **StringIO 陷阱**：rubyzip 某些版本 `get_input_stream.read` 返回 StringIO 而非 String，到处要 `.is_a?(StringIO) ? data.string : data`
-- **候选筛选**：512B–500KB 之间，太小是图标，太大是全页扫描
+- **候选筛选**：`detect` 过滤掉小于 512 字节的图片（太小可能是图标）
 - **null 处理**：LLM 说 null 时返回 nil，别回退到第一张
 
 ### 文件上传

@@ -44,7 +44,7 @@ function EditableFieldRow({ field, onToggle, onChange, index }: {
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 5, width: 72, flexShrink: 0 }}>
         <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0, fontSize: 12 }}>
-          {field.icon ? <i className={`fas ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
+          {field.icon ? <i className={`${["fa-linkedin", "fa-github", "fa-twitter"].includes(field.icon) ? "fa-brands" : "fas"} ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
         </span>
         <span style={{ fontSize: 11, color: field.selected ? U.blue : U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
           {field.label}

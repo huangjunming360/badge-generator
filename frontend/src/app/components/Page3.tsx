@@ -170,10 +170,10 @@ export default function Page3() {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 3 }}>
-                    {card.ai_fields?.[0]?.value || card.fields.name || <span style={{ color: U.textFaint }}>未识别姓名</span>}
+                    {card.ai_fields?.find((f: any) => f.key === "name")?.value || card.fields.name || <span style={{ color: U.textFaint }}>未命名</span>}
                   </div>
                   <div style={{ fontSize: 11, color: U.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {card.ai_fields?.[1]?.value || card.fields.organization || "—"}
+                    {card.ai_fields?.find((f: any) => f.key === "organization")?.value || card.fields.organization || "—"}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 5 }}>
                     <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: U.textFaint }}>

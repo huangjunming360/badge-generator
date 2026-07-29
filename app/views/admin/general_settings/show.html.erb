@@ -42,11 +42,11 @@
     <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
       <div class="p-5 flex items-center justify-between">
         <div>
-          <label class="text-sm font-medium">AI 动态字段解析</label>
+          <label for="ai-fields-enabled-checkbox" class="text-sm font-medium">AI 动态字段解析</label>
           <p class="text-xs text-stone-400 mt-0.5">开启后由 AI 自主决定提取哪些字段，每个字段可附带 Font Awesome 图标。保存后立即生效</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
-          <%= f.check_box :ai_fields_enabled, checked: @settings[:ai_fields_enabled], class: "sr-only peer" %>
+          <%= f.check_box :ai_fields_enabled, checked: @settings[:ai_fields_enabled], class: "sr-only peer", id: "ai-fields-enabled-checkbox" %>
           <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
         </label>
       </div>
