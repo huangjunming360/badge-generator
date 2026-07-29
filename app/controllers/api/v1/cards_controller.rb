@@ -18,6 +18,8 @@ class Api::V1::CardsController < Api::BaseController
     progress_id = SecureRandom.hex(12)
     raw_input = params[:raw_input]
     model_id = params[:model_id]
+    return unless check_model_level!(model_id)
+
     mineru_enabled = params[:mineru_enabled]
     portrait_detect = params[:portrait_detect]
     file_data = params[:document]&.read rescue nil
@@ -76,6 +78,21 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   private
+
+  def models_config
+    Rails.application.config.x.models || {}
+  end
+
+  def check_model_level!(model_id)
+    return unless model_id.present?
+    models = models_config["models"] || []
+    selected = models.find { |m| m["id"] == model_id }
+    if selected && selected["level"].to_i < Current.user.model_level.to_i
+      render json: { errors: [ "无权限使用该模型" ] }, status: :forbidden
+      return false
+    end
+    true
+  end
 
   def process_card(raw_input, model_id, file_data, file_name,
                    portrait_data, portrait_name, progress,
@@ -171,6 +188,7 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def create_sync
+    return unless check_model_level!(params[:model_id])
     card = Current.user.cards.new
     card.raw_input = resolve_raw_input
     card.source_name = @source_name

@@ -28,9 +28,11 @@ class Api::V1::SchemaController < Api::BaseController
         max_bytes: Card::PORTRAIT_MAX_BYTES
       },
       # 可选模型清单。只暴露 id 与展示名 —— api_key / api_base 是凭据，
-      # 绝不能出现在响应里。
+      # 绝不能出现在响应里。按用户权限等级过滤。
       models: {
-        available: models_config["models"].to_a.map { |m| m.slice("id", "label") },
+        available: models_config["models"].to_a
+          .select { |m| m["level"].to_i >= Current.user&.model_level.to_i }
+          .map { |m| m.slice("id", "label") },
         default: models_config["default"]
       },
       upload: {
