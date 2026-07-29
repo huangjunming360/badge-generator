@@ -25,8 +25,8 @@ export interface CustomCfg {
 export interface NavState {
   rawText: string;
   fields: Field[];
-  // 后端建卡后的 id。刷新会丢 location.state，第二页据此回源重取。
   cardId: number | null;
+  portraitUrl?: string | null;
 }
 
 /* ── Easing ─────────────────────────────────────────────────── */

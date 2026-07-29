@@ -254,7 +254,7 @@ export default function Page1() {
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
 
   const goToDesign = () => {
-    navigate("/design", { state: { rawText, fields, cardId } as NavState });
+    navigate("/design", { state: { rawText, fields, cardId, portraitUrl } as NavState });
   };
 
   /* Padding-top drives the centering ↔ top animation */
