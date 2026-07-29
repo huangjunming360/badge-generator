@@ -125,6 +125,11 @@ class Api::V1::CardsController < Api::BaseController
             card.portrait.attach(io: StringIO.new(found[:data]),
               filename: File.basename(found[:path]),
               content_type: mime)
+            # ActiveStorage 可能覆盖 content_type，强制设回去
+            if card.portrait.attached?
+              blob = card.portrait.blob
+              blob.update_column(:content_type, mime) if blob && blob.content_type != mime
+            end
           end
         end
       end
