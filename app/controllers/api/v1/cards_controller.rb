@@ -110,21 +110,25 @@ class Api::V1::CardsController < Api::BaseController
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name
 
+      # 先落库（绕过模型验证），以便 portrait attach 前记录已存在
+      card.raw_input = "temp"
+      card.save!(validate: false)
+
       # 尝试从 MinerU 图片中识别人像
       if mineru_images.present? && portrait_detect != "0"
-        Rails.logger.info("人像调试: #{mineru_images.length}张, classes=#{mineru_images.map { |i| i[:data].class }.inspect}")
         progress.set(:portrait, "人像识别中…")
         detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
         found = detector.detect(mineru_images)
-        Rails.logger.info("人像结果: found=#{found.class}")
         if found && found[:data].present?
           ext = File.extname(found[:path].to_s).downcase.delete(".")
           mime = { "jpg" => "image/jpeg", "jpeg" => "image/jpeg", "png" => "image/png" }[ext]
-          Rails.logger.info("人像附件: ext=#{ext.inspect} mime=#{mime.inspect} path=#{found[:path]}")
           if mime
             card.portrait.attach(io: StringIO.new(found[:data]),
               filename: File.basename(found[:path]),
               content_type: mime)
+            # ActiveStorage 可能覆盖 content_type，原地修复
+            blob = card.portrait.reload.attachment&.blob
+            blob.update_column(:content_type, mime) if blob&.persisted? && blob.content_type != mime
           end
         end
       end
