@@ -11,7 +11,7 @@ class MineruService
 
   def initialize(model_version: nil, token: nil)
     @model_version = model_version || ENV.fetch("MINERU_MODEL", "pipeline")
-    @token = token || ENV["MINERU_API_KEY"]
+    @token = token || Setting.get("mineru_api_key").presence || ENV["MINERU_API_KEY"]
   end
 
   def parse(file_path, file_name: nil)

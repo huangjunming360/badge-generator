@@ -43,8 +43,8 @@
       <div class="p-5">
         <label class="block text-sm font-medium mb-1">MinerU API Key</label>
         <div class="flex gap-2">
-          <input type="password" name="MINERU_API_KEY" value="<%= @settings[:mineru_key_configured] ? '••••••••' : '' %>" placeholder="留空则使用 .env 中的值" class="block flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm" id="mineru-key-input">
-          <button type="button" onclick="document.getElementById('mineru-key-input').value='';document.getElementById('mineru-key-input').type='text';document.getElementById('mineru-key-input').focus()" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none">修改</button>
+          <input type="password" name="mineru_api_key" value="<%= @settings[:mineru_api_key] %>" placeholder="留空则使用 .env 中的 MINERU_API_KEY" class="block flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm font-mono text-xs">
+          <button type="button" onclick="var el=document.getElementById('mineru-key-input');el.type=el.type==='password'?'text':'password'" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none whitespace-nowrap">显示</button>
         </div>
         <p class="text-xs text-stone-400 mt-1">
           <% if @settings[:mineru_key_configured] %>✅ 已配置<% else %>未配置，需要 Key 才能使用 MinerU 精准解析<% end %>
@@ -102,7 +102,7 @@
     <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
       <div class="p-5">
         <label class="block text-sm font-medium mb-2">允许上传的文件类型</label>
-        <div class="flex flex-wrap gap-2 mb-3" id="extension-tags">
+        <div class="flex flex-wrap gap-2 mb-4" id="extension-tags">
           <% default_exts = %w[.docx .pdf .xlsx .csv .txt .md .png .jpg .jpeg .bmp] %>
           <% current_exts = @settings[:allowed_extensions].blank? ? default_exts : @settings[:allowed_extensions].split %>
           <% current_exts.each do |ext| %>
@@ -112,11 +112,11 @@
             </span>
           <% end %>
         </div>
-        <div class="flex gap-2 mb-3">
+        <div class="flex gap-2 mb-4">
           <input type="text" id="new-ext" placeholder=".pdf" class="block w-24 rounded-lg border border-stone-300 px-3 py-2 text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();addExt()}">
           <button type="button" onclick="addExt()" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none">添加</button>
         </div>
-        <div class="flex flex-wrap gap-1.5">
+        <div class="flex flex-wrap gap-2">
           <% templates = { "文档" => %w[.docx .pdf .txt .md], "表格" => %w[.xlsx .csv], "图片" => %w[.png .jpg .jpeg .bmp .tiff], "全部" => default_exts } %>
           <% templates.each do |name, exts| %>
             <button type="button" onclick="setExtensions(<%= exts.to_json %>)" class="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs text-stone-500 hover:bg-stone-100 cursor-pointer"><%= name %></button>

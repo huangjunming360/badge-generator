@@ -2,7 +2,13 @@ class Api::V1::RegistrationsController < Api::BaseController
   skip_before_action :require_api_authentication, only: :create
 
   def create
+    unless Setting.bool("allow_registration", default: true)
+      return render json: { errors: [ "注册已关闭" ] }, status: :forbidden
+    end
+
     user = User.new(reg_params)
+    user.role = "user"
+    user.model_level = 4
     if user.save
       start_new_session_for user
       render json: {
