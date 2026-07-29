@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import {
   Field, NavState,
-  E, U, SAMPLE,
+  E, U,
   usePress, RippleBtn, FIcon,
 } from "./shared";
 import { fetchSchema, pollCard, fetchCard } from "../../api/cards";
@@ -107,7 +107,7 @@ export default function Page1() {
   const location = useLocation();
   const saved    = location.state as NavState | null;
 
-  const [rawText, setRawText] = useState(saved?.rawText ?? SAMPLE);
+  const [rawText, setRawText] = useState(saved?.rawText ?? "");
   const [fields, setFields]   = useState<Field[]>(saved?.fields ?? []);
   const [parsing, setParsing] = useState(false);
   const [dragging, setDragging] = useState(false);
