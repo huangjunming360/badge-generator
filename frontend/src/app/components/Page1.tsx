@@ -107,6 +107,11 @@ export default function Page1() {
   const location = useLocation();
   const saved    = location.state as NavState | null;
 
+  // 清除 history.state 防止 F5 后旧数据还在
+  useEffect(() => {
+    if (location.state) window.history.replaceState({}, "", location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [rawText, setRawText] = useState(saved?.rawText ?? "");
   const [fields, setFields]   = useState<Field[]>(saved?.fields ?? []);
   const [parsing, setParsing] = useState(false);
