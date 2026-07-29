@@ -600,6 +600,12 @@ export default function Page1() {
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
               }}>裁切</button>
+              {portraitFile && (
+                <button onClick={() => setShowConflict(true)} style={{
+                  padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
+                  background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
+                }}>切换</button>
+              )}
             </div>
           )}
 
