@@ -81,9 +81,9 @@ class DocumentTextExtractor
   def try_mineru(uploaded_file)
     model_id = Setting.get("mineru_model", default: nil).presence
     ext = File.extname(uploaded_file.original_filename.to_s).downcase
-    file_path = save_tempfile(uploaded_file, ext)
+    tmpfile = save_tempfile(uploaded_file, ext)
 
-    result = MineruService.new(model_version: model_id).parse(file_path,
+    result = MineruService.new(model_version: model_id).parse(tmpfile.path,
       file_name: uploaded_file.original_filename)
     @extracted_images = result[:images]
     raw = result[:text].to_s
@@ -95,6 +95,8 @@ class DocumentTextExtractor
   rescue MineruService::Error => e
     Rails.logger.warn("MinerU 解析失败，降级到旧解析器: #{e.message}")
     nil
+  ensure
+    tmpfile&.close!
   end
 
   def save_tempfile(uploaded_file, ext)
@@ -102,7 +104,7 @@ class DocumentTextExtractor
     uploaded_file.rewind if uploaded_file.respond_to?(:rewind)
     IO.copy_stream(uploaded_file.to_io, tmp)
     tmp.flush
-    tmp.path
+    tmp  # 返回 Tempfile 对象防止 GC 删除文件
   end
 
   def validate_size!(file)

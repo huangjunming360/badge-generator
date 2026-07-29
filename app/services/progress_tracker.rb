@@ -29,7 +29,7 @@ class ProgressTracker
   end
 
   def done(card_id: nil)
-    data = { stage: :done, message: "完成", card_id: card_id }
+    data = { stage: :done, message: "完成", card_id: card_id, updated_at: Time.current.iso8601 }
     Rails.cache.write("progress:#{@task_id}", data, expires_in: 5.minutes)
   end
 

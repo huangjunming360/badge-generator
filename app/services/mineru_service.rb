@@ -41,7 +41,7 @@ class MineruService
       },
       headers: auth_header
     )
-    data = resp["data"]
+    data = resp["data"] || {}
     batch_id = data["batch_id"]
     upload_url = data["file_urls"]&.first
     raise Error, "未获取到上传链接" unless upload_url

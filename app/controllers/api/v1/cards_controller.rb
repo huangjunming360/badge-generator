@@ -83,7 +83,7 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def check_model_level!(model_id)
-    return unless model_id.present?
+    return true unless model_id.present?
     models = models_config["models"] || []
     selected = models.find { |m| m["id"] == model_id }
     if selected && selected["level"].to_i < Current.user.model_level.to_i && selected["level"].to_i >= 0
@@ -178,7 +178,7 @@ class Api::V1::CardsController < Api::BaseController
     if portrait_data.present? && card.portrait.blank?
       card.portrait.attach(io: StringIO.new(portrait_data),
         filename: portrait_name || "portrait.jpg",
-        content_type: "image/jpeg",
+        content_type: { "png" => "image/png" }.fetch(File.extname(portrait_name.to_s).downcase.delete("."), "image/jpeg"),
         identify: false)
     end
 
@@ -189,8 +189,10 @@ class Api::V1::CardsController < Api::BaseController
          CardExtractor::ExtractionError,
          MineruService::Error => e
     progress.error(e.message)
+    nil
   rescue LlmService::Error => e
     progress.error("AI 服务异常: #{e.message}")
+    nil
   ensure
     tmpfile&.close!
   end
