@@ -9,7 +9,7 @@ import {
   E, U,
   usePress, RippleBtn, FIcon,
 } from "./shared";
-import { fetchSchema, pollCard, fetchCard } from "../../api/cards";
+import { fetchSchema, pollCard, fetchCard, uploadPortrait } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import CropModal from "./CropModal";
@@ -745,15 +745,24 @@ export default function Page1() {
       {/* ── Crop Modal ─────────────────────────────────── */}
       {cropSrc && (
         <CropModal src={cropSrc} open={!!cropSrc}
-          onClose={() => { if (cropSrc?.startsWith("blob:")) URL.revokeObjectURL(cropSrc); setCropSrc(null); }}
+          onClose={() => { setCropSrc(null); }}
           onCrop={blob => {
             const file = new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" });
             setCropSrc(null);
-            // 释放之前的 blob URL
-            if (portraitUrl?.startsWith("blob:")) URL.revokeObjectURL(portraitUrl);
             setPortraitFile(file);
-            setPortraitUrl(URL.createObjectURL(file));
             setImgName("📷 已裁切");
+            // 已有 card → 立即上传，拿到真实 URL
+            if (cardId) {
+              uploadPortrait(cardId, file).then(card => {
+                setPortraitUrl(card.portrait?.url ?? null);
+              }).catch(() => {
+                // 上传失败至少用本地 blob URL 预览
+                setPortraitUrl(URL.createObjectURL(file));
+              });
+            } else {
+              // 还没建卡 → 用 blob URL 预览，建卡时会自动上传
+              setPortraitUrl(URL.createObjectURL(file));
+            }
           }}
         />
       )}
