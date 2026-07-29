@@ -10,7 +10,7 @@ interface Props {
   onCrop: (blob: Blob) => void;
 }
 
-const RATIOS = [
+const RATIOS: { label: string; value: number }[] = [
   { label: "自由", value: -1 },
   { label: "1:1", value: 1 },
   { label: "3:4", value: 3 / 4 },
@@ -21,7 +21,7 @@ const RATIOS = [
 export default function CropModal({ src, open, onClose, onCrop }: Props) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [ratio, setRatio] = useState<number | undefined>(3 / 4);
+  const [ratio, setRatio] = useState<number>(3 / 4);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const onCropComplete = useCallback((_: Area, cropped: Area) => {
