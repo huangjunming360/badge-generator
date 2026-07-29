@@ -422,9 +422,14 @@ export default function Page1() {
                 }}>
                   <ImageIcon size={10} color={U.green} />
                   <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName}</span>
+                  <button onClick={() => {
+                    if (portraitUrl) setCropSrc(portraitUrl);
+                    else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
+                  }} style={{ background: "none", border: "none", cursor: "pointer",
+                    color: U.blue, padding: 0, fontSize: 10, lineHeight: 1 }} title="裁切">✂</button>
                   <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
                     style={{ background: "none", border: "none", cursor: "pointer",
-                      color: U.green, padding: 0, fontSize: 12, lineHeight: 1, marginLeft: 2 }}>×</button>
+                      color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
                 </div>
               )}
             </div>

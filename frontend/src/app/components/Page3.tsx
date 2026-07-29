@@ -32,7 +32,8 @@ export default function Page3() {
   const open = (card: CardPayload) => {
     if (selectMode) { toggle(card.id); return; }
     navigate("/design", {
-      state: { rawText: card.raw_input ?? "", fields: toFields(card.fields, schema), cardId: card.id },
+      state: { rawText: card.raw_input ?? "", fields: toFields(card.fields, schema), cardId: card.id,
+        portraitUrl: card.portrait?.url, imgName: card.portrait ? ("📷 " + card.portrait.filename) : null },
     });
   };
 
