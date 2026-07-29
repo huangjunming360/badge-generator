@@ -12,6 +12,7 @@ import {
 import { fetchSchema, pollCard, fetchCard } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
+import CropModal from "./CropModal";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
@@ -117,6 +118,8 @@ export default function Page1() {
   );
   const [imgName, setImgName]   = useState<string | null>(saved?.imgName ?? null);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
+  const [showConflict, setShowConflict] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
@@ -202,8 +205,14 @@ export default function Page1() {
       setFields(parsed);
       // 自动识别的证件照
       if (card.portrait) {
-        setPortraitUrl(card.portrait.url);
-        setImgName("📷 " + card.portrait.filename);
+        // 用户已手动上传照片 → 询问替换
+        if (portraitFile) {
+          setPortraitUrl(card.portrait.url);
+          setShowConflict(true);
+        } else {
+          setPortraitUrl(card.portrait.url);
+          setImgName("📷 " + card.portrait.filename);
+        }
       }
       startStream(parsed);
     } catch (e) {
@@ -256,6 +265,12 @@ export default function Page1() {
   const goToDesign = () => {
     navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName } as NavState });
   };
+
+  const conflictBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: "6px 14px", borderRadius: 8, border: `1px solid ${active ? U.green + "44" : U.border}`,
+    background: active ? U.greenLight : U.surface, cursor: "pointer", fontSize: 11,
+    color: active ? U.green : U.textMid, fontWeight: active ? 600 : 400,
+  });
 
   /* Padding-top drives the centering ↔ top animation */
   const contentPaddingTop = phase === "active" ? "28px" : "calc(50vh - 180px)";
@@ -543,8 +558,25 @@ export default function Page1() {
             </RippleBtn>
           </div>
 
+          {/* ── 证件照冲突选择 ──────────────────────────── */}
+          {showConflict && portraitUrl && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
+            }}>
+              <span style={{ fontSize: 12, color: U.textMid }}>使用照片：</span>
+              <button onClick={() => { setShowConflict(false); setPortraitUrl(null); setImgName("📷 手动上传"); }}
+                style={conflictBtnStyle(false)}>
+                手动上传
+              </button>
+              <button onClick={() => { setShowConflict(false); setPortraitUrl(portraitUrl); setImgName("📷 " + (imgName?.replace("📷 ","") || "文档中的人像")); }}
+                style={conflictBtnStyle(true)}>
+                📷 文档中
+              </button>
+            </div>
+          )}
+
           {/* ── 证件照预览 ──────────────────────────────── */}
-          {portraitUrl && (
+          {!showConflict && portraitUrl && (
             <div style={{
               display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
               animation: `fadeSlideIn .3s ${E.smooth} both`,
@@ -552,10 +584,14 @@ export default function Page1() {
               <img src={portraitUrl} alt="证件照"
                 style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover",
                   border: `2px solid ${U.green}44`, boxShadow: "0 2px 8px rgba(0,0,0,.06)" }} />
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: U.green }}>已识别到证件照</div>
                 <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
               </div>
+              <button onClick={() => setCropSrc(portraitUrl)} style={{
+                padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
+                background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
+              }}>裁切</button>
             </div>
           )}
 
@@ -687,6 +723,19 @@ export default function Page1() {
           开始设计 <ChevronRight size={16} />
         </RippleBtn>
       </div>
+
+      {/* ── Crop Modal ─────────────────────────────────── */}
+      {cropSrc && (
+        <CropModal src={cropSrc} open={!!cropSrc}
+          aspectRatio={3 / 4}
+          onClose={() => setCropSrc(null)}
+          onCrop={blob => {
+            setCropSrc(null);
+            setPortraitFile(new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" }));
+            setImgName("📷 已裁切");
+          }}
+        />
+      )}
     </div>
   );
 }
