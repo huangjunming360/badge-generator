@@ -190,8 +190,9 @@ class Api::V1::CardsController < Api::BaseController
     end
     card.save!
 
-    # 用户手动上传的头像在异步流程中也要 attach
-    if portrait_data.present? && card.portrait.blank?
+    # 用户手动上传的头像优先于自动识别的
+    if portrait_data.present?
+      card.portrait.purge if card.portrait.attached?
       card.portrait.attach(io: StringIO.new(portrait_data),
         filename: portrait_name || "portrait.jpg",
         content_type: { "png" => "image/png" }.fetch(File.extname(portrait_name.to_s).downcase.delete("."), "image/jpeg"),

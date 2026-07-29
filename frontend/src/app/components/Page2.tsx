@@ -114,7 +114,7 @@ export default function Page2() {
   const selectedCount = fields.filter(f => f.selected).length;
 
   const goBack = () => {
-    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId } satisfies NavState });
+    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null } satisfies NavState });
   };
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom, portraitUrl };
