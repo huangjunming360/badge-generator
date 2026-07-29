@@ -732,7 +732,6 @@ export default function Page1() {
       {/* ── Crop Modal ─────────────────────────────────── */}
       {cropSrc && (
         <CropModal src={cropSrc} open={!!cropSrc}
-          aspectRatio={3 / 4}
           onClose={() => setCropSrc(null)}
           onCrop={blob => {
             setCropSrc(null);
