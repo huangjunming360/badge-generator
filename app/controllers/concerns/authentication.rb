@@ -38,7 +38,7 @@ module Authentication
       elsif !user.active?
         terminate_session
         respond_to do |format|
-          format.html { redirect_to new_session_path, alert: "账号尚未激活，请联系管理员" }
+          format.html { redirect_to "/inactive" }
           format.json { render json: { errors: [ "账号尚未激活" ] }, status: :forbidden }
         end
       end

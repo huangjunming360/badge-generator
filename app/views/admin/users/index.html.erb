@@ -25,9 +25,15 @@
           <tr class="hover:bg-stone-50">
             <td class="px-4 py-3"><%= user.email_address %></td>
             <td class="px-4 py-3">
-              <span class="px-2 py-0.5 rounded-full text-xs <%= user.admin? ? "bg-purple-100 text-purple-700" : "bg-stone-100 text-stone-600" %>">
-                <%= user.admin? ? "管理员" : "用户" %>
-              </span>
+              <% if user == Current.user %>
+                <span class="px-2 py-0.5 rounded-full text-xs <%= user.admin? ? "bg-purple-100 text-purple-700" : "bg-stone-100 text-stone-600" %>">
+                  <%= user.admin? ? "管理员" : "用户" %>
+                </span>
+              <% else %>
+                <%= button_to user.admin? ? "管理员" : "用户", toggle_role_admin_user_path(user), method: :patch,
+                      data: { turbo_confirm: "确定切换 #{user.email_address} 的角色？" },
+                      class: "px-2 py-0.5 rounded-full text-xs cursor-pointer border-none #{user.admin? ? 'bg-purple-100 text-purple-700' : 'bg-stone-100 text-stone-600'}" %>
+              <% end %>
             </td>
             <td class="px-4 py-3 text-center">
               <% if user.admin? %>
@@ -59,14 +65,17 @@
             <td class="px-4 py-3 text-stone-500"><%= l user.created_at, format: :short %></td>
             <td class="px-4 py-3 text-right">
               <% unless user == Current.user %>
-                <%= button_to "删除", admin_user_path(user), method: :delete,
-                      data: { turbo_confirm: "确定删除用户 #{user.email_address}？此操作不可恢复！" },
-                      class: "text-red-500 hover:text-red-700 text-xs" %>
-                <% unless user.banned? %>
-                  <%= button_to "封禁", toggle_ban_admin_user_path(user), method: :patch,
-                        data: { turbo_confirm: "确定封禁 #{user.email_address}？" },
-                        class: "text-red-500 hover:text-red-700 text-xs ml-2" %>
-                <% end %>
+                <span style="display:inline-flex;align-items:center;gap:4px">
+                  <span onclick="var pw=prompt('新密码（至少6位）:');if(!pw){return};if(pw.length<6){alert('密码至少6位');return};var tk=document.querySelector('meta[name=csrf-token]').content;var f=document.createElement('form');f.method='POST';f.action='<%= reset_password_admin_user_path(user) %>';f.style.display='none';f.innerHTML='<input type=hidden name=_method value=patch><input type=hidden name=authenticity_token value='+tk+'><input name=new_password value='+pw+'>';document.body.appendChild(f);f.submit()" class="text-blue-500 hover:text-blue-700 text-xs cursor-pointer" style="text-decoration:none">重置密码</span>
+                  <%= button_to "删除", admin_user_path(user), method: :delete,
+                        data: { turbo_confirm: "确定删除用户 #{user.email_address}？此操作不可恢复！" },
+                        class: "text-red-500 hover:text-red-700 text-xs" %>
+                  <% unless user.banned? %>
+                    <%= button_to "封禁", toggle_ban_admin_user_path(user), method: :patch,
+                          data: { turbo_confirm: "确定封禁 #{user.email_address}？" },
+                          class: "text-red-500 hover:text-red-700 text-xs" %>
+                  <% end %>
+                </span>
               <% end %>
             </td>
           </tr>

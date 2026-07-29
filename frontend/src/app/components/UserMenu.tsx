@@ -53,6 +53,9 @@ export default function UserMenu({ dark }: { dark?: boolean }) {
           {user.admin && (
             <a href="/admin" style={itemStyle}>管理后台</a>
           )}
+          <button onClick={() => { setOpen(false); nav("/change-password"); }} style={itemStyle}>
+            修改密码
+          </button>
           <button onClick={() => { logout(); nav("/login"); setOpen(false); }} style={itemStyle}>
             退出登录
           </button>
