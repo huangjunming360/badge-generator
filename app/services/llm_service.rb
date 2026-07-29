@@ -68,7 +68,9 @@ class LlmService
     chat.with_temperature(0.0)
     if @config["no_thinking"] && @config["api"] == "openai"
       # Doubao 等 OpenAI 协议模型：主动发 thinking:disabled 关闭深度推理
-      chat.with_params(thinking: { type: "disabled" }, max_tokens: max_tokens.to_i)
+      params = { thinking: { type: "disabled" } }
+      params[:max_tokens] = max_tokens.to_i if max_tokens.to_i > 0
+      chat.with_params(**params)
     elsif max_tokens.to_i > 0
       chat.with_params(max_tokens: max_tokens.to_i)
     end

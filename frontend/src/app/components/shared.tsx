@@ -305,7 +305,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
             border:`1px solid ${ac.main}44`, display:"flex", alignItems:"center", justifyContent:"center" }}>
             <Shield size={13*scale} color={ac.deep} strokeWidth={1.5}/>
           </div>
-          {has("company") && <span style={{ fontSize:11.5*scale*fz, fontWeight:600, color:"#1A2C40" }}>{get("company")}</span>}
+          {has("organization") && <span style={{ fontSize:11.5*scale*fz, fontWeight:600, color:"#1A2C40" }}>{get("organization")}</span>}
         </div>
         <div style={{ marginBottom:10*scale }}>
           {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:21*scale*fz, fontWeight:600, color:"#1A2C40" }}>{get("name")}</div>}
@@ -315,7 +315,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
         <div style={{ display:"flex", flexDirection:"column", gap:5*scale }}>
           {has("phone") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Phone size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("phone")}</span></div>}
           {has("email") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Mail size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("email")}</span></div>}
-          {has("area")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("area")}</span></div>}
+          {has("address")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("address")}</span></div>}
         </div>
         <div style={{ height:3*scale, background:ac.main, position:"absolute", bottom:0, left:0, right:0 }}/>
       </div>

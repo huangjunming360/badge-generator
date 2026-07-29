@@ -12,10 +12,11 @@ class User < ApplicationRecord
 
   def self.model_levels
     stored = Setting.get("level_definitions")
-    return DEFAULT_LEVELS if stored.blank?
-    parsed = JSON.parse(stored) rescue nil
-    return DEFAULT_LEVELS if parsed.blank?
-    parsed.transform_keys(&:to_i).transform_values(&:symbolize_keys)
+    parsed = (JSON.parse(stored) rescue nil) if stored.present?
+    parsed = {} if parsed.blank?
+    parsed = parsed.transform_keys(&:to_i).transform_values(&:symbolize_keys)
+    # 始终合并默认等级（包含内部等级），确保新等级永远存在
+    DEFAULT_LEVELS.merge(parsed)
   end
 
   def self.model_level_labels
