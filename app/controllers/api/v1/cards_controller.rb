@@ -120,6 +120,7 @@ class Api::V1::CardsController < Api::BaseController
         if found && found[:data].present?
           ext = File.extname(found[:path].to_s).downcase.delete(".")
           mime = { "jpg" => "image/jpeg", "jpeg" => "image/jpeg", "png" => "image/png" }[ext]
+          Rails.logger.info("人像附件: ext=#{ext.inspect} mime=#{mime.inspect} path=#{found[:path]}")
           if mime
             card.portrait.attach(io: StringIO.new(found[:data]),
               filename: File.basename(found[:path]),
