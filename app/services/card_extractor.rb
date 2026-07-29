@@ -11,18 +11,29 @@ class CardExtractor
     1. 只输出 JSON 对象本身，不要加解释、不要加 markdown 代码围栏。
     2. 只使用下面列出的字段名，不要新增字段。
     3. 资料里没有提到的字段，值填 null。不要猜测、不要编造。
+       唯一例外是 name_en，规则见字段说明。
     4. 所有值都是字符串或 null，不要用数组或嵌套对象。
 
     字段说明：
     - name: 中文姓名
-    - name_en: 英文名或拼音
-    - organization: 公司、机构、单位名称
+    - name_en: 英文名。资料里明确写了就照抄；没写则由 name 音译生成，
+      不要留 null。中文姓名用汉语拼音，格式为「名 姓」，首字母大写，
+      复名的拼音连写不加连字符，例如 张三 → San Zhang，欧阳明月 → Mingyue Ouyang。
+      name 本身为 null 时 name_en 才填 null。
+    - organization: 参加者所属单位。类型不限于公司 —— 学校（大学/中学/小学）、
+      医院、研究所、院校下属院系、企业、事业单位、政府机关、社会组织、
+      基金会、学术学会、媒体、军队单位等都算。只要是“他从哪个组织来”
+      就填这里，不要因为不是公司而留 null。名称照资料原文，不要自行改写或补全。
+      若同时出现上级单位和下属部门（如“XX 大学 XX 学院”），完整填入。
     - host_organization: 组织项目的机构
     - host_department: 组织项目的机构部门
     - event_topic: 项目主题（活动/课程名称）
 
-    输出示例：
-    {"name":"林小明","name_en":"Xiaoming Lin","organization":"某某科技有限公司","host_organization":null,"host_department":null,"event_topic":null}
+    输出示例（organization 为学校）：
+    {"name":"林小明","name_en":"Xiaoming Lin","organization":"北京大学物理学院","host_organization":null,"host_department":null,"event_topic":null}
+
+    输出示例（资料未写英文名，由中文姓名音译）：
+    {"name":"王建国","name_en":"Jianguo Wang","organization":"上海市第一人民医院","host_organization":null,"host_department":null,"event_topic":null}
   PROMPT
 
   def initialize(client: nil, session: nil, model_id: nil)

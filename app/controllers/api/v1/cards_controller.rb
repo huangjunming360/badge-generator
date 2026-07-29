@@ -246,7 +246,7 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def serializer(card)
-    CardSerializer.new(card, host: request.base_url)
+    CardSerializer.new(card)
   end
 
   def render_validation_errors(card)
