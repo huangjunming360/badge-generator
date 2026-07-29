@@ -81,7 +81,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
   end
 
   test "update 合并字段而不整体覆盖" do
-    card = Card.create!(user: @_user, raw_input: "x", data: { "name" => "林思远", "phone" => "13800138000" })
+    card = Card.create!(user: @_user, raw_input: "x", data: { "name" => "林思远", "name_en" => "Siyuan Lin" })
 
     patch api_v1_card_path(card), params: { fields: { organization: "清华大学" } }
 
@@ -89,7 +89,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     fields = body.dig("card", "fields")
     assert_equal "清华大学", fields["organization"]
     # 没提到的字段必须留着 —— data 列无默认值，实现上要 merge 而非赋值
-    assert_equal "13800138000", fields["phone"]
+    assert_equal "Siyuan Lin", fields["name_en"]
     assert_equal "林思远", fields["name"]
   end
 
