@@ -109,6 +109,7 @@ export default function Page1() {
   const [rawText, setRawText] = useState(saved?.rawText ?? SAMPLE);
   const [fields, setFields]   = useState<Field[]>(saved?.fields ?? []);
   const [parsing, setParsing] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [progressMsg, setProgressMsg] = useState<string | null>(null);
   const [progressStage, setProgressStage] = useState<string | null>(null);
   const [streamIdx, setStreamIdx] = useState(
@@ -360,11 +361,30 @@ export default function Page1() {
           {/* ── Input card ─────────────────────────────── */}
           <div style={{
             background: U.surface, borderRadius: 14,
-            border: `1px solid ${U.border}`,
-            boxShadow: "0 4px 20px rgba(30,50,80,.07), 0 1px 4px rgba(30,50,80,.04)",
+            border: `1px solid ${dragging ? U.blue : U.border}`,
+            boxShadow: dragging ? "0 0 0 3px rgba(58,118,196,.15)" : "0 4px 20px rgba(30,50,80,.07), 0 1px 4px rgba(30,50,80,.04)",
             overflow: "hidden",
-            transition: `box-shadow .2s ${E.smooth}`,
-          }}>
+            transition: `border-color .15s ${E.smooth}, box-shadow .15s ${E.smooth}`,
+            position: "relative",
+          }}
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={e => { e.preventDefault(); setDragging(false); }}
+            onDrop={e => {
+              e.preventDefault(); setDragging(false);
+              const f = e.dataTransfer.files?.[0];
+              if (f && !parsing) { handleFile(f); }
+            }}>
+            {dragging && (
+              <div style={{
+                position: "absolute", inset: 0, zIndex: 10,
+                background: `${U.blue}11`, borderRadius: 14,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, color: U.blue, fontWeight: 500, gap: 8,
+                backdropFilter: "blur(2px)",
+              }}>
+                <Upload size={16} /> 松开以上传文件
+              </div>
+            )}
             {/* Card header bar */}
             <div style={{
               padding: "11px 16px 10px", borderBottom: `1px solid ${U.borderLight}`,
