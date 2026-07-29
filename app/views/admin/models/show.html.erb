@@ -69,6 +69,7 @@
               <th style="padding:6px;width:110px">模型名</th>
               <th style="padding:6px;width:140px">API Key</th>
               <th style="padding:6px;width:140px">API Base</th>
+              <th style="padding:6px;width:50px">禁思考</th>
               <th style="padding:6px;width:45px">等级</th>
               <th style="padding:6px;width:30px"></th>
             </tr>
@@ -137,6 +138,8 @@
         <option value="2">中级</option>
         <option value="3">普通</option>
         <option value="4">开放</option>
+        <option disabled>──────────</option>
+        <option value="-1">系统</option>
       </select>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
@@ -160,13 +163,19 @@
     <td><input type="text" name="models[__IDX__][model_name]" value="__MODEL__"></td>
     <td><input type="text" name="models[__IDX__][api_key]" value="__KEY__"></td>
     <td><input type="text" name="models[__IDX__][api_base]" value="__BASE__"></td>
+    <td style="text-align:center;vertical-align:middle">
+      <input type="hidden" name="models[__IDX__][no_thinking]" value="0">
+      <input type="checkbox" name="models[__IDX__][no_thinking]" value="1" style="width:14px;height:14px;cursor:pointer" title="启用后强制关闭思考模式">
+    </td>
     <td>
-      <select name="models[__IDX__][level]" style="width:70px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
+      <select name="models[__IDX__][level]" style="width:80px;padding:5px 4px;border:1px solid #e7e5e4;border-radius:6px;font-size:11px">
         <option value="0">最高</option>
         <option value="1">高级</option>
         <option value="2">中级</option>
         <option value="3">普通</option>
         <option value="4">开放</option>
+        <option disabled>──────────</option>
+        <option value="-1">系统</option>
       </select>
     </td>
     <td><button type="button" class="remove-btn" onclick="removeModel(this)">×</button></td>
@@ -266,6 +275,7 @@
         model: data.get("models[" + i + "][model_name]"),
         api_key: data.get("models[" + i + "][api_key]") || "",
         api_base: data.get("models[" + i + "][api_base]") || "",
+        no_thinking: document.querySelector(`[name="models[${i}][no_thinking]"][type="checkbox"]`)?.checked === true,
         level: parseInt(data.get("models[" + i + "][level]")) || 0
       });
       i++;
@@ -372,6 +382,7 @@
       var field = name.match(/\[(\w+)\]$/)[1];
       if (field === "api") { el.value = m.api || "anthropic"; return; }
       if (field === "level") { el.value = m.level || 0; return; }
+      if (el.type === "checkbox") { el.checked = m.no_thinking === true || m.no_thinking === "1"; return; }
       // JSON 用 model 键，表单用 model_name
       el.value = m[field === "model_name" ? "model" : field] || "";
     });

@@ -1,11 +1,13 @@
 class User < ApplicationRecord
   # 默认权限等级定义（可被 Setting 覆盖）
+  # internal: true 的等级不在前端选择菜单中显示，仅程序内部可用
   DEFAULT_LEVELS = {
     0 => { label: "最高", desc: "可用全部模型" },
     1 => { label: "高级", desc: "可用绝大多数模型" },
     2 => { label: "中级", desc: "可用中级及以下模型" },
     3 => { label: "普通", desc: "可用普通及开放模型" },
-    4 => { label: "开放", desc: "仅可用开放模型" }
+    4 => { label: "开放", desc: "仅可用开放模型" },
+    -1 => { label: "系统", desc: "仅系统内部使用", internal: true }
   }.freeze
 
   def self.model_levels
@@ -18,6 +20,15 @@ class User < ApplicationRecord
 
   def self.model_level_labels
     model_levels.transform_values { |v| v[:label] }
+  end
+
+  # 仅对外可见的等级（排除 internal 标记的）
+  def self.model_levels_ui
+    model_levels.reject { |_, v| v[:internal] }
+  end
+
+  def self.model_level_labels_ui
+    model_levels_ui.transform_values { |v| v[:label] }
   end
 
   has_secure_password

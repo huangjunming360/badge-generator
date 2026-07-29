@@ -8,8 +8,18 @@
     <div class="mb-3 text-right">
       <span id="levels-unsaved" style="display:none;color:#d97706;font-size:13px">⚠ 有未保存的更改</span>
     </div>
-    <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100" id="levels-container">
+
+    <div class="text-xs text-stone-400 mb-2 px-1 flex items-center gap-2">
+      <span>▲ 高权限</span>
+      <span style="color:#d6d3d1">│</span>
+      <span>▼ 低权限</span>
+      <span style="color:#d6d3d1">│</span>
+      <span>数字越小权限越高</span>
+    </div>
+
+    <div class="bg-white rounded-xl border border-stone-200 overflow-hidden" id="levels-container">
       <% User.model_levels.each do |val, info| %>
+        <% next if info[:internal] %>
         <%= render "level_row", val: val, info: info %>
       <% end %>
     </div>
@@ -77,5 +87,14 @@
   function removeLevel(btn) {
     if (!confirm("确定删除此等级？")) return;
     btn.closest("[data-level]").remove();
+  }
+
+  function moveLevel(btn, dir) {
+    var row = btn.closest("[data-level]");
+    var container = document.getElementById("levels-container");
+    var target = dir < 0 ? row.previousElementSibling : row.nextElementSibling;
+    if (!target) return;
+    container.insertBefore(dir < 0 ? row : target, dir < 0 ? target : row);
+    track();
   }
 </script>

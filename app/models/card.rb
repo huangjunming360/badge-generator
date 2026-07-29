@@ -1,8 +1,11 @@
 class Card < ApplicationRecord
   # 标准化字段。LLM 只能填这些，顺序即展示顺序。
+  #
+  # 挂牌只需要"这是谁、哪个单位、什么活动"。职位/部门/电话/邮箱/网址/
+  # 地址/工号/标语属于名片信息，不上挂牌，已移出 schema。
+  # 旧记录里这些键仍留在 data 列，只是不再被 normalized_data 读取。
   FIELDS = %w[
-    name name_en title department organization
-    phone email website address employee_id tagline
+    name name_en organization
     host_organization host_department event_topic
   ].freeze
 
@@ -17,15 +20,7 @@ class Card < ApplicationRecord
   FIELD_LABELS = {
     "name" => "姓名",
     "name_en" => "英文名",
-    "title" => "职位",
-    "department" => "部门",
     "organization" => "单位",
-    "phone" => "电话",
-    "email" => "邮箱",
-    "website" => "网址",
-    "address" => "地址",
-    "employee_id" => "工号",
-    "tagline" => "标语",
     "host_organization" => "组织项目的机构",
     "host_department" => "组织项目的机构部门",
     "event_topic" => "项目主题"
@@ -63,7 +58,8 @@ class Card < ApplicationRecord
   validates :raw_input, presence: { message: "请先输入个人资料" }
   validate :portrait_must_be_supported_image
 
-  # 保证读出来总是 11 个 key 齐全的 Hash，视图不用做 nil 判断。
+  # 保证读出来总是 FIELDS 全部 key 齐全的 Hash，视图不用做 nil 判断。
+  # 注意 data 列里 schema 外的旧键（职位/电话等）会被静默忽略。
   def normalized_data
     stored = data.presence || {}
     FIELDS.index_with { |f| stored[f].presence || FIELD_DEFAULTS[f] }

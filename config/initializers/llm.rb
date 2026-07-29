@@ -22,6 +22,7 @@ if File.exist?(models_path)
   if default_model
     RubyLLM.configure do |config|
       config.request_timeout = 120
+      config.openai_use_system_role = true  # 拒绝 developer role，用 system
       if default_model["api"] == "anthropic"
         config.anthropic_api_key  = default_model["api_key"]
         config.anthropic_api_base = default_model["api_base"]

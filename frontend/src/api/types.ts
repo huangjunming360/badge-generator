@@ -8,7 +8,7 @@ export interface PortraitPayload {
   byte_size: number;
 }
 
-// key 为 Card::FIELDS 的 14 个字段，后端保证 key 齐全，值可能为 null。
+// key 为 Card::FIELDS 定义的字段，后端保证 key 齐全，值可能为 null。
 export type CardFields = Record<string, string | null>;
 
 export interface CardPayload {
