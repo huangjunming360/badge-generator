@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-# 从一组图片中识别哪张是证件照。直接调用 LLM 视觉 API，
-# 不走 RubyLLM（它的 add_message 不支持多模态 content 数组）。
+# 从一组图片中识别哪张是证件照。走 RubyLLM 多模态调用。
 class PortraitDetector
   class Error < StandardError; end
 
@@ -16,13 +15,8 @@ class PortraitDetector
     return nil if images.blank?
     return images.first if images.one?
 
-    # 启发式筛选：排除过小（图标）和过大（全页扫描）
-    candidates = images.select { |img|
-      sz = img[:data].bytesize
-      (8_000..500_000).cover?(sz)
-    }
-    return candidates.first if candidates.one?
-    return candidates.first if candidates.empty?
+    candidates = images.select { |img| img[:data] && (8_000..500_000).cover?(img[:data].bytesize) }
+    return candidates.first if candidates.one? || candidates.empty?
 
     ask_llm(candidates)
   rescue => e
@@ -34,70 +28,46 @@ class PortraitDetector
 
   def ask_llm(candidates)
     config = resolve_config
-    base = config["api_base"].to_s
-    endpoint = base.end_with?("/chat/completions") ? base : "#{base}/chat/completions"
+    return candidates.first if config.blank?
 
-    # 构建 OpenAI 格式的多模态消息
-    content = []
+    # 配置 RubyLLM 的 provider
+    RubyLLM.configure do |c|
+      if config["api"] == "openai"
+        c.openai_api_key = config["api_key"]
+        c.openai_api_base = config["api_base"]
+      else
+        c.anthropic_api_key = config["api_key"]
+        c.anthropic_api_base = config["api_base"]
+      end
+    end
+
+    chat = RubyLLM.chat(
+      model: config["model"],
+      provider: config["api"],
+      assume_model_exists: true
+    )
+
+    # 构建多模态消息
+    content = RubyLLM::Content.new(PROMPT)
     candidates.each_with_index do |img, i|
       ext = File.extname(img[:path]).downcase
       mime = ext == ".png" ? "image/png" : "image/jpeg"
-      encoded = Base64.strict_encode64(img[:data])
-      next if encoded.bytesize > 500_000  # 单图限制 500KB
-
-      content << { type: "text", text: "图片 #{i + 1}: #{img[:path]}" }
-      content << {
-        type: "image_url",
-        image_url: { url: "data:#{mime};base64,#{encoded}" }
-      }
+      # 用 StringIO 包装二进制数据，Attachment 需要 io_like? 为 true
+      io = StringIO.new(img[:data])
+      attachment = RubyLLM::Attachment.new(io, filename: img[:path])
+      content.attachments << attachment if attachment.image?
     end
 
-    # 如果没有图片能成功编码，退回启发式结果
-    return candidates.first if content.empty?
-
-    content << { type: "text", text: "\n哪张是证件照？只回答序号（1-#{candidates.length}）或 null。" }
-
-    body = {
-      model: config["model"],
-      messages: [
-        { role: "system", content: PROMPT },
-        { role: "user", content: content }
-      ],
-      max_tokens: 32
-    }
-
-    response = http_post(endpoint, body.to_json, config["api_key"])
-    text = response.dig("choices", 0, "message", "content") || ""
-    idx = text.strip.to_i - 1
+    chat.add_message(role: :user, content: content)
+    response = chat.complete
+    text = response.content.to_s.strip
+    idx = text.to_i - 1
     (idx >= 0 && idx < candidates.length) ? candidates[idx] : candidates.first
   end
 
   def resolve_config
     models = Rails.application.config.x.models["models"] || []
     model = @model_id ? models.find { |m| m["id"] == @model_id } : nil
-    model || models.find { |m| m["id"] == models_config["default"] } || models.first || {}
-  end
-
-  def models_config
-    Rails.application.config.x.models || {}
-  end
-
-  def http_post(url, body_json, api_key)
-    uri = URI(url)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = uri.scheme == "https"
-    http.read_timeout = 60
-    http.open_timeout = 15
-
-    req = Net::HTTP::Post.new(uri)
-    req["Content-Type"] = "application/json"
-    req["Authorization"] = "Bearer #{api_key}"
-    req.body = body_json
-
-    res = http.request(req)
-    raise Error, "HTTP #{res.code}" unless res.code.to_i == 200
-    JSON.parse(res.body)
-  rescue JSON::ParserError
-    raise Error, "非 JSON 响应"
+    model || models.find { |m| m["id"] == (Rails.application.config.x.models["default"] || "") } || models.first || {}
   end
 end
