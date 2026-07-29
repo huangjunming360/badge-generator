@@ -260,10 +260,20 @@ export default function Page1() {
   const handleImg = useCallback((file: File) => {
     setImgName("📷 已上传照片");
     setPortraitFile(file);
+    croppedRef.current = false;
+    // 清除原始缓存，下次点裁切会从新照片拉取
+    originalFileRef.current = null;
     // 已有 card → 立即上传替换
     if (cardId) {
       uploadPortrait(cardId, file).then(card => {
-        setPortraitUrl(card.portrait?.url ?? null);
+        const url = card.portrait?.url ?? null;
+        setPortraitUrl(url);
+        // 上传成功后立即保存为新原始图
+        if (url && !url.startsWith("blob:")) {
+          fetch(url).then(r => r.blob()).then(blob => {
+            originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+          }).catch(() => {});
+        }
       }).catch(() => {
         setPortraitUrl(URL.createObjectURL(file));
       });
@@ -770,7 +780,13 @@ export default function Page1() {
             // 已有 card → 立即上传，拿到真实 URL
             if (cardId) {
               uploadPortrait(cardId, file).then(card => {
-                setPortraitUrl(card.portrait?.url ?? null);
+                const url = card.portrait?.url ?? null;
+                setPortraitUrl(url);
+                if (url && !url.startsWith("blob:") && !originalFileRef.current) {
+                  fetch(url).then(r => r.blob()).then(blob => {
+                    originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                  }).catch(() => {});
+                }
               }).catch(() => {
                 setPortraitUrl(URL.createObjectURL(file));
               });
