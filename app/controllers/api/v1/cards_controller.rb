@@ -118,9 +118,11 @@ class Api::V1::CardsController < Api::BaseController
         found = detector.detect(mineru_images)
         Rails.logger.info("人像结果: found=#{found.class}")
         if found && found[:data].present?
+          ext = File.extname(found[:path]).downcase.delete(".")
+          mime = ext == "jpg" ? "image/jpeg" : "image/#{ext}"
           card.portrait.attach(io: StringIO.new(found[:data]),
             filename: File.basename(found[:path]),
-            content_type: "image/#{File.extname(found[:path]).delete('.')}")
+            content_type: mime)
         end
       end
     else
