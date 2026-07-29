@@ -30,7 +30,7 @@ class Api::BaseController < ActionController::API
 
     if !user.active?
       terminate_session
-      return render json: { errors: [ "账号尚未激活" ] }, status: :forbidden
+      render json: { errors: [ "账号尚未激活" ] }, status: :forbidden
     end
   end
 
