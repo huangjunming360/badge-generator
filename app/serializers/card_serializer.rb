@@ -15,9 +15,9 @@ class CardSerializer
   # 列表用：不含 raw_input。它可能是整份简历或 OCR 全文，
   # 放进列表会让响应体膨胀到不可用。
   def as_summary
-    {
+    base = {
       id: @card.id,
-      fields: @card.normalized_data,
+      fields: @card.normalized_data.slice(*Card::FIELDS),
       filled_count: @card.filled_count,
       source_name: @card.source_name,
       used_ocr: !!@card.used_ocr,
@@ -28,6 +28,9 @@ class CardSerializer
       created_at: @card.created_at&.iso8601,
       updated_at: @card.updated_at&.iso8601
     }
+    ai = @card.data&.dig("_ai_fields")
+    base[:ai_fields] = ai if ai.present?
+    base
   end
 
   def as_detail

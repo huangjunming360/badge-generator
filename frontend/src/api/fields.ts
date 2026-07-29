@@ -1,5 +1,17 @@
 import type { Field } from "../app/components/shared";
-import type { CardFields, SchemaFieldDef } from "./types";
+import type { CardFields, SchemaFieldDef, AiField } from "./types";
+
+export function toAiFields(aiFields: AiField[]): Field[] {
+  return aiFields.map((f, i) => ({
+    id: f.key || `ai_${i}`,
+    key: f.key,
+    label: f.label,
+    value: f.value || "",
+    selected: f.selected !== false,
+    category: "person" as const,
+    icon: f.icon,
+  }));
+}
 
 // 后端固定 schema ←→ 前端 Field[] 的转换。
 //

@@ -1,5 +1,5 @@
 class Admin::GeneralSettingsController < Admin::BaseController
-  BOOL_KEYS = %i[allow_registration require_login_for_models mineru_enabled portrait_detect].freeze
+  BOOL_KEYS = %i[allow_registration require_login_for_models mineru_enabled portrait_detect ai_fields_enabled].freeze
   TEXT_KEYS = %i[site_title mineru_model mineru_extensions extract_model portrait_model allowed_extensions].freeze
   SECRET_KEYS = %i[mineru_api_key].freeze
 

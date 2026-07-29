@@ -2,25 +2,25 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X, FileText,
-  Sparkles, Layers, Settings,
+  Sparkles, Layers, Settings, GripVertical,
 } from "lucide-react";
 import {
   Field, NavState,
-  E, U, SAMPLE,
+  E, U,
   usePress, RippleBtn, FIcon,
 } from "./shared";
 import { fetchSchema, pollCard, fetchCard } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import CropModal from "./CropModal";
-import { toFields } from "../../api/fields";
+import { toFields, toAiFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
 /* ── Editable field row ──────────────────────────────────────── */
-function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
+function EditableFieldRow({ field, onToggle, onChange, index }: {
   field: Field; onToggle: () => void;
-  onChange: (v: string) => void; onDelete: () => void; index: number;
+  onChange: (v: string) => void; index: number;
 }) {
   const { hovered, bind } = usePress();
   return (
@@ -43,8 +43,8 @@ function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
         {field.selected && <Check size={10} color="#fff" strokeWidth={3} />}
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 5, width: 72, flexShrink: 0 }}>
-        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0 }}>
-          <FIcon k={field.key} size={12} />
+        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0, fontSize: 12 }}>
+          {field.icon ? <i className={`${["fa-linkedin", "fa-github", "fa-twitter"].includes(field.icon) ? "fa-brands" : "fas"} ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
         </span>
         <span style={{ fontSize: 11, color: field.selected ? U.blue : U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
           {field.label}
@@ -61,15 +61,15 @@ function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
         onFocus={e => { e.target.style.borderBottomColor = U.blue; }}
         onBlur={e =>  { e.target.style.borderBottomColor = "transparent"; }}
       />
-      <button onClick={onDelete} style={{
+      <button title="拖拽排序" style={{
         width: 22, height: 22, borderRadius: 6, border: "none",
         background: "transparent", display: "flex", alignItems: "center",
-        justifyContent: "center", cursor: "pointer", color: U.textFaint,
+        justifyContent: "center", cursor: "grab", color: U.textFaint,
         flexShrink: 0, transition: `color .14s`,
       }}
         onMouseEnter={e => { e.currentTarget.style.color = "#C05060"; }}
         onMouseLeave={e => { e.currentTarget.style.color = U.textFaint; }}>
-        <X size={12} />
+        <GripVertical size={12} />
       </button>
     </div>
   );
@@ -107,7 +107,7 @@ export default function Page1() {
   const location = useLocation();
   const saved    = location.state as NavState | null;
 
-  const [rawText, setRawText] = useState(saved?.rawText ?? SAMPLE);
+  const [rawText, setRawText] = useState(saved?.rawText ?? "");
   const [fields, setFields]   = useState<Field[]>(saved?.fields ?? []);
   const [parsing, setParsing] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -201,7 +201,9 @@ export default function Page1() {
         setProgressStage(p.stage);
       });
       const card = await fetchCard(cardId);
-      const parsed = toFields(card.fields, schema);
+      const parsed = card.ai_fields?.length
+        ? toAiFields(card.ai_fields)
+        : toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
       // 自动识别的证件照
@@ -598,6 +600,12 @@ export default function Page1() {
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
               }}>裁切</button>
+              {portraitFile && (
+                <button onClick={() => setShowConflict(true)} style={{
+                  padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
+                  background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
+                }}>切换</button>
+              )}
             </div>
           )}
 
@@ -654,8 +662,7 @@ export default function Page1() {
                   i <= streamIdx ? (
                     <EditableFieldRow key={f.key} field={f} index={i}
                       onToggle={() => toggleField(f.key)}
-                      onChange={v => changeValue(f.key, v)}
-                      onDelete={() => deleteField(f.key)} />
+                      onChange={v => changeValue(f.key, v)} />
                   ) : null
                 )}
               </div>

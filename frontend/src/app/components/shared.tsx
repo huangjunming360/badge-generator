@@ -11,6 +11,7 @@ import {
 export interface Field {
   id: string; key: string; label: string; value: string;
   selected: boolean; category: "person" | "contact" | "access";
+  icon?: string;
 }
 export type Template  = "visitor" | "access" | "business" | "custom";
 export type AccentKey = "rose" | "blue" | "gold";

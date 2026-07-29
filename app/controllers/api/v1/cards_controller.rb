@@ -78,6 +78,18 @@ class Api::V1::CardsController < Api::BaseController
 
   private
 
+  def parse_ai_fields(raw_input, model_id)
+    parser = AiFieldParser.new(model_id: model_id)
+    ai_fields = parser.parse(raw_input)
+    # 存储：{ "ai_fields" => [...], 同时兼容旧格式 }
+    legacy = {}
+    ai_fields.each { |f| legacy[f["key"]] = f["value"] }
+    legacy.merge("_ai_fields" => ai_fields)
+  rescue AiFieldParser::Error => e
+    Rails.logger.warn("AI 字段解析失败，降级到默认: #{e.message}")
+    CardExtractor.new(model_id: model_id).call(raw_input)
+  end
+
   def models_config
     Rails.application.config.x.models || {}
   end
@@ -171,7 +183,11 @@ class Api::V1::CardsController < Api::BaseController
     end
 
     progress.set(:extracting, "AI 提取字段中…")
-    card.data = CardExtractor.new(model_id: model_id).call(raw)
+    if Setting.bool("ai_fields_enabled")
+      card.data = parse_ai_fields(raw, model_id)
+    else
+      card.data = CardExtractor.new(model_id: model_id).call(raw)
+    end
     card.save!
 
     # 用户手动上传的头像在异步流程中也要 attach
@@ -211,7 +227,11 @@ class Api::V1::CardsController < Api::BaseController
 
     return render_validation_errors(card) unless card.valid?
 
-    card.data = CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
+    card.data = if Setting.bool("ai_fields_enabled")
+      parse_ai_fields(card.raw_input, params[:model_id])
+    else
+      CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
+    end
     card.save!
     render json: { card: serializer(card).as_detail }, status: :created
   rescue DocumentTextExtractor::UnsupportedFormat,
