@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "./useAuth";
+import { getJson } from "../../api/client";
 
 const PROTECTED = ["/design", "/history"];
 
@@ -8,14 +9,24 @@ export default function RootLayout() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
+  const [setupChecked, setSetupChecked] = useState(false);
+
+  // 首次加载检查是否需要初始设置
+  useEffect(() => {
+    getJson<{ needs_setup: boolean }>("/setup").then(d => {
+      setSetupChecked(true);
+      if (d.needs_setup && loc.pathname !== "/setup") {
+        nav("/setup", { replace: true });
+      }
+    }).catch(() => setSetupChecked(true));
+  }, []);
 
   useEffect(() => {
-    if (loading) return;
-    const needsAuth = PROTECTED.some(p => loc.pathname.startsWith(p));
-    if (needsAuth && !user) {
+    if (loading || !setupChecked) return;
+    if (PROTECTED.some(p => loc.pathname.startsWith(p)) && !user) {
       nav("/login", { replace: true });
     }
-  }, [loading, user, loc.pathname]);
+  }, [loading, user, loc.pathname, setupChecked]);
 
   return <Outlet />;
 }
