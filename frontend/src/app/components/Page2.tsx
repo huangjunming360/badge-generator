@@ -87,7 +87,7 @@ export default function Page2() {
   const selectedCount = fields.filter(f => f.selected).length;
 
   const goBack = () => {
-    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl: saved?.portraitUrl } satisfies NavState });
+    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl: saved?.portraitUrl, imgName: saved?.imgName } satisfies NavState });
   };
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom };

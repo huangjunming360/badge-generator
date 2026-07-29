@@ -115,8 +115,8 @@ export default function Page1() {
   const [streamIdx, setStreamIdx] = useState(
     saved?.fields ? saved.fields.length - 1 : -1
   );
-  const [imgName, setImgName]   = useState<string | null>(null);
-  const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
+  const [imgName, setImgName]   = useState<string | null>(saved?.imgName ?? null);
+  const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
@@ -254,7 +254,7 @@ export default function Page1() {
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
 
   const goToDesign = () => {
-    navigate("/design", { state: { rawText, fields, cardId, portraitUrl } as NavState });
+    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName } as NavState });
   };
 
   /* Padding-top drives the centering ↔ top animation */
