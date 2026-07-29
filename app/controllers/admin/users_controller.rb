@@ -55,6 +55,7 @@ class Admin::UsersController < Admin::BaseController
     new_pw = params[:new_password].to_s.strip
     return redirect_to admin_users_path, alert: "密码至少 6 位" if new_pw.length < 6
     if @user.update(password: new_pw, password_confirmation: new_pw)
+      @user.sessions.destroy_all
       redirect_to admin_users_path, notice: "密码已重置"
     else
       redirect_to admin_users_path, alert: @user.errors.full_messages.first

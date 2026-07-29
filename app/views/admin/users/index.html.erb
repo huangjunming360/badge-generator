@@ -96,16 +96,16 @@ var m=document.createElement('input');m.type='hidden';m.name='_method';m.value='
 var a=document.createElement('input');a.type='hidden';a.name='authenticity_token';a.value=tk;f.appendChild(a);
 var p=document.createElement('input');p.name='new_password';p.value=pw;f.appendChild(p);
 document.body.appendChild(f);f.submit()" class="text-blue-500 hover:text-blue-700 text-xs cursor-pointer" style="text-decoration:none;margin-right:6px">重置密码</span>
-                <form method="post" action="<%= admin_user_path(user) %>" style="display:inline;margin:0" onsubmit="return confirm('确定删除用户 <%= user.email_address %>？此操作不可恢复！')">
+                <form method="post" action="<%= admin_user_path(user) %>" style="display:inline;margin:0">
                   <input type="hidden" name="_method" value="delete">
                   <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
-                  <button type="submit" class="text-red-500 hover:text-red-700 text-xs" style="background:none;border:none;cursor:pointer;padding:0;margin:0;margin-right:6px">删除</button>
+                  <button type="submit" class="text-red-500 hover:text-red-700 text-xs" style="background:none;border:none;cursor:pointer;padding:0;margin:0;margin-right:6px" data-turbo-confirm="确定删除？此操作不可恢复">删除</button>
                 </form>
                 <% unless user.banned? %>
-                  <form method="post" action="<%= toggle_ban_admin_user_path(user) %>" style="display:inline;margin:0" onsubmit="return confirm('确定封禁 <%= user.email_address %>？')">
+                  <form method="post" action="<%= toggle_ban_admin_user_path(user) %>" style="display:inline;margin:0">
                     <input type="hidden" name="_method" value="patch">
                     <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
-                    <button type="submit" class="text-red-500 hover:text-red-700 text-xs" style="background:none;border:none;cursor:pointer;padding:0;margin:0">封禁</button>
+                    <button type="submit" class="text-red-500 hover:text-red-700 text-xs" style="background:none;border:none;cursor:pointer;padding:0;margin:0" data-turbo-confirm="确定封禁该用户？">封禁</button>
                   </form>
                 <% end %>
               <% end %>
