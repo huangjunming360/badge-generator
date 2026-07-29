@@ -208,10 +208,13 @@ class MineruService
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == "https"
     http.read_timeout = 120
+    http.open_timeout = 30
     req = Net::HTTP::Put.new(uri)
-    req.body_stream = File.open(file_path, "rb")
     req["Content-Length"] = File.size(file_path)
-    res = http.request(req)
+    res = File.open(file_path, "rb") do |io|
+      req.body_stream = io
+      http.request(req)
+    end
     unless res.code.to_i >= 200 && res.code.to_i < 300
       raise Error, "上传失败: HTTP #{res.code}"
     end

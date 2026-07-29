@@ -43,7 +43,7 @@
       <div class="p-5">
         <label class="block text-sm font-medium mb-1">MinerU API Key</label>
         <div class="flex gap-2">
-          <input type="password" name="mineru_api_key" value="<%= @settings[:mineru_api_key] %>" placeholder="留空则使用 .env 中的 MINERU_API_KEY" class="block flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm font-mono text-xs">
+          <input type="password" name="mineru_api_key" value="" placeholder="<%= @settings[:mineru_key_configured] ? '已配置，留空保留当前' : '留空则使用 .env 中的 MINERU_API_KEY' %>" class="block flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm font-mono text-xs" id="mineru-key-input">
           <button type="button" onclick="var el=document.getElementById('mineru-key-input');el.type=el.type==='password'?'text':'password'" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none whitespace-nowrap">显示</button>
         </div>
         <p class="text-xs text-stone-400 mt-1">

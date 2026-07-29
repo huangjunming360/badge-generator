@@ -14,7 +14,7 @@ class Admin::GeneralSettingsController < Admin::BaseController
 
   def update
     BOOL_KEYS.each { |k| Setting.set(k.to_s, params[k] == "1" ? "true" : "false") }
-    TEXT_KEYS.each { |k| Setting.set(k.to_s, params[k].to_s) if params[k].present? }
+    TEXT_KEYS.each { |k| Setting.set(k.to_s, params.key?(k) ? params[k].to_s : Setting.get(k.to_s)) }
     SECRET_KEYS.each { |k| Setting.set(k.to_s, params[k].to_s) if params[k].present? }
     redirect_to admin_general_settings_path, notice: "设置已保存"
   end
