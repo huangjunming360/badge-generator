@@ -9,6 +9,12 @@ class Admin::ModelsController < Admin::BaseController
 
     raw["default"] = params[:default_model]
 
+    # 默认模型强制设为最低权限等级，确保所有用户能用
+    default = raw["models"]&.find { |m| m["id"] == raw["default"] }
+    if default
+      default["level"] = 4
+    end
+
     # 用 permit 处理 ActionController::Parameters
     models = params.fetch(:models, {}).values.map do |m|
       m.permit(:id, :label, :api, :model_name, :api_key, :api_base, :level, :no_thinking)
