@@ -28,7 +28,7 @@ class Api::V1::CardsController < Api::BaseController
     portrait_name = params[:portrait]&.original_filename
     user_id = Current.user&.id
 
-    progress = ProgressTracker.new(progress_id)
+    progress = ProgressTracker.new(progress_id, user_id: Current.user&.id)
     progress.set(:uploading, "已提交，排队中…")
 
     Thread.new do

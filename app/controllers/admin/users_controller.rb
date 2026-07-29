@@ -52,7 +52,7 @@ class Admin::UsersController < Admin::BaseController
   def reset_password
     @user = User.find(params[:id])
     return redirect_to admin_users_path, alert: "不能重置自己的密码" if @user == Current.user
-    new_pw = params[:new_password].to_s.strip
+    new_pw = params[:new_password].to_s
     return redirect_to admin_users_path, alert: "密码至少 6 位" if new_pw.length < 6
     if @user.update(password: new_pw, password_confirmation: new_pw)
       @user.sessions.destroy_all

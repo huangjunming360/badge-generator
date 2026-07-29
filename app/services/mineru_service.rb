@@ -79,6 +79,7 @@ class MineruService
 
   def process_zip(zip_url)
     zip_data = download_file(zip_url)
+    raise Error, "ZIP 文件过大" if zip_data.bytesize > 50.megabytes
     images = []
     markdown = nil
     bbox_map = {}   # filename => bbox
