@@ -124,6 +124,7 @@ export default function Page1() {
   const [imgName, setImgName]   = useState<string | null>(saved?.imgName ?? null);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [originalPortraitFile, setOriginalPortraitFile] = useState<File | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
@@ -587,7 +588,17 @@ export default function Page1() {
                 </div>
                 <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
               </div>
-              <button onClick={() => { setCropSrc(portraitUrl); }} style={{
+              <button onClick={async () => {
+                // 从服务器拉取当前图片作为原始底稿
+                if (!originalPortraitFile && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                  try {
+                    const res = await fetch(portraitUrl);
+                    const blob = await res.blob();
+                    setOriginalPortraitFile(new File([blob], "portrait-original.jpg", { type: blob.type }));
+                  } catch {}
+                }
+                setCropSrc(originalPortraitFile ? URL.createObjectURL(originalPortraitFile) : portraitUrl);
+              }} style={{
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
               }}>裁切</button>
@@ -726,9 +737,21 @@ export default function Page1() {
       {cropSrc && (
         <CropModal src={cropSrc} open={!!cropSrc}
           onClose={() => { setCropSrc(null); }}
-          onCrop={(blob, fullScreen) => {
-            const file = new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" });
+          onCrop={async (blob, fullScreen) => {
             setCropSrc(null);
+            // 全屏 = 恢复原始照片。上传之前保存的原文件。
+            if (fullScreen && originalPortraitFile) {
+              setPortraitFile(originalPortraitFile);
+              setImgName("📷 原始照片");
+              if (cardId) {
+                const card = await uploadPortrait(cardId, originalPortraitFile).catch(() => null);
+                setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(originalPortraitFile));
+              } else {
+                setPortraitUrl(URL.createObjectURL(originalPortraitFile));
+              }
+              return;
+            }
+            const file = new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" });
             setPortraitFile(file);
             setImgName(fullScreen ? (portraitFile ? "📷 已上传照片" : "📷 证件照") : "📷 已裁切");
             // 已有 card → 立即上传，拿到真实 URL
