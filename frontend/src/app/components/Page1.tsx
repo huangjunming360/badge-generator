@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X, FileText,
-  Sparkles, Layers, Settings,
+  Sparkles, Layers, Settings, GripVertical,
 } from "lucide-react";
 import {
   Field, NavState,
@@ -18,9 +18,9 @@ import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
 /* ── Editable field row ──────────────────────────────────────── */
-function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
+function EditableFieldRow({ field, onToggle, onChange, index }: {
   field: Field; onToggle: () => void;
-  onChange: (v: string) => void; onDelete: () => void; index: number;
+  onChange: (v: string) => void; index: number;
 }) {
   const { hovered, bind } = usePress();
   return (
@@ -61,15 +61,15 @@ function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
         onFocus={e => { e.target.style.borderBottomColor = U.blue; }}
         onBlur={e =>  { e.target.style.borderBottomColor = "transparent"; }}
       />
-      <button onClick={onDelete} style={{
+      <button title="拖拽排序" style={{
         width: 22, height: 22, borderRadius: 6, border: "none",
         background: "transparent", display: "flex", alignItems: "center",
-        justifyContent: "center", cursor: "pointer", color: U.textFaint,
+        justifyContent: "center", cursor: "grab", color: U.textFaint,
         flexShrink: 0, transition: `color .14s`,
       }}
         onMouseEnter={e => { e.currentTarget.style.color = "#C05060"; }}
         onMouseLeave={e => { e.currentTarget.style.color = U.textFaint; }}>
-        <X size={12} />
+        <GripVertical size={12} />
       </button>
     </div>
   );
@@ -662,8 +662,7 @@ export default function Page1() {
                   i <= streamIdx ? (
                     <EditableFieldRow key={f.key} field={f} index={i}
                       onToggle={() => toggleField(f.key)}
-                      onChange={v => changeValue(f.key, v)}
-                      onDelete={() => deleteField(f.key)} />
+                      onChange={v => changeValue(f.key, v)} />
                   ) : null
                 )}
               </div>
