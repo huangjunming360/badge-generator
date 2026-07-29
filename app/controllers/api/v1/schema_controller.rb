@@ -3,6 +3,7 @@
 # 但前端确实需要它们来渲染标签和做前置校验。
 class Api::V1::SchemaController < Api::BaseController
   skip_before_action :require_api_authentication, only: :show
+  before_action :resume_session, only: :show
 
   def show
     render json: {
