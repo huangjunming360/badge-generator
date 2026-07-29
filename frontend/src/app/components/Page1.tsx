@@ -124,7 +124,7 @@ export default function Page1() {
   const [imgName, setImgName]   = useState<string | null>(saved?.imgName ?? null);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const [originalPortraitFile, setOriginalPortraitFile] = useState<File | null>(null);
+  const originalFileRef = useRef<File | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
@@ -217,8 +217,15 @@ export default function Page1() {
       // 证件照：后端已按"手动上传优先于自动识别"处理，
       // 所以 card.portrait 就是最终要用的那张。
       if (card.portrait) {
-        setPortraitUrl(card.portrait.url);
+        const url = card.portrait.url;
+        setPortraitUrl(url);
         setImgName(portraitFile ? "📷 已上传照片" : "📷 " + card.portrait.filename);
+        // 立即保存原始图片（供后续裁切恢复用）
+        if (!originalFileRef.current && !url.startsWith("blob:")) {
+          fetch(url).then(r => r.blob()).then(blob => {
+            originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+          }).catch(() => {});
+        }
       }
       startStream(parsed);
     } catch (e) {
@@ -589,15 +596,17 @@ export default function Page1() {
                 <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
               </div>
               <button onClick={async () => {
-                // 从服务器拉取当前图片作为原始底稿
-                if (!originalPortraitFile && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                // 还没存原图就拉一次
+                if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
                   try {
                     const res = await fetch(portraitUrl);
                     const blob = await res.blob();
-                    setOriginalPortraitFile(new File([blob], "portrait-original.jpg", { type: blob.type }));
+                    originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
                   } catch {}
                 }
-                setCropSrc(originalPortraitFile ? URL.createObjectURL(originalPortraitFile) : portraitUrl);
+                // 裁切总是从原始图片开始
+                const orig = originalFileRef.current;
+                setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
               }} style={{
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
@@ -740,14 +749,15 @@ export default function Page1() {
           onCrop={async (blob, fullScreen) => {
             setCropSrc(null);
             // 全屏 = 恢复原始照片。上传之前保存的原文件。
-            if (fullScreen && originalPortraitFile) {
-              setPortraitFile(originalPortraitFile);
+            const orig = originalFileRef.current;
+            if (fullScreen && orig) {
+              setPortraitFile(orig);
               setImgName("📷 原始照片");
               if (cardId) {
-                const card = await uploadPortrait(cardId, originalPortraitFile).catch(() => null);
-                setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(originalPortraitFile));
+                const card = await uploadPortrait(cardId, orig).catch(() => null);
+                setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(orig));
               } else {
-                setPortraitUrl(URL.createObjectURL(originalPortraitFile));
+                setPortraitUrl(URL.createObjectURL(orig));
               }
               return;
             }
