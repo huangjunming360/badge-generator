@@ -48,6 +48,19 @@ class Api::V1::CardsController < Api::BaseController
     render json: { task_id: progress_id }, status: :accepted
   end
 
+  def destroy
+    card = Current.user.cards.find(params[:id])
+    card.destroy!
+    head :no_content
+  end
+
+  def batch_destroy
+    ids = params[:ids]
+    raise ActionController::ParameterMissing, :ids if ids.blank?
+    Current.user.cards.where(id: ids).destroy_all
+    head :no_content
+  end
+
   def update
     card = Current.user.cards.find(params[:id])
 

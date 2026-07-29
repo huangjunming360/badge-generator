@@ -68,6 +68,17 @@ export const updateCardSize = (id: number, widthMm: number, heightMm: number) =>
     card: { width_mm: widthMm, height_mm: heightMm },
   }).then((r) => r.card);
 
+export const deleteCard = (id: number) =>
+  fetch(`/api/v1/cards/${id}`, { method: "DELETE", headers: { Accept: "application/json" } }).then(r => {
+    if (!r.ok) throw new Error("删除失败");
+  });
+
+export const batchDeleteCards = (ids: number[]) =>
+  fetch("/api/v1/cards/batch", {
+    method: "DELETE", headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ ids }),
+  }).then(r => { if (!r.ok) throw new Error("批量删除失败"); });
+
 export const uploadPortrait = (id: number, portrait: File) => {
   const form = new FormData();
   form.append("portrait", portrait);

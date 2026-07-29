@@ -30,7 +30,11 @@ Rails.application.routes.draw do
       resource :setup, only: %i[show create], controller: "setup"
       get "progress/:id", to: "progress#show", as: :progress
       resource :schema, only: %i[show], controller: "schema"
-      resources :cards, only: %i[index show create update]
+      resources :cards, only: %i[index show create update destroy] do
+        collection do
+          delete :batch, to: "cards#batch_destroy"
+        end
+      end
     end
   end
 
