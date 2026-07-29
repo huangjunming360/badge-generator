@@ -124,7 +124,6 @@ export default function Page1() {
   const [imgName, setImgName]   = useState<string | null>(saved?.imgName ?? null);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
   const [originalPortraitUrl, setOriginalPortraitUrl] = useState<string | null>(null);
-  const [showConflict, setShowConflict] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
@@ -283,12 +282,6 @@ export default function Page1() {
   const goToDesign = () => {
     navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName } as NavState });
   };
-
-  const conflictBtnStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px", borderRadius: 8, border: `1px solid ${active ? U.green + "44" : U.border}`,
-    background: active ? U.greenLight : U.surface, cursor: "pointer", fontSize: 11,
-    color: active ? U.green : U.textMid, fontWeight: active ? 600 : 400,
-  });
 
   /* Padding-top drives the centering ↔ top animation */
   const contentPaddingTop = phase === "active" ? "28px" : "calc(50vh - 180px)";
@@ -581,25 +574,8 @@ export default function Page1() {
             </RippleBtn>
           </div>
 
-          {/* ── 证件照冲突选择 ──────────────────────────── */}
-          {showConflict && portraitUrl && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
-            }}>
-              <span style={{ fontSize: 12, color: U.textMid }}>使用照片：</span>
-              <button onClick={() => { setShowConflict(false); setPortraitUrl(null); setImgName("📷 手动上传"); }}
-                style={conflictBtnStyle(false)}>
-                手动上传
-              </button>
-              <button onClick={() => { setShowConflict(false); setPortraitUrl(portraitUrl); setImgName("📷 " + (imgName?.replace("📷 ","") || "文档中的人像")); }}
-                style={conflictBtnStyle(true)}>
-                📷 文档中
-              </button>
-            </div>
-          )}
-
           {/* ── 证件照预览 ──────────────────────────────── */}
-          {!showConflict && portraitUrl && (
+          {portraitUrl && (
             <div style={{
               display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
               animation: `fadeSlideIn .3s ${E.smooth} both`,
@@ -617,12 +593,6 @@ export default function Page1() {
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
               }}>裁切</button>
-              {portraitFile && (
-                <button onClick={() => setShowConflict(true)} style={{
-                  padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
-                  background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
-                }}>切换</button>
-              )}
             </div>
           )}
 
