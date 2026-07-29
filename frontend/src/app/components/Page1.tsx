@@ -125,6 +125,7 @@ export default function Page1() {
   const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const originalFileRef = useRef<File | null>(null);
+  const croppedRef = useRef(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
@@ -219,7 +220,7 @@ export default function Page1() {
       if (card.portrait) {
         const url = card.portrait.url;
         setPortraitUrl(url);
-        setImgName(portraitFile ? "📷 已上传照片" : "📷 " + card.portrait.filename);
+        setImgName(portraitFile ? "📷 已上传照片" : "📷 原始照片");
         // 立即保存原始图片（供后续裁切恢复用）
         if (!originalFileRef.current && !url.startsWith("blob:")) {
           fetch(url).then(r => r.blob()).then(blob => {
@@ -257,7 +258,7 @@ export default function Page1() {
 
   // 证件照只记下来，随下一次建卡一起提交。
   const handleImg = useCallback((file: File) => {
-    setImgName(file.name);
+    setImgName("📷 已上传照片");
     setPortraitFile(file);
     // 已有 card → 立即上传替换
     if (cardId) {
@@ -438,7 +439,7 @@ export default function Page1() {
                   animation: `fadeSlideIn .2s ${E.smooth} both`,
                 }}>
                   <ImageIcon size={10} color={U.green} />
-                  <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName}</span>
+                  <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName?.replace("📷 ", "")}</span>
                   <button onClick={() => {
                     if (portraitUrl) setCropSrc(portraitUrl);
                     else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
@@ -752,6 +753,7 @@ export default function Page1() {
             const orig = originalFileRef.current;
             if (fullScreen && orig) {
               setPortraitFile(orig);
+              croppedRef.current = false;
               setImgName("📷 原始照片");
               if (cardId) {
                 const card = await uploadPortrait(cardId, orig).catch(() => null);
@@ -763,7 +765,8 @@ export default function Page1() {
             }
             const file = new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" });
             setPortraitFile(file);
-            setImgName(fullScreen ? (portraitFile ? "📷 已上传照片" : "📷 证件照") : "📷 已裁切");
+            croppedRef.current = !fullScreen;
+            setImgName(fullScreen ? "📷 原始照片" : "📷 已裁切");
             // 已有 card → 立即上传，拿到真实 URL
             if (cardId) {
               uploadPortrait(cardId, file).then(card => {
