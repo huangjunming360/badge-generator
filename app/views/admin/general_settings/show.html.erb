@@ -9,7 +9,6 @@
       <div class="p-5">
         <label class="block text-sm font-medium mb-1">站点标题</label>
         <%= f.text_field :site_title, value: @settings[:site_title], class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
-        <p class="text-xs text-stone-400 mt-1">显示在浏览器标签页标题</p>
       </div>
 
       <div class="p-5 flex items-center justify-between">
@@ -18,8 +17,7 @@
           <p class="text-xs text-stone-400 mt-0.5">关闭后注册页面不可用</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
-          <%= f.check_box :allow_registration, checked: @settings[:allow_registration],
-                class: "sr-only peer" %>
+          <%= f.check_box :allow_registration, checked: @settings[:allow_registration], class: "sr-only peer" %>
           <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
         </label>
       </div>
@@ -27,13 +25,129 @@
       <div class="p-5 flex items-center justify-between">
         <div>
           <label class="text-sm font-medium">模型使用需登录</label>
-          <p class="text-xs text-stone-400 mt-0.5">开启后未登录用户无法使用模型选择功能</p>
+          <p class="text-xs text-stone-400 mt-0.5">开启后未登录用户无法使用模型</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
-          <%= f.check_box :require_login_for_models, checked: @settings[:require_login_for_models],
-                class: "sr-only peer" %>
+          <%= f.check_box :require_login_for_models, checked: @settings[:require_login_for_models], class: "sr-only peer" %>
           <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
         </label>
+      </div>
+    </div>
+
+    <!-- MinerU 配置 -->
+    <div class="mt-8 mb-2">
+      <h2 class="text-lg font-bold">文档解析（MinerU）</h2>
+    </div>
+
+    <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-1">MinerU API Key</label>
+        <div class="flex gap-2">
+          <input type="password" name="mineru_api_key" value="" placeholder="<%= @settings[:mineru_key_configured] ? '已配置，留空保留当前' : '留空则使用 .env 中的 MINERU_API_KEY' %>" class="block flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm font-mono text-xs" id="mineru-key-input">
+          <button type="button" onclick="var el=document.getElementById('mineru-key-input');el.type=el.type==='password'?'text':'password'" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none whitespace-nowrap">显示</button>
+        </div>
+        <p class="text-xs text-stone-400 mt-1">
+          <% if @settings[:mineru_key_configured] %>✅ 已配置<% else %>未配置，需要 Key 才能使用 MinerU 精准解析<% end %>
+        </p>
+      </div>
+
+      <div class="p-5 flex items-center justify-between">
+        <div>
+          <label class="text-sm font-medium">启用 MinerU 解析</label>
+          <p class="text-xs text-stone-400 mt-0.5">开启后优先使用 MinerU 解析文档（需在 .env 配置 MINERU_API_KEY）</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <%= f.check_box :mineru_enabled, checked: @settings[:mineru_enabled], class: "sr-only peer" %>
+          <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+        </label>
+      </div>
+
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-1">MinerU 模型版本</label>
+        <%= f.select :mineru_model,
+              options_for_select([["pipeline（标准）", "pipeline"], ["vlm（视觉语言）", "vlm"], ["MinerU-HTML", "MinerU-HTML"]], @settings[:mineru_model]),
+              { include_blank: "默认 (pipeline)" },
+              class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+      </div>
+
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-2">通过 MinerU 解析的文件类型</label>
+        <div class="flex flex-wrap gap-2 mb-4" id="mineru-ext-tags">
+          <% default_mineru_exts = %w[.pdf .docx .png .jpg .jpeg] %>
+          <% current_mineru_exts = @settings[:mineru_extensions].blank? ? default_mineru_exts : @settings[:mineru_extensions].split %>
+          <% current_mineru_exts.each do |ext| %>
+            <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700">
+              <%= ext %>
+              <button type="button" onclick="this.parentElement.remove(); updateMineruExts()" class="text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>
+            </span>
+          <% end %>
+        </div>
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="new-mineru-ext" placeholder=".pdf" class="block w-24 rounded-lg border border-stone-300 px-3 py-2 text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();addMineruExt()}">
+          <button type="button" onclick="addMineruExt()" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none">添加</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <% { "文档" => %w[.pdf .docx], "图片" => %w[.png .jpg .jpeg], "全部" => %w[.pdf .docx .png .jpg .jpeg] }.each do |name, exts| %>
+            <button type="button" onclick="setMineruExts(<%= exts.to_json %>)" class="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs text-stone-500 hover:bg-stone-100 cursor-pointer"><%= name %></button>
+          <% end %>
+        </div>
+        <p class="text-xs text-stone-400 mt-2">仅这些类型的文件会通过 MinerU 解析，其余走默认解析器</p>
+        <input type="hidden" name="mineru_extensions" id="mineru-extensions-field" value="<%= current_mineru_exts.join(' ') %>">
+      </div>
+
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-1">各步骤使用的模型</label>
+        <p class="text-xs text-stone-400 mt-0.5 mb-3">不选则使用全局默认模型</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-stone-500 mb-1">文档内容提取</label>
+            <%= f.select :extract_model,
+                  options_for_select(@all_models, @settings[:extract_model]),
+                  { include_blank: "默认模型" },
+                  class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-stone-500 mb-1">大头照识别</label>
+            <%= f.select :portrait_model,
+                  options_for_select(@all_models, @settings[:portrait_model]),
+                  { include_blank: "默认模型" },
+                  class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:24px"></div>
+
+    <!-- 上传限制 -->
+    <div class="mt-8 mb-2">
+      <h2 class="text-lg font-bold">上传限制</h2>
+    </div>
+
+    <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
+      <div class="p-5">
+        <label class="block text-sm font-medium mb-2">允许上传的文件类型</label>
+        <div class="flex flex-wrap gap-2 mb-4" id="extension-tags">
+          <% default_exts = %w[.docx .pdf .xlsx .csv .txt .md .png .jpg .jpeg .bmp] %>
+          <% current_exts = @settings[:allowed_extensions].blank? ? default_exts : @settings[:allowed_extensions].split %>
+          <% current_exts.each do |ext| %>
+            <span class="inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700">
+              <%= ext %>
+              <button type="button" onclick="this.parentElement.remove(); updateExtensions()" class="text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>
+            </span>
+          <% end %>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <input type="text" id="new-ext" placeholder=".pdf" class="block w-24 rounded-lg border border-stone-300 px-3 py-2 text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();addExt()}">
+          <button type="button" onclick="addExt()" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none">添加</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <% templates = { "文档" => %w[.docx .pdf .txt .md], "表格" => %w[.xlsx .csv], "图片" => %w[.png .jpg .jpeg .bmp .tiff], "全部" => default_exts } %>
+          <% templates.each do |name, exts| %>
+            <button type="button" onclick="setExtensions(<%= exts.to_json %>)" class="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs text-stone-500 hover:bg-stone-100 cursor-pointer"><%= name %></button>
+          <% end %>
+        </div>
+        <%= f.hidden_field :allowed_extensions, id: "allowed-extensions-field", value: current_exts.join(" ") %>
       </div>
     </div>
 
@@ -46,20 +160,102 @@
 
 <script>
   var settingsDirty = false;
-
   document.addEventListener("turbo:load", function() {
     var form = document.getElementById("settings-form");
     form.addEventListener("change", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
     form.addEventListener("input", function() { settingsDirty = true; document.getElementById("settings-unsaved").style.display = "inline"; });
     form.addEventListener("submit", function() { settingsDirty = false; });
   });
-
   window.addEventListener("beforeunload", function(e) {
     if (settingsDirty) { e.preventDefault(); e.returnValue = ""; }
   });
-
   function warnSettingsUnsaved() {
     if (settingsDirty) return confirm("有未保存的更改，确定离开？");
     return true;
+  }
+  function addExt() {
+    var input = document.getElementById("new-ext");
+    var ext = input.value.trim().toLowerCase();
+    if (!ext.startsWith(".")) ext = "." + ext;
+    if (ext.length < 2) return;
+    var tags = document.getElementById("extension-tags");
+    // 去重
+    if (tags.querySelector(`[data-ext="${ext}"]`)) return;
+    var span = document.createElement("span");
+    span.className = "inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700";
+    span.appendChild(document.createTextNode(ext));
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs";
+    button.textContent = "×";
+    button.addEventListener("click", function() { span.remove(); updateExtensions(); });
+    span.appendChild(button);
+    tags.appendChild(span);
+    input.value = "";
+    updateExtensions();
+  }
+  function updateExtensions() {
+    var exts = [];
+    document.querySelectorAll("#extension-tags span").forEach(function(s) {
+      exts.push(s.textContent.replace("×","").trim());
+    });
+    document.getElementById("allowed-extensions-field").value = exts.join(" ");
+  }
+  function setExtensions(exts) {
+    var tags = document.getElementById("extension-tags");
+    tags.innerHTML = "";
+    exts.forEach(function(e) {
+      var span = document.createElement("span");
+      span.className = "inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700";
+      span.appendChild(document.createTextNode(e));
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs";
+      button.textContent = "×";
+      button.addEventListener("click", function() { span.remove(); updateExtensions(); });
+      span.appendChild(button);
+      tags.appendChild(span);
+    });
+    updateExtensions();
+  }
+  function addMineruExt() {
+    var inp = document.getElementById("new-mineru-ext");
+    var ext = inp.value.trim().toLowerCase();
+    if (!ext.startsWith(".")) ext = "." + ext;
+    if (ext.length < 2) return;
+    var tags = document.getElementById("mineru-ext-tags");
+    var span = document.createElement("span");
+    span.className = "inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700";
+    span.textContent = ext;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs";
+    btn.textContent = "×";
+    btn.addEventListener("click", function() {
+      span.remove();
+      updateMineruExts();
+    });
+    span.appendChild(btn);
+    tags.appendChild(span);
+    inp.value = "";
+    updateMineruExts();
+  }
+  function updateMineruExts() {
+    var exts = [];
+    document.querySelectorAll("#mineru-ext-tags span").forEach(function(s) {
+      exts.push(s.textContent.replace("×","").trim());
+    });
+    document.getElementById("mineru-extensions-field").value = exts.join(" ");
+  }
+  function setMineruExts(exts) {
+    var tags = document.getElementById("mineru-ext-tags");
+    tags.innerHTML = "";
+    exts.forEach(function(e) {
+      var span = document.createElement("span");
+      span.className = "inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700";
+      span.innerHTML = e + '<button type="button" onclick="this.parentElement.remove();updateMineruExts()" class="text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+      tags.appendChild(span);
+    });
+    updateMineruExts();
   }
 </script>

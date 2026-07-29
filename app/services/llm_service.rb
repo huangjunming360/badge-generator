@@ -3,6 +3,9 @@
 # LLM 调用封装。模型和密钥全部来自 config/models.json，
 # 用户可在前端切换模型，选中的模型存入 session。
 #
+# 支持并发限制：全局信号量控制同时运行的 LLM 请求数，
+# 避免瞬间打爆供应商速率限制。
+#
 # 用法：
 #   LlmService.new(session: session).complete(messages, system: PROMPT)
 
@@ -11,6 +14,33 @@ class LlmService
   # 模型 id 传错是客户端的问题，与上游服务故障要分开处理，
   # 所以单独一个类型 —— 靠匹配错误消息文字来区分太脆弱。
   class UnknownModel < Error; end
+
+  # 全局并发控制：默认最多 3 个 LLM 请求同时运行
+  MAX_CONCURRENCY = [ ENV.fetch("LLM_MAX_CONCURRENCY", 3).to_i, 1 ].max
+  SEMAPHORE = Mutex.new
+  @@active_requests = 0
+
+  def self.active_requests
+    @@active_requests
+  end
+
+  def self.await_slot
+    loop do
+      acquired = false
+      SEMAPHORE.synchronize do
+        if @@active_requests < MAX_CONCURRENCY
+          @@active_requests += 1
+          acquired = true
+        end
+      end
+      return if acquired
+      sleep 0.1
+    end
+  end
+
+  def self.release_slot
+    SEMAPHORE.synchronize { @@active_requests -= 1 }
+  end
 
   # model_id 供无状态的 JSON API 使用：分离架构下前端不共享 cookie session，
   # 选中的模型随请求参数传入。session 仍供 ERB 页面使用。
@@ -21,6 +51,11 @@ class LlmService
   end
 
   def complete(messages, system: nil, max_tokens: 4096)
+    # 等待并发槽位
+    acquired = false
+    self.class.await_slot
+    acquired = true
+
     # 每个模型独立密钥 → 调用前配置
     configure_provider!
 
@@ -33,7 +68,9 @@ class LlmService
     chat.with_temperature(0.0)
     if @config["no_thinking"] && @config["api"] == "openai"
       # Doubao 等 OpenAI 协议模型：主动发 thinking:disabled 关闭深度推理
-      chat.with_params(thinking: { type: "disabled" }, max_tokens: max_tokens.to_i)
+      params = { thinking: { type: "disabled" } }
+      params[:max_tokens] = max_tokens.to_i if max_tokens.to_i > 0
+      chat.with_params(**params)
     elsif max_tokens.to_i > 0
       chat.with_params(max_tokens: max_tokens.to_i)
     end
@@ -50,6 +87,8 @@ class LlmService
     raise Error, "AI 服务响应异常: #{e.message}"
   rescue => e
     raise Error, "LLM 调用失败: #{e.message}"
+  ensure
+    self.class.release_slot if acquired
   end
 
   def embed(text)

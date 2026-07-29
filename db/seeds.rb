@@ -25,4 +25,6 @@ end
 Setting.find_or_create_by!(key: "require_login_for_models") do |s|
   s.value = "true"
 end
+Setting.find_or_create_by!(key: "mineru_enabled") { |s| s.value = "false" }
+Setting.find_or_create_by!(key: "allowed_extensions") { |s| s.value = ".docx .pdf .xlsx .csv .txt .md .png .jpg .jpeg .bmp" }
 puts "默认设置已初始化"

@@ -3,6 +3,7 @@
 # 但前端确实需要它们来渲染标签和做前置校验。
 class Api::V1::SchemaController < Api::BaseController
   skip_before_action :require_api_authentication, only: :show
+  before_action :resume_session, only: :show
 
   def show
     render json: {
@@ -28,10 +29,20 @@ class Api::V1::SchemaController < Api::BaseController
         max_bytes: Card::PORTRAIT_MAX_BYTES
       },
       # 可选模型清单。只暴露 id 与展示名 —— api_key / api_base 是凭据，
-      # 绝不能出现在响应里。
+      # 绝不能出现在响应里。按用户权限等级过滤。
       models: {
-        available: models_config["models"].to_a.map { |m| m.slice("id", "label") },
+        available: models_config["models"].to_a
+          .select { |m| lvl = m["level"].to_i; lvl >= (Current.user&.model_level || User.model_levels.keys.max).to_i || lvl < 0 }
+          .map { |m| m.slice("id", "label") },
         default: models_config["default"]
+      },
+      upload: {
+        allowed_extensions: DocumentTextExtractor.accepted_extensions,
+        max_bytes: DocumentTextExtractor::MAX_BYTES
+      },
+      mineru: {
+        available: Setting.bool("mineru_enabled", default: false) && (Setting.get("mineru_api_key").present? || ENV["MINERU_API_KEY"].present?),
+        portrait_detect: Setting.bool("portrait_detect", default: true)
       }
     }
   end

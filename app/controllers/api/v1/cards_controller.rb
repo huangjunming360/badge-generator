@@ -1,5 +1,4 @@
 class Api::V1::CardsController < Api::BaseController
-  # 速率限制：防止 LLM 额度被刷爆
   rate_limit to: 20, within: 1.minute, only: :create,
     with: -> { render json: { errors: [ "请求过于频繁，请稍后再试" ] }, status: :too_many_requests }
 
@@ -14,6 +13,194 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def create
+    return create_sync if params[:sync] == "1"
+
+    progress_id = SecureRandom.hex(12)
+    raw_input = params[:raw_input]
+    model_id = params[:model_id]
+    return if model_id.present? && !check_model_level!(model_id)
+
+    mineru_enabled = params[:mineru_enabled]
+    portrait_detect = params[:portrait_detect]
+    file_data = params[:document]&.read
+    file_name = params[:document]&.original_filename
+    portrait_data = params[:portrait]&.read
+    portrait_name = params[:portrait]&.original_filename
+    user_id = Current.user&.id
+
+    progress = ProgressTracker.new(progress_id, user_id: Current.user&.id)
+    progress.set(:uploading, "已提交，排队中…")
+
+    Thread.new do
+      begin
+        ActiveRecord::Base.connection_pool.with_connection do
+          card_id = process_card(raw_input, model_id, file_data, file_name,
+                                 portrait_data, portrait_name, progress,
+                                 user_id: user_id,
+                                 mineru_enabled:, portrait_detect:)
+          progress.done(card_id: card_id) if card_id
+        end
+      rescue => e
+        progress.error(e.message)
+        Rails.logger.error("异步解析失败: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+      end
+    end
+
+    render json: { task_id: progress_id }, status: :accepted
+  end
+
+  def destroy
+    card = Current.user.cards.find(params[:id])
+    card.destroy!
+    head :no_content
+  end
+
+  def batch_destroy
+    ids = params[:ids]
+    raise ActionController::ParameterMissing, :ids if ids.blank?
+    Current.user.cards.where(id: ids).destroy_all
+    head :no_content
+  end
+
+  def update
+    card = Current.user.cards.find(params[:id])
+
+    card.assign_attributes(size_params)
+    if (incoming = fields_param)
+      card.data = card.normalized_data.merge(incoming)
+    end
+    card.portrait.attach(params[:portrait]) if params[:portrait].present?
+
+    return render_validation_errors(card) unless card.save
+
+    render json: { card: serializer(card).as_detail }
+  end
+
+  private
+
+  def models_config
+    Rails.application.config.x.models || {}
+  end
+
+  def check_model_level!(model_id)
+    return true unless model_id.present?
+    models = models_config["models"] || []
+    selected = models.find { |m| m["id"] == model_id }
+    if selected && selected["level"].to_i < Current.user.model_level.to_i && selected["level"].to_i >= 0
+      render json: { errors: [ "无权限使用该模型" ] }, status: :forbidden
+      return false
+    end
+    true
+  end
+
+  def process_card(raw_input, model_id, file_data, file_name,
+                   portrait_data, portrait_name, progress,
+                   user_id: nil, mineru_enabled: nil, portrait_detect: nil)
+    progress.set(:uploading, "启动解析…")
+    user = User.find(user_id) if user_id
+    card = user&.cards&.new || Card.new
+
+    # 处理上传的文件
+    text = nil
+    tmpfile = nil
+    if file_data
+      ext = File.extname(file_name || ".txt").downcase
+      tmpfile = Tempfile.new([ "upload", ext ], binmode: true)
+      tmpfile.binmode
+      tmpfile.write(file_data)
+      tmpfile.rewind
+      uploaded = ActionDispatch::Http::UploadedFile.new(
+        filename: file_name || "file#{ext}",
+        type: "application/octet-stream",
+        tempfile: tmpfile
+      )
+
+      use_mineru = mineru_enabled != "0" && Setting.bool("mineru_enabled") && ENV["MINERU_API_KEY"].present?
+      if use_mineru
+        allowed = Setting.get("mineru_extensions").to_s.split
+        allowed = %w[.pdf .docx .png .jpg .jpeg] if allowed.empty?
+        use_mineru = allowed.include?(ext)
+      end
+      progress.set(:mineru, "文档解析中…") if use_mineru
+
+      extractor = DocumentTextExtractor.new
+      text = extractor.call(uploaded)
+      card.used_ocr = extractor.used_ocr?
+      card.source_name = file_name
+      mineru_images = extractor.extracted_images || []
+
+      # 先落库（绕过模型验证），以便 portrait attach 前记录已存在
+      card.raw_input = "temp"
+      card.save!(validate: false)
+
+      # 尝试从 MinerU 图片中识别人像
+      if mineru_images.present? && portrait_detect != "0"
+        progress.set(:portrait, "人像识别中…")
+        detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
+        found = detector.detect(mineru_images)
+        if found && found[:data].present?
+          ext = File.extname(found[:path].to_s).downcase.delete(".")
+          mime = { "jpg" => "image/jpeg", "jpeg" => "image/jpeg", "png" => "image/png" }[ext]
+          if mime
+            card.portrait.attach(io: StringIO.new(found[:data]),
+              filename: File.basename(found[:path]),
+              content_type: mime,
+              identify: false)
+          end
+        end
+      end
+    else
+      text = raw_input
+    end
+
+    raw = text || raw_input || ""
+    return progress.error("提取失败: 无文本内容") if raw.blank?
+
+    # 清理非法字符：null 字节、控制字符（保留换行）
+    raw = raw.force_encoding("UTF-8") if raw.encoding == Encoding::BINARY
+    raw = raw.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+           .gsub("\x00", "")
+           .gsub(/[^\p{Print}\p{Space}]/, "")  # 只保留可打印字符和空白
+           .squeeze(" ")
+           .strip
+    if raw.length > 20_000
+      card.raw_input = raw.truncate(20_000)
+      card.source_name = [ card.source_name, "（内容过长已截断）" ].compact.join(" ")
+    else
+      card.raw_input = raw
+    end
+
+    progress.set(:extracting, "AI 提取字段中…")
+    card.data = CardExtractor.new(model_id: model_id).call(raw)
+    card.save!
+
+    # 用户手动上传的头像在异步流程中也要 attach
+    if portrait_data.present? && card.portrait.blank?
+      card.portrait.attach(io: StringIO.new(portrait_data),
+        filename: portrait_name || "portrait.jpg",
+        content_type: { "png" => "image/png" }.fetch(File.extname(portrait_name.to_s).downcase.delete("."), "image/jpeg"),
+        identify: false)
+    end
+
+    card.id
+  rescue DocumentTextExtractor::UnsupportedFormat,
+         DocumentTextExtractor::ParseError,
+         OcrExtractor::OcrError,
+         CardExtractor::ExtractionError,
+         MineruService::Error => e
+    progress.error(e.message)
+    card.destroy if card.persisted?
+    nil
+  rescue LlmService::Error => e
+    progress.error("AI 服务异常: #{e.message}")
+    card.destroy if card.persisted?
+    nil
+  ensure
+    tmpfile&.close!
+  end
+
+  def create_sync
+    return unless check_model_level!(params[:model_id])
     card = Current.user.cards.new
     card.raw_input = resolve_raw_input
     card.source_name = @source_name
@@ -38,22 +225,6 @@ class Api::V1::CardsController < Api::BaseController
     render_error(e.message, status: :bad_gateway)
   end
 
-  def update
-    card = Current.user.cards.find(params[:id])
-
-    card.assign_attributes(size_params)
-    if (incoming = fields_param)
-      card.data = card.normalized_data.merge(incoming)
-    end
-    card.portrait.attach(params[:portrait]) if params[:portrait].present?
-
-    return render_validation_errors(card) unless card.save
-
-    render json: { card: serializer(card).as_detail }
-  end
-
-  private
-
   def serializer(card)
     CardSerializer.new(card, host: request.base_url)
   end
@@ -70,14 +241,12 @@ class Api::V1::CardsController < Api::BaseController
   def fields_param
     raw = params[:fields]
     return nil if raw.blank?
-
     permitted = raw.permit(*Card::FIELDS).to_h
     permitted.transform_values { |v| v.presence && v.to_s }
   end
 
   def size_params
     return {} if params[:card].blank?
-
     params.require(:card).permit(:width_mm, :height_mm)
   end
 

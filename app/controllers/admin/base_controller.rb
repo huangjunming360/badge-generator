@@ -1,5 +1,6 @@
 class Admin::BaseController < ApplicationController
   before_action :require_admin
+  skip_before_action :check_admin_exists  # admin 已经 require_admin 了
 
   private
 

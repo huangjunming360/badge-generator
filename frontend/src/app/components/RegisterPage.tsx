@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router";
 import { U, E } from "./shared";
 import { sendJson } from "../../api/client";
 
-const REGISTER_URL = "/api/v1/registration";
+const REGISTER_URL = "/registration";
 
 export default function RegisterPage() {
   const nav = useNavigate();

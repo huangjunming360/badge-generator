@@ -18,6 +18,10 @@
       <%= f.label :role, "角色", class: "block text-sm font-medium mb-1" %>
       <%= f.select :role, options_for_select([["用户", "user"], ["管理员", "admin"]]), {}, class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
     </div>
+    <div class="my-5">
+      <%= f.label :model_level, "权限等级", class: "block text-sm font-medium mb-1" %>
+      <%= f.select :model_level, options_for_select(User.model_level_labels_ui.to_a.map(&:reverse), 4), {}, class: "block w-full rounded-lg border border-stone-300 px-3 py-2" %>
+    </div>
     <div class="flex gap-4 mt-8">
       <%= f.submit "创建", class: "px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 cursor-pointer" %>
       <%= link_to "取消", admin_users_path, class: "px-4 py-2 border border-stone-300 rounded-lg hover:bg-stone-50" %>
