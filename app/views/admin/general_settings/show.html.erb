@@ -214,7 +214,16 @@
     var tags = document.getElementById("mineru-ext-tags");
     var span = document.createElement("span");
     span.className = "inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700";
-    span.innerHTML = ext + '<button type="button" onclick="this.parentElement.remove();updateMineruExts()" class="text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+    span.textContent = ext;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs";
+    btn.textContent = "×";
+    btn.addEventListener("click", function() {
+      span.remove();
+      updateMineruExts();
+    });
+    span.appendChild(btn);
     tags.appendChild(span);
     inp.value = "";
     updateMineruExts();
