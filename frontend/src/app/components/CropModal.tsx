@@ -61,7 +61,7 @@ export default function CropModal({ src, open, onClose, onCrop }: Props) {
         <div style={{ position: "relative", width: "100%", height: 340, background: "#111" }}>
           <Cropper image={src} crop={crop} zoom={zoom} {...(ratio >= 0 ? { aspect: ratio } : {})}
             onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete}
-            cropShape="rect" showGrid={false} />
+            cropShape="rect" showGrid />
         </div>
 
         {/* Controls */}
