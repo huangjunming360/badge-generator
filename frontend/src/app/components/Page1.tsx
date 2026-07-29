@@ -214,16 +214,11 @@ export default function Page1() {
         : toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
-      // 自动识别的证件照
+      // 证件照：后端已按"手动上传优先于自动识别"处理，
+      // 所以 card.portrait 就是最终要用的那张。
       if (card.portrait) {
-        // 用户已手动上传照片 → 询问替换
-        if (portraitFile) {
-          setPortraitUrl(card.portrait.url);
-          setShowConflict(true);
-        } else {
-          setPortraitUrl(card.portrait.url);
-          setImgName("📷 " + card.portrait.filename);
-        }
+        setPortraitUrl(card.portrait.url);
+        setImgName(portraitFile ? "📷 已上传照片" : "📷 " + card.portrait.filename);
       }
       startStream(parsed);
     } catch (e) {
