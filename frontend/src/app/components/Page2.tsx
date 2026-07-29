@@ -61,7 +61,10 @@ export default function Page2() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   // 上传的证件照。没传就为 null，卡片上退回占位头像。
-  const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
+  // 从 Page1 传过来的裁切/上传照片优先，刷新后才回源拿
+  const [portraitUrl, setPortraitUrl] = useState<string | null>(
+    saved?.portraitUrl ?? null
+  );
 
   // 预览视口：滚轮缩放与拖拽平移。只影响看，不影响 mm 实物尺寸。
   const { view, setView, reset: resetView, zoomBy } = usePreviewViewport();
@@ -77,7 +80,8 @@ export default function Page2() {
       .then(([card, schema]) => {
         if (!alive) return;
         setSizeMm({ widthMm: card.width_mm, heightMm: card.height_mm });
-        setPortraitUrl(card.portrait?.url ?? null);
+        // 如果 location.state 没传肖像才用服务器的
+        if (!saved?.portraitUrl) setPortraitUrl(card.portrait?.url ?? null);
         setPreviewScale(schema.preview.default_scale);
         setLimits({
           minMm: schema.size.min_mm,

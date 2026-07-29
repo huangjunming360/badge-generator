@@ -745,8 +745,12 @@ export default function Page1() {
         <CropModal src={cropSrc} open={!!cropSrc}
           onClose={() => { if (cropSrc?.startsWith("blob:")) URL.revokeObjectURL(cropSrc); setCropSrc(null); }}
           onCrop={blob => {
+            const file = new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" });
             setCropSrc(null);
-            setPortraitFile(new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" }));
+            // 释放之前的 blob URL
+            if (portraitUrl?.startsWith("blob:")) URL.revokeObjectURL(portraitUrl);
+            setPortraitFile(file);
+            setPortraitUrl(URL.createObjectURL(file));
             setImgName("📷 已裁切");
           }}
         />
