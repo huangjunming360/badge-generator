@@ -220,8 +220,16 @@ export default function Page1() {
       if (card.portrait) {
         const url = card.portrait.url;
         setPortraitUrl(url);
-        setImgName(portraitFile ? "📷 已上传照片" : "📷 原始照片");
-        // 立即保存原始图片（供后续裁切恢复用）
+        // 用户手动上传了照片 → 解析完成后上传替换自动识别的
+        if (portraitFile && cardId) {
+          uploadPortrait(cardId, portraitFile).then(c => {
+            setPortraitUrl(c.portrait?.url ?? url);
+            setImgName("📷 已上传照片");
+          }).catch(() => {});
+        } else {
+          setImgName("📷 原始照片");
+        }
+        // 保存自动识别的照片作为原始底稿（供切换/裁切用）
         if (!originalFileRef.current && !url.startsWith("blob:")) {
           fetch(url).then(r => r.blob()).then(blob => {
             originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
