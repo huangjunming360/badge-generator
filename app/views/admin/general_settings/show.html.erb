@@ -71,6 +71,31 @@
       </div>
 
       <div class="p-5">
+        <label class="block text-sm font-medium mb-2">通过 MinerU 解析的文件类型</label>
+        <div class="flex flex-wrap gap-2 mb-4" id="mineru-ext-tags">
+          <% default_mineru_exts = %w[.pdf .docx .png .jpg .jpeg] %>
+          <% current_mineru_exts = @settings[:mineru_extensions].blank? ? default_mineru_exts : @settings[:mineru_extensions].split %>
+          <% current_mineru_exts.each do |ext| %>
+            <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700">
+              <%= ext %>
+              <button type="button" onclick="this.parentElement.remove(); updateMineruExts()" class="text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>
+            </span>
+          <% end %>
+        </div>
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="new-mineru-ext" placeholder=".pdf" class="block w-24 rounded-lg border border-stone-300 px-3 py-2 text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();addMineruExt()}">
+          <button type="button" onclick="addMineruExt()" class="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600 hover:bg-stone-200 cursor-pointer border-none">添加</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <% { "文档" => %w[.pdf .docx], "图片" => %w[.png .jpg .jpeg], "全部" => %w[.pdf .docx .png .jpg .jpeg] }.each do |name, exts| %>
+            <button type="button" onclick="setMineruExts(<%= exts.to_json %>)" class="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs text-stone-500 hover:bg-stone-100 cursor-pointer"><%= name %></button>
+          <% end %>
+        </div>
+        <p class="text-xs text-stone-400 mt-2">仅这些类型的文件会通过 MinerU 解析，其余走默认解析器</p>
+        <input type="hidden" name="mineru_extensions" id="mineru-extensions-field" value="<%= current_mineru_exts.join(' ') %>">
+      </div>
+
+      <div class="p-5">
         <label class="block text-sm font-medium mb-1">各步骤使用的模型</label>
         <p class="text-xs text-stone-400 mt-0.5 mb-3">不选则使用全局默认模型</p>
         <div class="grid grid-cols-2 gap-4">
@@ -180,5 +205,36 @@
       tags.appendChild(span);
     });
     updateExtensions();
+  }
+  function addMineruExt() {
+    var inp = document.getElementById("new-mineru-ext");
+    var ext = inp.value.trim().toLowerCase();
+    if (!ext.startsWith(".")) ext = "." + ext;
+    if (ext.length < 2) return;
+    var tags = document.getElementById("mineru-ext-tags");
+    var span = document.createElement("span");
+    span.className = "inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700";
+    span.innerHTML = ext + '<button type="button" onclick="this.parentElement.remove();updateMineruExts()" class="text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+    tags.appendChild(span);
+    inp.value = "";
+    updateMineruExts();
+  }
+  function updateMineruExts() {
+    var exts = [];
+    document.querySelectorAll("#mineru-ext-tags span").forEach(function(s) {
+      exts.push(s.textContent.replace("×","").trim());
+    });
+    document.getElementById("mineru-extensions-field").value = exts.join(" ");
+  }
+  function setMineruExts(exts) {
+    var tags = document.getElementById("mineru-ext-tags");
+    tags.innerHTML = "";
+    exts.forEach(function(e) {
+      var span = document.createElement("span");
+      span.className = "inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700";
+      span.innerHTML = e + '<button type="button" onclick="this.parentElement.remove();updateMineruExts()" class="text-blue-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
+      tags.appendChild(span);
+    });
+    updateMineruExts();
   }
 </script>

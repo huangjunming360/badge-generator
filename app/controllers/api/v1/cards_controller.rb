@@ -98,6 +98,11 @@ class Api::V1::CardsController < Api::BaseController
       )
 
       use_mineru = mineru_enabled != "0" && Setting.bool("mineru_enabled") && ENV["MINERU_API_KEY"].present?
+      if use_mineru
+        allowed = Setting.get("mineru_extensions").to_s.split
+        allowed = %w[.pdf .docx .png .jpg .jpeg] if allowed.empty?
+        use_mineru = allowed.include?(ext)
+      end
       mineru_images = []
       if use_mineru
         progress.set(:mineru, "文档解析中…")
