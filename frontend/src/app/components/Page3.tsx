@@ -4,7 +4,7 @@ import { ArrowLeft, Clock, FileText, ScanLine, Trash2, CheckSquare } from "lucid
 import { E, U, usePress } from "./shared";
 import UserMenu from "./UserMenu";
 import { fetchCards, fetchSchema, deleteCard, batchDeleteCards } from "../../api/cards";
-import { toFields } from "../../api/fields";
+import { toFields, toAiFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { CardPayload, SchemaFieldDef } from "../../api/types";
 
@@ -32,7 +32,9 @@ export default function Page3() {
   const open = (card: CardPayload) => {
     if (selectMode) { toggle(card.id); return; }
     navigate("/design", {
-      state: { rawText: card.raw_input ?? "", fields: toFields(card.fields, schema), cardId: card.id,
+      state: { rawText: card.raw_input ?? "",
+        fields: card.ai_fields?.length ? toAiFields(card.ai_fields) : toFields(card.fields, schema),
+        cardId: card.id,
         portraitUrl: card.portrait?.url, imgName: card.portrait ? ("📷 " + card.portrait.filename) : null },
     });
   };
@@ -168,10 +170,10 @@ export default function Page3() {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 3 }}>
-                    {card.fields.name || <span style={{ color: U.textFaint }}>未识别姓名</span>}
+                    {card.ai_fields?.[0]?.value || card.fields.name || <span style={{ color: U.textFaint }}>未识别姓名</span>}
                   </div>
                   <div style={{ fontSize: 11, color: U.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {card.fields.organization || "—"}
+                    {card.ai_fields?.[1]?.value || card.fields.organization || "—"}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 5 }}>
                     <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: U.textFaint }}>
