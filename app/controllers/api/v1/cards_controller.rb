@@ -105,11 +105,6 @@ class Api::V1::CardsController < Api::BaseController
         mineru_images = mineru_result[:images] || []
       end
 
-      # 上传的文件本身就是图片时，也加入候选人像列表
-      if portrait_data.blank? && ext.match?(/\.(jpg|jpeg|png)$/i)
-        mineru_images << { path: file_name, data: file_data, bbox: nil }
-      end
-
       extractor = DocumentTextExtractor.new
       text = extractor.call(uploaded)
       card.used_ocr = extractor.used_ocr?
