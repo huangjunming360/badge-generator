@@ -189,9 +189,11 @@ class Api::V1::CardsController < Api::BaseController
          CardExtractor::ExtractionError,
          MineruService::Error => e
     progress.error(e.message)
+    card.destroy if card.persisted?
     nil
   rescue LlmService::Error => e
     progress.error("AI 服务异常: #{e.message}")
+    card.destroy if card.persisted?
     nil
   ensure
     tmpfile&.close!

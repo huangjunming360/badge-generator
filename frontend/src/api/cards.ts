@@ -45,7 +45,10 @@ export function pollCard(params: {
 
   return work.then(({ task_id }) => {
     return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const MAX = 360;  // 6 分钟上限
       const poll = setInterval(async () => {
+        if (++attempts > MAX) { clearInterval(poll); reject(new Error("解析超时，请重试")); return; }
         try {
           const p = await fetchProgress(task_id);
           onProgress(p);

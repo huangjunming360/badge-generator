@@ -41,7 +41,7 @@ class Api::V1::SchemaController < Api::BaseController
         max_bytes: DocumentTextExtractor::MAX_BYTES
       },
       mineru: {
-        available: Setting.bool("mineru_enabled", default: false) && ENV["MINERU_API_KEY"].present?,
+        available: Setting.bool("mineru_enabled", default: false) && (Setting.get("mineru_api_key").present? || ENV["MINERU_API_KEY"].present?),
         portrait_detect: Setting.bool("portrait_detect", default: true)
       }
     }
