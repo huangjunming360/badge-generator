@@ -122,13 +122,10 @@ class Api::V1::CardsController < Api::BaseController
         detector = PortraitDetector.new(model_id: Setting.get("portrait_model").presence)
         found = detector.detect(mineru_images)
         Rails.logger.info("人像结果: found=#{found.class}")
-        if found
-          img = mineru_images.find { |i| i[:path] == found }
-          if img && img[:data].present?
-            card.portrait.attach(io: StringIO.new(img[:data]),
-              filename: File.basename(img[:path]),
-              content_type: "image/#{File.extname(img[:path]).delete('.')}")
-          end
+        if found && found[:data].present?
+          card.portrait.attach(io: StringIO.new(found[:data]),
+            filename: File.basename(found[:path]),
+            content_type: "image/#{File.extname(found[:path]).delete('.')}")
         end
       end
     else
