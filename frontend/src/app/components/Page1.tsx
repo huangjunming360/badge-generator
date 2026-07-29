@@ -161,7 +161,8 @@ export default function Page1() {
         if (!alive) return;
         setSchema(s.fields);
         setModels(s.models.available);
-        setModelId(s.models.default);
+        const def = s.models.default;
+        setModelId(s.models.available.some(m => m.id === def) ? def : s.models.available[0]?.id ?? null);
         if (s.upload) setUploadCfg(s.upload);
         if (s.mineru) { setMineruCfg(s.mineru); setMineruEnabled(s.mineru.available); }
       })

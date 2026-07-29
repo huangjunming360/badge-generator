@@ -10,9 +10,11 @@ class Admin::ModelsController < Admin::BaseController
     raw["default"] = params[:default_model]
 
     # 默认模型强制设为最低权限等级，确保所有用户能用
+    levels = User.model_levels
+    lowest = levels.keys.max  # 数字最大的等级 = 权限最低
     default = raw["models"]&.find { |m| m["id"] == raw["default"] }
     if default
-      default["level"] = 4
+      default["level"] = lowest
     end
 
     # 用 permit 处理 ActionController::Parameters

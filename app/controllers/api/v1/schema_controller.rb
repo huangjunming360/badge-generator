@@ -31,7 +31,7 @@ class Api::V1::SchemaController < Api::BaseController
       # 绝不能出现在响应里。按用户权限等级过滤。
       models: {
         available: models_config["models"].to_a
-          .select { |m| m["level"].to_i >= (Current.user&.model_level || 4).to_i }
+          .select { |m| m["level"].to_i >= (Current.user&.model_level || User.model_levels.keys.max).to_i }
           .map { |m| m.slice("id", "label") },
         default: models_config["default"]
       },
