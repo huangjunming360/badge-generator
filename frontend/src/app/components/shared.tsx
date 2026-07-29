@@ -25,8 +25,9 @@ export interface CustomCfg {
 export interface NavState {
   rawText: string;
   fields: Field[];
-  // 后端建卡后的 id。刷新会丢 location.state，第二页据此回源重取。
   cardId: number | null;
+  portraitUrl?: string | null;
+  imgName?: string | null;
 }
 
 /* ── Easing ─────────────────────────────────────────────────── */
@@ -295,13 +296,16 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
             border:`1px solid ${ac.main}44`, display:"flex", alignItems:"center", justifyContent:"center" }}>
             <Shield size={13*scale} color={ac.deep} strokeWidth={1.5}/>
           </div>
-          {has("company") && <span style={{ fontSize:11.5*scale*fz, fontWeight:600, color:"#1A2C40" }}>{get("company")}</span>}
+          {has("organization") && <span style={{ fontSize:11.5*scale*fz, fontWeight:600, color:"#1A2C40" }}>{get("organization")}</span>}
         </div>
         <div style={{ marginBottom:10*scale }}>
           {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:21*scale*fz, fontWeight:600, color:"#1A2C40" }}>{get("name")}</div>}
         </div>
         <div style={{ height:1*scale, background:bdr, marginBottom:10*scale }}/>
         <div style={{ display:"flex", flexDirection:"column", gap:5*scale }}>
+          {has("phone") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Phone size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("phone")}</span></div>}
+          {has("email") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Mail size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("email")}</span></div>}
+          {has("address")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("address")}</span></div>}
           {has("area")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("area")}</span></div>}
         </div>
         <div style={{ height:3*scale, background:ac.main, position:"absolute", bottom:0, left:0, right:0 }}/>

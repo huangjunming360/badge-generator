@@ -18,7 +18,30 @@ module Authentication
     end
 
     def require_authentication
-      resume_session || request_authentication
+      return true if resume_session
+
+      request_authentication
+    end
+
+    def require_active_user
+      return unless resume_session
+
+      user = Current.user
+      return unless user
+
+      if user.banned?
+        terminate_session
+        respond_to do |format|
+          format.html { redirect_to new_session_path, alert: "账号已被封禁" }
+          format.json { render json: { errors: [ "账号已被封禁" ] }, status: :forbidden }
+        end
+      elsif !user.active?
+        terminate_session
+        respond_to do |format|
+          format.html { redirect_to "/inactive" }
+          format.json { render json: { errors: [ "账号尚未激活" ] }, status: :forbidden }
+        end
+      end
     end
 
     def resume_session

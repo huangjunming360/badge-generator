@@ -45,7 +45,7 @@ class CardSerializer
     {
       # proxy 而非 redirect：Disk service 的签名 URL 只有 5 分钟有效期，
       # 前端可能把地址存在 state 里稍后才渲染。
-      url: rails_storage_proxy_url(@card.portrait, host: @host),
+      url: "/rails/active_storage/blobs/proxy/#{@card.portrait.signed_id}/#{@card.portrait.filename}",
       filename: blob.filename.to_s,
       content_type: blob.content_type,
       byte_size: blob.byte_size

@@ -54,4 +54,19 @@ export interface SchemaPayload {
     available: { id: string; label: string }[];
     default: string | null;
   };
+  upload: {
+    allowed_extensions: string[];
+    max_bytes: number;
+  };
+  mineru: {
+    available: boolean;
+    portrait_detect: boolean;
+  };
+}
+
+export interface ProgressStatus {
+  stage: string;
+  message: string;
+  updated_at: string;
+  card_id?: number;
 }

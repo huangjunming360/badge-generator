@@ -37,7 +37,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     reply = { "name" => "林思远", "organization" => "清华大学" }.to_json
 
     stub_extractor(reply) do
-      post api_v1_cards_path, params: { raw_input: "林思远 清华大学" }
+      post api_v1_cards_path, params: { sync: "1", raw_input: "林思远 清华大学" }
     end
 
     assert_response :created
@@ -51,7 +51,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     probe.define_singleton_method(:call) { |*| called = true; {} }
 
     with_extractor(probe) do
-      post api_v1_cards_path, params: { raw_input: "" }
+      post api_v1_cards_path, params: { sync: "1", raw_input: "" }
     end
 
     assert_response :unprocessable_content
@@ -65,7 +65,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     end.new
 
     with_extractor(CardExtractor.new(client: boom)) do
-      post api_v1_cards_path, params: { raw_input: "林思远" }
+      post api_v1_cards_path, params: { sync: "1", raw_input: "林思远" }
     end
 
     assert_response :bad_gateway
@@ -74,7 +74,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
 
   test "未知 model_id 返回 422 而非 502" do
     # 模型 id 传错是客户端问题，不该和上游故障混为一谈
-    post api_v1_cards_path, params: { raw_input: "林思远", model_id: "no_such_model" }
+    post api_v1_cards_path, params: { sync: "1", raw_input: "林思远", model_id: "no_such_model" }
 
     assert_response :unprocessable_content
     assert_match(/未知的模型/, body["errors"].first)

@@ -95,6 +95,12 @@
     var target = dir < 0 ? row.previousElementSibling : row.nextElementSibling;
     if (!target) return;
     container.insertBefore(dir < 0 ? row : target, dir < 0 ? target : row);
+    // Reindex all input names after move
+    container.querySelectorAll("[data-level]").forEach(function(r, idx) {
+      r.querySelectorAll("input").forEach(function(input) {
+        input.name = input.name.replace(/\[\d+\]/, "[" + idx + "]");
+      });
+    });
     track();
   }
 </script>

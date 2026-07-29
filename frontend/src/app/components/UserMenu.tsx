@@ -27,7 +27,7 @@ export default function UserMenu({ dark }: { dark?: boolean }) {
         <button onClick={() => setOpen(!open)} style={{
           display: "flex", alignItems: "center", gap: 5,
           padding: "5px 10px", borderRadius: 8, border: "none",
-          background: open ? U.surfaceBlue : "transparent",
+          background: open ? (dark ? "rgba(255,255,255,.15)" : U.surfaceBlue) : "transparent",
           cursor: "pointer", fontSize: 12, color: c,
           transition: `all .15s ${E.smooth}`,
         }}>
@@ -53,6 +53,9 @@ export default function UserMenu({ dark }: { dark?: boolean }) {
           {user.admin && (
             <a href="/admin" style={itemStyle}>管理后台</a>
           )}
+          <button onClick={() => { setOpen(false); nav("/change-password"); }} style={itemStyle}>
+            修改密码
+          </button>
           <button onClick={() => { logout(); nav("/login"); setOpen(false); }} style={itemStyle}>
             退出登录
           </button>
@@ -68,7 +71,8 @@ const linkStyle = (c: string): React.CSSProperties => ({
 });
 
 const itemStyle: React.CSSProperties = {
-  display: "block", width: "100%", padding: "8px 12px", borderRadius: 6,
+  display: "block", width: "100%", padding: "7px 12px", borderRadius: 6,
   border: "none", background: "none", cursor: "pointer", textAlign: "left",
-  fontSize: 13, color: U.textMid, textDecoration: "none", boxSizing: "border-box",
+  fontSize: 12, color: U.textMid, textDecoration: "none", boxSizing: "border-box",
+  transition: "background .1s",
 };

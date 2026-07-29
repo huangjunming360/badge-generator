@@ -12,7 +12,7 @@
   <td><input type="text" name="models[<%= i %>][api_base]" value="<%= m["api_base"] %>"></td>
   <td style="text-align:center;vertical-align:middle">
     <input type="hidden" name="models[<%= i %>][no_thinking]" value="0">
-    <input type="checkbox" name="models[<%= i %>][no_thinking]" value="1" <%= "checked" if m["no_thinking"] == true %>
+    <input type="checkbox" name="models[<%= i %>][no_thinking]" value="1" <%= "checked" if m["no_thinking"] == true || m["no_thinking"].to_s == "1" %>
            style="width:14px;height:14px;cursor:pointer" title="启用后强制关闭思考模式">
   </td>
   <td>

@@ -10,10 +10,15 @@ Rails.application.routes.draw do
   namespace :admin do
     root "dashboard#index"
     resources :users, only: %i[index new create destroy] do
+      collection do
+        post :batch
+      end
       member do
         patch :toggle_active
         patch :toggle_ban
+        patch :toggle_role
         patch :update_level
+        patch :reset_password
       end
     end
     resource :settings, only: %i[edit update], controller: "settings"
@@ -28,8 +33,14 @@ Rails.application.routes.draw do
       resource :session, only: %i[show create destroy], controller: "sessions"
       resource :registration, only: :create, controller: "registrations"
       resource :setup, only: %i[show create], controller: "setup"
+      resource :password, only: :update, controller: "passwords"
+      get "progress/:id", to: "progress#show", as: :progress
       resource :schema, only: %i[show], controller: "schema"
-      resources :cards, only: %i[index show create update]
+      resources :cards, only: %i[index show create update destroy] do
+        collection do
+          delete :batch, to: "cards#batch_destroy"
+        end
+      end
     end
   end
 

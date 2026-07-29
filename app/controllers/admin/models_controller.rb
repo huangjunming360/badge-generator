@@ -26,6 +26,12 @@ class Admin::ModelsController < Admin::BaseController
       }
     end
 
+    # 默认模型强制设为最低权限等级，确保所有用户能用
+    levels = User.model_levels
+    lowest = levels.keys.max
+    default = raw["models"].find { |m| m["id"] == raw["default"] }
+    default["level"] = lowest if default
+
     errors = validate_models_config!(raw)
     unless errors.empty?
       load_config
