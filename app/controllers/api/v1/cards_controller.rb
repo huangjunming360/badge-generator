@@ -22,9 +22,9 @@ class Api::V1::CardsController < Api::BaseController
 
     mineru_enabled = params[:mineru_enabled]
     portrait_detect = params[:portrait_detect]
-    file_data = params[:document]&.read rescue nil
+    file_data = params[:document]&.read
     file_name = params[:document]&.original_filename
-    portrait_data = params[:portrait]&.read rescue nil
+    portrait_data = params[:portrait]&.read
     portrait_name = params[:portrait]&.original_filename
     user_id = Current.user&.id
 

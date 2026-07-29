@@ -72,15 +72,23 @@ export const updateCardSize = (id: number, widthMm: number, heightMm: number) =>
   }).then((r) => r.card);
 
 export const deleteCard = (id: number) =>
-  fetch(`/api/v1/cards/${id}`, { method: "DELETE", headers: { Accept: "application/json" } }).then(r => {
-    if (!r.ok) throw new Error("删除失败");
+  fetch(`/api/v1/cards/${id}`, { method: "DELETE", headers: { Accept: "application/json" } }).then(async r => {
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error((body as any).errors?.[0] || "删除失败");
+    }
   });
 
 export const batchDeleteCards = (ids: number[]) =>
   fetch("/api/v1/cards/batch", {
     method: "DELETE", headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ ids }),
-  }).then(r => { if (!r.ok) throw new Error("批量删除失败"); });
+  }).then(async r => {
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error((body as any).errors?.[0] || "批量删除失败");
+    }
+  });
 
 export const uploadPortrait = (id: number, portrait: File) => {
   const form = new FormData();

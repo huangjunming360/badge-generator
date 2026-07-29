@@ -733,7 +733,7 @@ export default function Page1() {
       {/* ── Crop Modal ─────────────────────────────────── */}
       {cropSrc && (
         <CropModal src={cropSrc} open={!!cropSrc}
-          onClose={() => setCropSrc(null)}
+          onClose={() => { if (cropSrc?.startsWith("blob:")) URL.revokeObjectURL(cropSrc); setCropSrc(null); }}
           onCrop={blob => {
             setCropSrc(null);
             setPortraitFile(new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" }));
