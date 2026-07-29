@@ -11,7 +11,7 @@ interface Props {
 }
 
 const RATIOS: { label: string; value: number }[] = [
-  { label: "自由", value: -1 },
+  { label: "全屏", value: -1 },
   { label: "1:1", value: 1 },
   { label: "3:4", value: 3 / 4 },
   { label: "4:3", value: 4 / 3 },
@@ -29,6 +29,18 @@ export default function CropModal({ src, open, onClose, onCrop }: Props) {
   }, []);
 
   const doCrop = async () => {
+    // 全屏模式：返回完整图片
+    if (ratio < 0) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = src;
+      await new Promise<void>(r => { img.onload = () => r(); });
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      c.getContext("2d")!.drawImage(img, 0, 0);
+      c.toBlob(b => b && onCrop(b), "image/jpeg", 0.92);
+      return;
+    }
     if (!croppedAreaPixels) return;
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -59,9 +71,15 @@ export default function CropModal({ src, open, onClose, onCrop }: Props) {
 
         {/* Crop area */}
         <div style={{ position: "relative", width: "100%", height: 340, background: "#111" }}>
-          <Cropper image={src} crop={crop} zoom={zoom} {...(ratio >= 0 ? { aspect: ratio } : {})}
-            onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete}
-            cropShape="rect" showGrid />
+          {ratio >= 0 ? (
+            <Cropper image={src} crop={crop} zoom={zoom} aspect={ratio}
+              onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete}
+              cropShape="rect" showGrid />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={src} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} alt="" />
+            </div>
+          )}
         </div>
 
         {/* Controls */}
@@ -75,10 +93,11 @@ export default function CropModal({ src, open, onClose, onCrop }: Props) {
             }}>{r.label}</button>
           ))}
           <div style={{ flex: 1 }} />
-          <span style={{ color: "#999", fontSize: 10, marginRight: 4 }}>{Math.round(zoom * 100)}%</span>
-          <input type="range" min={1} max={3} step={0.05} value={zoom}
+          {ratio >= 0 && <>
+            <span style={{ color: "#999", fontSize: 10, marginRight: 4 }}>{Math.round(zoom * 100)}%</span>
+            <input type="range" min={1} max={3} step={0.05} value={zoom}
             onChange={e => setZoom(parseFloat(e.target.value))}
-            style={{ width: 80, accentColor: "#fff" }} />
+            style={{ width: 80, accentColor: "#fff" }} /></>}
         </div>
 
         {/* Actions */}
