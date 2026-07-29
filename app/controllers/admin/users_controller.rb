@@ -42,7 +42,11 @@ class Admin::UsersController < Admin::BaseController
   def update_level
     @user = User.find(params[:id])
     return redirect_to admin_users_path, alert: "不能操作自己的账号" if @user == Current.user
-    if @user.update(model_level: params[:model_level].to_i)
+    level = params[:model_level].to_i
+    unless User.model_levels.key?(level)
+      return redirect_to admin_users_path, alert: "无效的权限等级"
+    end
+    if @user.update(model_level: level)
       redirect_to admin_users_path, notice: "权限等级已更新"
     else
       redirect_to admin_users_path, alert: "更新失败"

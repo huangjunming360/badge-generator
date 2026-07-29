@@ -51,7 +51,7 @@ class PortraitDetector
 
     # 构建多模态消息
     content = RubyLLM::Content.new(PROMPT)
-    candidates.each_with_index do |img, i|
+    candidates.each do |img|
       ext = File.extname(img[:path]).downcase
       mime = ext == ".png" ? "image/png" : "image/jpeg"
       # 用 StringIO 包装二进制数据，Attachment 需要 io_like? 为 true
