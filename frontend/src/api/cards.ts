@@ -50,6 +50,7 @@ export function pollCard(params: {
         if (params.file) form.append("document", params.file);
         if (params.portrait) form.append("portrait", params.portrait);
         if (params.modelId) form.append("model_id", params.modelId);
+        if (params.rawInput) form.append("raw_input", params.rawInput);
         form.append("mineru_enabled", params.mineru_enabled !== false ? "1" : "0");
         form.append("portrait_detect", params.portrait_detect !== false ? "1" : "0");
         return startCreateForm(form);
