@@ -122,11 +122,10 @@ class MineruService
     # 下载图片
     image_refs.each do |ref|
       begin
-        if ref[:url]
-          data = download_file(ref[:url])
+        data = if ref[:url].to_s.match?(%r{^https?://})
+          download_file(ref[:url])
         else
-          # 重新打开 ZIP 读取图片
-          data = zip_entry_data(zip_data, ref[:path])
+          zip_entry_data(zip_data, ref[:path])
         end
         images << { path: ref[:path], data: data, bbox: ref[:bbox] } if data
       rescue => e
