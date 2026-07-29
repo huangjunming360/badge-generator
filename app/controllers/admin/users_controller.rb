@@ -32,12 +32,14 @@ class Admin::UsersController < Admin::BaseController
 
   def toggle_active
     @user = User.find(params[:id])
+    return redirect_to admin_users_path, alert: "不能操作自己的账号" if @user == Current.user
     @user.active? ? @user.deactivate! : @user.activate!
     redirect_to admin_users_path, notice: "用户状态已更新"
   end
 
   def toggle_ban
     @user = User.find(params[:id])
+    return redirect_to admin_users_path, alert: "不能操作自己的账号" if @user == Current.user
     @user.banned? ? @user.unban! : @user.ban!
     redirect_to admin_users_path, notice: "用户封禁状态已更新"
   end

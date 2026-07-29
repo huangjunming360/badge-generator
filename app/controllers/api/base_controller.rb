@@ -12,12 +12,26 @@ class Api::BaseController < ActionController::API
   end
 
   before_action :require_api_authentication
+  skip_before_action :require_active_user
 
   private
 
   def require_api_authentication
     unless authenticated?
-      render json: { errors: [ "请先登录" ] }, status: :unauthorized
+      return render json: { errors: [ "请先登录" ] }, status: :unauthorized
+    end
+
+    user = Current.user
+    return unless user
+
+    if user.banned?
+      terminate_session
+      return render json: { errors: [ "账号已被封禁" ] }, status: :forbidden
+    end
+
+    if !user.active?
+      terminate_session
+      return render json: { errors: [ "账号尚未激活" ] }, status: :forbidden
     end
   end
 

@@ -2,7 +2,7 @@ class ApplicationController < ActionController::Base
   include Authentication
   allow_browser versions: :modern
   stale_when_importmap_changes
-  before_action :check_admin_exists
+  before_action :check_admin_exists, :require_active_user
 
   helper_method :all_models, :default_model_id, :default_model_label
 

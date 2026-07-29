@@ -1,5 +1,6 @@
 class RegistrationsController < ApplicationController
   allow_unauthenticated_access only: %i[new create]
+  skip_before_action :require_active_user, only: %i[new create]
   before_action :check_registration_open, only: %i[new create]
 
   def new
