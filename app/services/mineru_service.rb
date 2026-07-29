@@ -77,91 +77,55 @@ class MineruService
     zip_data = download_file(zip_url)
     images = []
     markdown = nil
-    image_refs = []  # { url:, path:, bbox: }
+    bbox_map = {}   # filename => bbox
 
     Zip::File.open_buffer(zip_data) do |zip|
-      # full.md
       md_entry = zip.glob("**/full.md").first || zip.glob("**/*.md").first
       markdown = md_entry.get_input_stream.read if md_entry
 
-      # 从布局/中间文件中提取图片引用（CDN URL + bbox）
-      layout_entry = zip.glob("**/layout.json").first ||
-                     zip.glob("**/middle.json").first
-      if layout_entry
+      # Extract bbox info from layout.json
+      %w[layout.json middle.json].each do |name|
+        entry = zip.glob("**/#{name}").first
+        next unless entry
         begin
-          layout = JSON.parse(layout_entry.get_input_stream.read)
-          extract_image_refs(layout, image_refs)
+          extract_image_refs(JSON.parse(entry.get_input_stream.read), bbox_map)
+          break
         rescue JSON::ParserError
           nil
         end
       end
 
-      # 也查 content_list.json
-      cl_entry = zip.glob("**/content_list.json").first
-      if cl_entry
-        begin
-          cl = JSON.parse(cl_entry.get_input_stream.read)
-          cl.each do |item|
-            next unless item["image_path"]
-            next if image_refs.any? { |r| r[:path] == item["image_path"] }
-            image_refs << { url: item["image_path"], path: File.basename(item["image_path"]), bbox: item["bbox"] }
-          end
-        rescue JSON::ParserError
-          nil
-        end
-      end
-
-      # ZIP 内嵌图片（如果有的话）
+      # Directly read images from ZIP entries
       zip.each do |entry|
         next unless entry.name.match?(/\.(png|jpg|jpeg|webp)$/i)
-        next if image_refs.any? { |r| r[:path] == entry.name || r[:url]&.include?(entry.name) }
-        image_refs << { url: nil, path: entry.name, bbox: nil }
-      end
-    end
-
-    # 下载图片
-    image_refs.each do |ref|
-      begin
-        data = if ref[:url].to_s.match?(%r{^https?://})
-          download_file(ref[:url])
-        else
-          zip_entry_data(zip_data, ref[:path])
-        end
+        data = entry.get_input_stream.read
         data = data.is_a?(StringIO) ? data.string : data
-        images << { path: ref[:path], data: data, bbox: ref[:bbox] } if data
-      rescue => e
-        Rails.logger.warn("MinerU 图片下载失败: #{ref[:path]}: #{e.message}")
+        next if data.nil? || data.bytesize < 512
+        images << {
+          path: File.basename(entry.name),
+          data: data,
+          bbox: bbox_map[File.basename(entry.name)]
+        }
       end
     end
 
-    Rails.logger.info("MinerU ZIP: #{images.length} images, #{image_refs.length} refs, md=#{markdown ? markdown.length : 0}bytes")
     [ markdown || "", images ]
   end
 
-  def extract_image_refs(layout, refs)
-    # middle.json 结构: { pdf_info: [{ preproc_blocks: [...] }] }
+  def extract_image_refs(layout, bbox_map)
     pdf_infos = layout["pdf_info"] || []
     pdf_infos.each do |info|
       blocks = info["preproc_blocks"] || []
       blocks.each do |block|
         next unless block["type"] == "image"
-        extract_from_block(block, refs)
-      end
-    end
-  end
-
-  def extract_from_block(block, refs)
-    bbox = block["bbox"]
-    sub_blocks = block["blocks"] || []
-    sub_blocks.each do |sb|
-      sb["lines"]&.each do |line|
-        line["spans"]&.each do |span|
-          next unless span["type"] == "image" && span["image_path"]
-          refs << {
-            url: span["image_path"],
-            path: File.basename(span["image_path"]),
-            bbox: span["bbox"] || sb["bbox"] || bbox
-          }
+        bbox = block["bbox"]
+        (block["blocks"] || []).each do |sb|
+          (sb["lines"] || []).each do |line|
+            (line["spans"] || []).each do |span|
+              next unless span["type"] == "image" && span["image_path"]
+              bbox_map[File.basename(span["image_path"])] = span["bbox"] || sb["bbox"] || bbox
+            end
+          end
         end
       end
     end
