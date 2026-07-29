@@ -261,19 +261,11 @@ export default function Page1() {
     setImgName("📷 已上传照片");
     setPortraitFile(file);
     croppedRef.current = false;
-    // 清除原始缓存，下次点裁切会从新照片拉取
-    originalFileRef.current = null;
+    // 原始照片（文档识别那张）不清，留在 originalFileRef 里供切换用
     // 已有 card → 立即上传替换
     if (cardId) {
       uploadPortrait(cardId, file).then(card => {
-        const url = card.portrait?.url ?? null;
-        setPortraitUrl(url);
-        // 上传成功后立即保存为新原始图
-        if (url && !url.startsWith("blob:")) {
-          fetch(url).then(r => r.blob()).then(blob => {
-            originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
-          }).catch(() => {});
-        }
+        setPortraitUrl(card.portrait?.url ?? null);
       }).catch(() => {
         setPortraitUrl(URL.createObjectURL(file));
       });
@@ -622,6 +614,23 @@ export default function Page1() {
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
               }}>裁切</button>
+              {originalFileRef.current && portraitFile && (
+                <button onClick={async () => {
+                  const orig = originalFileRef.current!;
+                  if (cardId) {
+                    const card = await uploadPortrait(cardId, orig).catch(() => null);
+                    setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(orig));
+                  } else {
+                    setPortraitUrl(URL.createObjectURL(orig));
+                  }
+                  setPortraitFile(null);
+                  setImgName("📷 原始照片");
+                  croppedRef.current = false;
+                }} style={{
+                  padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
+                  background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
+                }}>切换至文档</button>
+              )}
             </div>
           )}
 
