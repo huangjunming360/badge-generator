@@ -11,6 +11,7 @@ class RegistrationsController < ApplicationController
     @user = User.new(user_params)
     @user.role = "user"
     @user.model_level = 4
+    @user.active = false
     if @user.save
       start_new_session_for @user
       redirect_to root_path, notice: "注册成功"

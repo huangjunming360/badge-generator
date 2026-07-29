@@ -3,6 +3,20 @@ class Admin::UsersController < Admin::BaseController
     @users = User.order(created_at: :desc)
   end
 
+  def batch
+    ids = params[:user_ids]&.split(",")&.map(&:to_i)&.compact
+    return redirect_to admin_users_path, alert: "未选择用户" if ids.blank?
+
+    users = User.where(id: ids).where.not(id: Current.user.id)  # 不能操作自己
+    case params[:batch_action]
+    when "ban"    then users.update_all(banned_at: Time.current)
+    when "unban"  then users.update_all(banned_at: nil)
+    when "activate"   then users.update_all(active: true)
+    when "deactivate" then users.update_all(active: false)
+    end
+    redirect_to admin_users_path, notice: "已处理 #{users.count} 个用户"
+  end
+
   def new
     @user = User.new
   end

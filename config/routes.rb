@@ -10,6 +10,9 @@ Rails.application.routes.draw do
   namespace :admin do
     root "dashboard#index"
     resources :users, only: %i[index new create destroy] do
+      collection do
+        post :batch
+      end
       member do
         patch :toggle_active
         patch :toggle_ban

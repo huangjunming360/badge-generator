@@ -9,6 +9,7 @@ class Api::V1::RegistrationsController < Api::BaseController
     user = User.new(reg_params)
     user.role = "user"
     user.model_level = 4
+    user.active = false
     if user.save
       start_new_session_for user
       render json: {
