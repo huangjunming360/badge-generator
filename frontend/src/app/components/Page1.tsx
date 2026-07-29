@@ -13,7 +13,7 @@ import { fetchSchema, pollCard, fetchCard } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import CropModal from "./CropModal";
-import { toFields } from "../../api/fields";
+import { toFields, toAiFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
@@ -43,8 +43,8 @@ function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
         {field.selected && <Check size={10} color="#fff" strokeWidth={3} />}
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 5, width: 72, flexShrink: 0 }}>
-        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0 }}>
-          <FIcon k={field.key} size={12} />
+        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0, fontSize: 12 }}>
+          {field.icon ? <i className={`fas ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
         </span>
         <span style={{ fontSize: 11, color: field.selected ? U.blue : U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
           {field.label}
@@ -201,7 +201,9 @@ export default function Page1() {
         setProgressStage(p.stage);
       });
       const card = await fetchCard(cardId);
-      const parsed = toFields(card.fields, schema);
+      const parsed = card.ai_fields?.length
+        ? toAiFields(card.ai_fields)
+        : toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
       // 自动识别的证件照

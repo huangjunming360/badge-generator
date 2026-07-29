@@ -14,6 +14,7 @@ export type CardFields = Record<string, string | null>;
 export interface CardPayload {
   id: number;
   fields: CardFields;
+  ai_fields?: AiField[];
   filled_count: number;
   source_name: string | null;
   used_ocr: boolean;
@@ -23,8 +24,15 @@ export interface CardPayload {
   portrait: PortraitPayload | null;
   created_at: string;
   updated_at: string;
-  // 仅 show/create/update 返回，index 不含。
   raw_input?: string;
+}
+
+export interface AiField {
+  key: string;
+  value: string;
+  label: string;
+  icon?: string;
+  selected?: boolean;
 }
 
 export interface SchemaFieldDef {
