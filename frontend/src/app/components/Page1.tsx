@@ -459,11 +459,12 @@ export default function Page1() {
               <div style={{ flex: 1, display: "flex", gap: 4 }}>
                 {[
                   { key: "uploading", label: "提交" },
-                  { key: "mineru", label: "文档解析" },
-                  { key: "extracting", label: "AI 提取" },
+                  { key: "mineru", label: "解析" },
+                  { key: "portrait", label: "人像" },
+                  { key: "extracting", label: "提取" },
                   { key: "done", label: "完成" },
                 ].map((s, i) => {
-                  const stages = ["uploading", "mineru", "extracting", "done"];
+                  const stages = ["uploading", "mineru", "portrait", "extracting", "done"];
                   const idx = stages.indexOf(progressStage || "uploading");
                   return (
                     <div key={i} style={{

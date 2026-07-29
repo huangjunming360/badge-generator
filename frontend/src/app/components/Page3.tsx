@@ -79,6 +79,12 @@ export default function Page3() {
 
         {selectMode ? (
           <>
+            <button onClick={() => {
+              if (cards) setSelected(new Set(cards.map(c => c.id)));
+            }} style={{
+              fontSize: 11, color: U.blue, background: "none", border: "none",
+              cursor: "pointer", padding: "4px 8px",
+            }}>全选</button>
             <span style={{ fontSize: 11, color: U.textMid }}>已选 {selected.size} 项</span>
             {selected.size > 0 && (
               <button onClick={doBatchDelete} style={{
