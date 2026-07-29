@@ -15,7 +15,9 @@ class PortraitDetector
     return nil if images.blank?
     return images.first if images.one?
 
-    candidates = images.select { |img| img.is_a?(Hash) && img[:data] && (8_000..500_000).cover?(img[:data].bytesize) }
+    candidates = images.select { |img|
+      img.is_a?(Hash) && (data = img[:data]) && data.is_a?(String) && (8_000..500_000).cover?(data.bytesize)
+    }
     return candidates.first if candidates.one? || candidates.empty?
 
     ask_llm(candidates)
@@ -53,7 +55,9 @@ class PortraitDetector
       ext = File.extname(img[:path]).downcase
       mime = ext == ".png" ? "image/png" : "image/jpeg"
       # 用 StringIO 包装二进制数据，Attachment 需要 io_like? 为 true
-      io = StringIO.new(img[:data])
+      raw = img[:data]
+      raw = raw.is_a?(StringIO) ? raw.string : raw
+      io = StringIO.new(raw)
       attachment = RubyLLM::Attachment.new(io, filename: img[:path])
       content.attachments << attachment if attachment.image?
     end
