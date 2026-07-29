@@ -218,13 +218,13 @@ export default function Page1() {
       startStream(parsed);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "提取失败，请重试");
-      setPhase(fields.length ? "active" : "idle");
+      setFields(prev => { setPhase(prev.length ? "active" : "idle"); return prev; });
     } finally {
       setParsing(false);
       setProgressMsg(null);
       setProgressStage(null);
     }
-  }, [schema, startStream, fields.length]);
+  }, [schema, startStream, portraitFile]);
 
   const handleParse = useCallback(() => {
     if (parsing) return;

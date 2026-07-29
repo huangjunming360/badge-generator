@@ -34,10 +34,9 @@ class Api::V1::CardsController < Api::BaseController
     Thread.new do
       begin
         ActiveRecord::Base.connection_pool.with_connection do
-          user = User.find(user_id) if user_id
-          Current.session = user&.sessions&.last
           card_id = process_card(raw_input, model_id, file_data, file_name,
                                  portrait_data, portrait_name, progress,
+                                 user_id: user_id,
                                  mineru_enabled:, portrait_detect:)
           progress.done(card_id: card_id) if card_id
         end
@@ -96,9 +95,10 @@ class Api::V1::CardsController < Api::BaseController
 
   def process_card(raw_input, model_id, file_data, file_name,
                    portrait_data, portrait_name, progress,
-                   mineru_enabled: nil, portrait_detect: nil)
+                   user_id: nil, mineru_enabled: nil, portrait_detect: nil)
     progress.set(:uploading, "启动解析…")
-    card = Current.user.cards.new
+    user = User.find(user_id) if user_id
+    card = user&.cards&.new || Card.new
 
     # 处理上传的文件
     text = nil

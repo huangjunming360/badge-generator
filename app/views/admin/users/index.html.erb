@@ -65,7 +65,11 @@
             <td class="px-4 py-3 text-stone-500"><%= l user.created_at, format: :short %></td>
             <td class="px-4 py-3" style="text-align:right;white-space:nowrap">
               <% unless user == Current.user %>
-                <span onclick="var pw=prompt('新密码（至少6位）:');if(!pw){return};if(pw.length<6){alert('密码至少6位');return};var tk=document.querySelector('meta[name=csrf-token]').content;var f=document.createElement('form');f.method='POST';f.action='<%= reset_password_admin_user_path(user) %>';f.style.display='none';f.innerHTML='<input type=hidden name=_method value=patch><input type=hidden name=authenticity_token value='+tk+'><input name=new_password value='+pw+'>';document.body.appendChild(f);f.submit()" class="text-blue-500 hover:text-blue-700 text-xs cursor-pointer" style="text-decoration:none;margin-right:6px">重置密码</span>
+                <span onclick="var pw=prompt('新密码（至少6位）:');if(!pw){return};if(pw.length<6){alert('密码至少6位');return};var tk=document.querySelector('meta[name=csrf-token]').content;var f=document.createElement('form');f.method='POST';f.action='<%= reset_password_admin_user_path(user) %>';f.style.display='none';
+var m=document.createElement('input');m.type='hidden';m.name='_method';m.value='patch';f.appendChild(m);
+var a=document.createElement('input');a.type='hidden';a.name='authenticity_token';a.value=tk;f.appendChild(a);
+var p=document.createElement('input');p.name='new_password';p.value=pw;f.appendChild(p);
+document.body.appendChild(f);f.submit()" class="text-blue-500 hover:text-blue-700 text-xs cursor-pointer" style="text-decoration:none;margin-right:6px">重置密码</span>
                 <form method="post" action="<%= admin_user_path(user) %>" style="display:inline;margin:0" onsubmit="return confirm('确定删除用户 <%= user.email_address %>？此操作不可恢复！')">
                   <input type="hidden" name="_method" value="delete">
                   <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">

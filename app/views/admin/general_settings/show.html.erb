@@ -180,7 +180,7 @@
     if (ext.length < 2) return;
     var tags = document.getElementById("extension-tags");
     // 去重
-    if (tags.querySelector(`[data-ext="${ext}"`)) return;
+    if (tags.querySelector(`[data-ext="${ext}"]`)) return;
     var span = document.createElement("span");
     span.className = "inline-flex items-center gap-1 px-2 py-1 bg-stone-100 rounded text-xs text-stone-700";
     span.innerHTML = ext + '<button type="button" onclick="this.parentElement.remove();updateExtensions()" class="text-stone-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0 text-xs">×</button>';
