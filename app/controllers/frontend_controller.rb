@@ -7,6 +7,6 @@ class FrontendController < ApplicationController
   skip_before_action :require_active_user
 
   def index
-    render file: Rails.root.join("public/index.html"), layout: false
+    render file: Rails.root.join("public/app.html"), layout: false
   end
 end
