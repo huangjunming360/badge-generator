@@ -63,21 +63,21 @@
               <% end %>
             </td>
             <td class="px-4 py-3 text-stone-500"><%= l user.created_at, format: :short %></td>
-            <td class="px-4 py-3 text-right">
+            <td class="px-4 py-3" style="text-align:right;white-space:nowrap">
               <% unless user == Current.user %>
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap">
-                  <span onclick="var pw=prompt('新密码（至少6位）:');if(!pw){return};if(pw.length<6){alert('密码至少6位');return};var tk=document.querySelector('meta[name=csrf-token]').content;var f=document.createElement('form');f.method='POST';f.action='<%= reset_password_admin_user_path(user) %>';f.style.display='none';f.innerHTML='<input type=hidden name=_method value=patch><input type=hidden name=authenticity_token value='+tk+'><input name=new_password value='+pw+'>';document.body.appendChild(f);f.submit()" class="text-blue-500 hover:text-blue-700 text-xs cursor-pointer" style="text-decoration:none">重置密码</span>
-                  <%= button_to "删除", admin_user_path(user), method: :delete,
-                        data: { turbo_confirm: "确定删除用户 #{user.email_address}？此操作不可恢复！" },
-                        class: "text-red-500 hover:text-red-700 text-xs inline-block",
-                        form_class: "inline" %>
-                  <% unless user.banned? %>
-                    <%= button_to "封禁", toggle_ban_admin_user_path(user), method: :patch,
-                          data: { turbo_confirm: "确定封禁 #{user.email_address}？" },
-                          class: "text-red-500 hover:text-red-700 text-xs inline-block",
-                          form_class: "inline" %>
-                  <% end %>
-                </div>
+                <span onclick="var pw=prompt('新密码（至少6位）:');if(!pw){return};if(pw.length<6){alert('密码至少6位');return};var tk=document.querySelector('meta[name=csrf-token]').content;var f=document.createElement('form');f.method='POST';f.action='<%= reset_password_admin_user_path(user) %>';f.style.display='none';f.innerHTML='<input type=hidden name=_method value=patch><input type=hidden name=authenticity_token value='+tk+'><input name=new_password value='+pw+'>';document.body.appendChild(f);f.submit()" class="text-blue-500 hover:text-blue-700 text-xs cursor-pointer" style="text-decoration:none;margin-right:6px">重置密码</span>
+                <form method="post" action="<%= admin_user_path(user) %>" style="display:inline;margin:0" onsubmit="return confirm('确定删除用户 <%= user.email_address %>？此操作不可恢复！')">
+                  <input type="hidden" name="_method" value="delete">
+                  <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                  <button type="submit" class="text-red-500 hover:text-red-700 text-xs" style="background:none;border:none;cursor:pointer;padding:0;margin:0;margin-right:6px">删除</button>
+                </form>
+                <% unless user.banned? %>
+                  <form method="post" action="<%= toggle_ban_admin_user_path(user) %>" style="display:inline;margin:0" onsubmit="return confirm('确定封禁 <%= user.email_address %>？')">
+                    <input type="hidden" name="_method" value="patch">
+                    <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                    <button type="submit" class="text-red-500 hover:text-red-700 text-xs" style="background:none;border:none;cursor:pointer;padding:0;margin:0">封禁</button>
+                  </form>
+                <% end %>
               <% end %>
             </td>
           </tr>
