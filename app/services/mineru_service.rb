@@ -215,16 +215,17 @@ class MineruService
     http.use_ssl = uri.scheme == "https"
     http.read_timeout = 120
     http.open_timeout = 30
-    http.verify_mode = OpenSSL::SSL::VERIFY_PEER
-    res = http.request(Net::HTTP::Get.new(uri))
-    unless res.code.to_i >= 200 && res.code.to_i < 300
-      raise Error, "下载失败: HTTP #{res.code}"
+    if http.use_ssl?
+      http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      cert_store = OpenSSL::X509::Store.new
+      cert_store.set_default_paths
+      http.cert_store = cert_store
     end
+    res = http.request(Net::HTTP::Get.new(uri))
+    raise Error, "下载失败: HTTP #{res.code}" unless res.code.to_i >= 200 && res.code.to_i < 300
     res.body
-  rescue OpenSSL::SSL::SSLError
-    raise unless Rails.env.development?
-    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    retry
+  rescue OpenSSL::SSL::SSLError => e
+    raise Error, "SSL 验证失败: #{e.message}"
   end
 
   def download_text(url)
