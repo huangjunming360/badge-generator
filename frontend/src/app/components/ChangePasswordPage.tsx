@@ -19,7 +19,7 @@ export default function ChangePasswordPage() {
     if (newPw !== confirm) { setError("两次新密码不一致"); return; }
     setLoading(true);
     try {
-      await sendJson("/api/v1/password", "PATCH", {
+      await sendJson("/password", "PATCH", {
         current_password: current,
         new_password: newPw,
         new_password_confirmation: confirm,
