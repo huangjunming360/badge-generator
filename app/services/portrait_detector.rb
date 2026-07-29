@@ -15,13 +15,13 @@ class PortraitDetector
     return nil if images.blank?
     return images.first if images.one?
 
-    candidates = images.select { |img| img[:data] && (8_000..500_000).cover?(img[:data].bytesize) }
+    candidates = images.select { |img| img.is_a?(Hash) && img[:data] && (8_000..500_000).cover?(img[:data].bytesize) }
     return candidates.first if candidates.one? || candidates.empty?
 
     ask_llm(candidates)
   rescue => e
     Rails.logger.warn("Portrait detection failed: #{e.message}")
-    candidates.first
+    candidates&.first
   end
 
   private
