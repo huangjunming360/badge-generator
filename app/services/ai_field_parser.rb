@@ -26,7 +26,7 @@ class AiFieldParser
     "fa-twitter"       => "Twitter/X",
     "fa-hashtag"       => "主题/话题",
     "fa-clock"         => "时间",
-    "fa-star"          => "重点/荣誉",
+    "fa-star"          => "重点/荣誉"
   }.freeze
 
   SYSTEM_PROMPT = <<~PROMPT
@@ -69,7 +69,7 @@ class AiFieldParser
   def parse(raw_input)
     client = LlmService.new(model_id: @model_id)
     response = client.complete(
-      [{ role: "user", content: raw_input }],
+      [ { role: "user", content: raw_input } ],
       system: SYSTEM_PROMPT,
       max_tokens: 2048
     )
