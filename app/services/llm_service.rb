@@ -133,6 +133,7 @@ class LlmService
 
     RubyLLM.configure do |c|
       if api == "openai"
+        c.openai_use_system_role = true
         c.openai_api_key  = key if key.present?
         c.openai_api_base = base if base.present?
       else
