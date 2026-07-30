@@ -185,7 +185,6 @@ export default function Page1() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const originalFileRef = useRef<File | null>(null);
   const croppedRef = useRef(false);
-  const portraitRemovedRef = useRef(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sourceName, setSourceName] = useState<string | null>(saved?.sourceName ?? null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
@@ -349,7 +348,7 @@ export default function Page1() {
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
 
   const goToDesign = () => {
-    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName, sourceName, portraitRemoved: portraitRemovedRef.current } as NavState });
+    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName, sourceName } as NavState });
   };
 
   /* Padding-top drives the centering ↔ top animation */
@@ -525,7 +524,7 @@ export default function Page1() {
                     else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
                   }} style={{ background: "none", border: "none", cursor: "pointer",
                     color: U.blue, padding: 0, fontSize: 10, lineHeight: 1 }} title="裁切">✂</button>
-                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); portraitRemovedRef.current = true; }}
+                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
                     style={{ background: "none", border: "none", cursor: "pointer",
                       color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
                 </span>
@@ -621,7 +620,29 @@ export default function Page1() {
                     <div key={f.key}>
                       <EditableFieldRow field={f} index={i}
                         onChange={v => changeValue(f.key, v)} />
-                      {f.key === "name_en" && fields.length > 0 && <div style={{ height: 1, background: U.borderLight, margin: "4px 0" }} />}
+                      {/* 证件照排在英文名后面，跟字段共用同一种白色横框，
+                          视觉上属于同一份资料，不再是标题区的附属物。 */}
+                      {f.key === "name_en" && (
+                        <div style={{ marginTop: 7 }}>
+                          <PortraitRow
+                            index={i}
+                            url={portraitUrl}
+                            onPick={() => imgRef.current?.click()}
+                            onCrop={async () => {
+                              if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                                try {
+                                  const res = await fetch(portraitUrl);
+                                  const blob = await res.blob();
+                                  originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                                } catch { /* 拉不到原图就退回用当前图裁 */ }
+                              }
+                              const orig = originalFileRef.current;
+                              setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
+                            }}
+                            onClear={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
