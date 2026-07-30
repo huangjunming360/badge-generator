@@ -96,10 +96,11 @@ export default function Page2() {
     setExporting(true);
     try {
       const who = fields.find(f => f.key === "name")?.value?.trim();
-      // 计算高度：按 55:85 比例
-      const exportHeight = Math.round(exportSize * 85 / 55);
-      // 计算 scale：exportSize 是目标宽度（px），BadgeCard 默认宽度约 206px（55mm）
-      const scale = exportSize / 206;
+      // 55mm 转换为 px（96 DPI）：55 * (96/25.4) ≈ 207px
+      const MM_TO_PX = 96 / 25.4;
+      const baseWidthPx = 55 * MM_TO_PX; // ≈ 207px
+      // 计算 scale：目标宽度 / 基准宽度
+      const scale = exportSize / baseWidthPx;
 
       await exportElementToPng(
         <BadgeCard {...badgeProps} scale={1}/>,
