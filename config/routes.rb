@@ -36,44 +36,6 @@ Rails.application.routes.draw do
       resource :password, only: :update, controller: "passwords"
       get "progress/:id", to: "progress#show", as: :progress
       resource :schema, only: %i[show], controller: "schema"
-      resources :badge_templates, only: %i[index show] do
-        member do
-          get :preview
-        end
-      end
-      get "template_studio", to: "template_studio#index"
-      post "template_studio", to: "template_studio#create"
-      post "template_studio/generate", to: "template_studio#generate"
-      resources :template_generation_jobs, only: :show
-      resources :template_studio, controller: "template_studio", only: %i[show update] do
-        member do
-          post :archive
-        end
-      end
-      namespace :admin do
-        get "template-agent/status", to: "template_agent#status"
-        resources :template_generation_jobs, only: :show do
-          member do
-            post :apply
-          end
-        end
-        resources :badge_templates, only: %i[index show create update] do
-          collection do
-            post :generate
-          end
-          member do
-            post :publish
-            post :archive
-            get :compare
-            post :rollback
-            post :enqueue_visual_repair
-          end
-        end
-      end
-      namespace :internal do
-        post "template-agent/heartbeat", to: "template_agent#heartbeat"
-        post "template-agent/jobs/:id/complete", to: "template_agent#complete"
-      end
       resources :cards, only: %i[index show create update destroy] do
         collection do
           delete :batch, to: "cards#batch_destroy"
@@ -87,8 +49,6 @@ Rails.application.routes.draw do
 
   # 前端 SPA —— 所有非 /admin /api 的路径都渲染 index.html
   root "frontend#index"
-  # React 管理员模板工作台位于 /admin 命名空间，但由 SPA 渲染，不走旧 ERB 后台。
-  get "/admin/templates", to: "frontend#index"
   get "/*path" => "frontend#index",
       constraints: ->(req) {
         !req.path.start_with?("/admin", "/api", "/rails", "/up", "/assets")
