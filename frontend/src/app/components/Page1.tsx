@@ -372,21 +372,6 @@ export default function Page1() {
           display: "flex", flexDirection: "column", gap: 14,
         }}>
 
-          {/* Welcome hint — fades out once active */}
-          <div style={{
-            textAlign: "center",
-            maxHeight: phase === "idle" ? "48px" : "0px",
-            opacity: phase === "idle" ? 1 : 0,
-            overflow: "hidden",
-            transition: `opacity .35s ${E.smooth}, max-height .5s ${E.smooth}`,
-            pointerEvents: "none",
-            marginBottom: phase === "idle" ? 6 : 0,
-          }}>
-            <div style={{ fontSize: 12, color: U.textLight, letterSpacing: ".04em" }}>
-              粘贴参加者信息或 JSON 数据
-            </div>
-          </div>
-
           {/* ── Input card ─────────────────────────────── */}
           <div style={{
             background: U.surface, borderRadius: 14,
