@@ -59,6 +59,70 @@ function EditableFieldRow({ field, onChange, index }: {
   );
 }
 
+/* ── 证件照方框 ─────────────────────────────────────────────
+   点整块换图。有图时鼠标悬停浮出「裁切 / 移除」。 */
+function PortraitSlot({ url, onPick, onCrop, onClear }: {
+  url: string | null;
+  onPick: () => void;
+  onCrop: () => void;
+  onClear: () => void;
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ position: "relative", flexShrink: 0 }}
+    >
+      <button
+        onClick={onPick}
+        title={url ? "点击更换照片" : "点击上传证件照"}
+        style={{
+          width: 54, height: 68, borderRadius: 8, padding: 0, overflow: "hidden",
+          border: url ? `1.5px solid ${U.border}` : `1.5px dashed ${hov ? U.blue : U.border}`,
+          background: url ? U.surface : hov ? U.surfaceBlue : U.bg,
+          cursor: "pointer", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 3,
+          transition: `all .16s ${E.smooth}`,
+        }}
+      >
+        {url ? (
+          <img src={url} alt="证件照"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        ) : (
+          <>
+            <ImageIcon size={15} color={hov ? U.blue : U.textFaint} />
+            <span style={{ fontSize: 9, color: hov ? U.blue : U.textFaint, lineHeight: 1.3 }}>
+              上传照片
+            </span>
+          </>
+        )}
+      </button>
+      {url && hov && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0,
+          display: "flex", background: "rgba(20,35,55,.72)",
+          animation: `fadeSlideIn .14s ${E.smooth} both`,
+        }}>
+          <SlotAction label="裁切" onClick={onCrop} />
+          <SlotAction label="移除" onClick={onClear} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SlotAction({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{
+      flex: 1, border: "none", background: "transparent", cursor: "pointer",
+      color: "#fff", fontSize: 9, padding: "3px 0", lineHeight: 1.4,
+    }}>
+      {label}
+    </button>
+  );
+}
+
 /* ── 加号菜单里的一项 ───────────────────────────────────────── */
 function ImportMenuItem({ icon, label, onClick }: {
   icon: React.ReactNode; label: string; onClick: () => void;
@@ -570,56 +634,6 @@ export default function Page1() {
             </RippleBtn>
           </div>
 
-          {/* ── 证件照预览 ──────────────────────────────── */}
-          {portraitUrl && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
-              animation: `fadeSlideIn .3s ${E.smooth} both`,
-            }}>
-              <img src={portraitUrl} alt="证件照"
-                style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover",
-                  border: `2px solid ${U.green}44`, boxShadow: "0 2px 8px rgba(0,0,0,.06)" }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: U.green }}>
-                  {portraitFile ? "已上传照片" : "已识别到证件照"}
-                </div>
-                <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
-              </div>
-              <button onClick={async () => {
-                // 还没存原图就拉一次
-                if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
-                  try {
-                    const res = await fetch(portraitUrl);
-                    const blob = await res.blob();
-                    originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
-                  } catch {}
-                }
-                // 裁切总是从原始图片开始
-                const orig = originalFileRef.current;
-                setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
-              }} style={{
-                padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
-                background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
-              }}>裁切</button>
-              {originalFileRef.current && portraitFile && (
-                <button onClick={async () => {
-                  const orig = originalFileRef.current!;
-                  if (cardId) {
-                    const card = await uploadPortrait(cardId, orig).catch(() => null);
-                    setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(orig));
-                  } else {
-                    setPortraitUrl(URL.createObjectURL(orig));
-                  }
-                  setPortraitFile(null);
-                  setImgName("📷 原始照片");
-                  croppedRef.current = false;
-                }} style={{
-                  padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
-                  background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
-                }}>切换至文档</button>
-              )}
-            </div>
-          )}
 
           {/* ── AI result section ───────────────────────── */}
           {hasFields && (
@@ -644,6 +658,24 @@ export default function Page1() {
                     </div>
                   </div>
                 </div>
+
+                {/* 证件照：点这块方框直接换图，取代原来的「导入图片」按钮 */}
+                <PortraitSlot
+                  url={portraitUrl}
+                  onPick={() => imgRef.current?.click()}
+                  onCrop={async () => {
+                    if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                      try {
+                        const res = await fetch(portraitUrl);
+                        const blob = await res.blob();
+                        originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                      } catch { /* 拉不到原图就退回用当前图裁 */ }
+                    }
+                    const orig = originalFileRef.current;
+                    setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
+                  }}
+                  onClear={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
+                />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
