@@ -10,6 +10,7 @@ import InactivePage from "./components/InactivePage";
 import ChangePasswordPage from "./components/ChangePasswordPage";
 import AdminTemplateWorkbench from "./components/AdminTemplateWorkbench";
 import TemplateStudioWorkbench from "./components/TemplateStudioWorkbench";
+import TemplateDesignChat from "./components/TemplateDesignChat";
 
 export const router = createBrowserRouter([
   {
@@ -23,7 +24,7 @@ export const router = createBrowserRouter([
       { path: "/setup", Component: SetupPage },
       { path: "/inactive", Component: InactivePage },
       { path: "/change-password", Component: ChangePasswordPage },
-      { path: "/admin/templates", Component: AdminTemplateWorkbench },
+      { path: "/admin/templates", Component: TemplateDesignChat },
       { path: "/templates", Component: TemplateStudioWorkbench },
     ],
   },

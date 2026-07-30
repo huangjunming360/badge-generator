@@ -1,5 +1,5 @@
-import AdminTemplateWorkbench from "./AdminTemplateWorkbench";
+import TemplateDesignChat from "./TemplateDesignChat";
 
 export default function TemplateStudioWorkbench() {
-  return <AdminTemplateWorkbench studio />;
+  return <TemplateDesignChat studio />;
 }
