@@ -8,6 +8,13 @@
 
 模型是约 8.77B 的 BF16 权重，官方推荐用 vLLM 服务。下载前在 WSL2 中确认 Hugging Face 网络可用；如果 Windows 的系统代理没有传入 WSL，需要显式设置 `HTTPS_PROXY` 或 `HF_ENDPOINT`。
 
+先验证 WSL、Docker 和 NVIDIA Container Toolkit 都能看到 4090。下面两条都成功后再下载模型：
+
+```bash
+nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+```
+
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
@@ -26,6 +33,7 @@ HF_ENDPOINT=https://huggingface.co \
 
 ```bash
 docker compose -f docker-compose.yml up -d mai-vllm
+curl --fail http://127.0.0.1:18000/v1/models
 ```
 
 vLLM 只绑定 WSL 本机的 `127.0.0.1:18000`，不会直接暴露到 ZeroTier 或公网。Python 节点控制器在 WSL 主机上运行，访问 `http://127.0.0.1:18000/v1`。
