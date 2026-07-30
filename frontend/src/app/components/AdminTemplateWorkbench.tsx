@@ -621,7 +621,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
             <strong>安全检查</strong>
           </div>
           <div style={{ marginTop: 8, color: U.textFaint, fontSize: 11, lineHeight: 1.6 }}>
-            主画布就是唯一预览。{studio ? "保存草稿后会先做安全和可渲染性检查。" : agentStatus?.connected ? "保存草稿后会由视觉节点检查脚本、外链、溢出和可渲染性。" : "当前节点未连接，只会做基础安全检查；视觉节点连接后才会检查溢出和可渲染性。"}
+            主画布就是唯一预览。{studio ? "保存草稿后会先做安全和可渲染性检查。" : agentStatus?.ready ? "保存草稿后会由视觉节点检查脚本、外链、溢出和可渲染性。" : agentStatus?.connected ? "视觉节点已连接但仍在准备，当前只会做基础安全检查。" : "当前节点未连接，只会做基础安全检查；视觉节点连接后才会检查溢出和可渲染性。"}
           </div>
           <div
             style={{
@@ -694,11 +694,11 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
               </span>
             </div>
             {!studio && (
-              <div className={`agent-status ${agentStatus?.connected ? "online" : "offline"}`}>
+              <div className={`agent-status ${agentStatus?.ready ? "online" : "offline"}`}>
                 <span className="status-dot" />
                 <div>
-                  <strong>{agentStatus?.connected ? `${agentStatus.node?.name ?? "视觉节点"} 已连接` : "视觉节点未连接"}</strong>
-                  <span>{agentStatus?.connected ? "生成后的草案会自动进行隔离视觉检查" : "当前只会生成草案；连接家中节点后才会执行自动视觉检查"}</span>
+                  <strong>{agentStatus?.ready ? `${agentStatus.node?.name ?? "视觉节点"} 已就绪` : agentStatus?.connected ? `${agentStatus.node?.name ?? "视觉节点"} 正在准备` : "视觉节点未连接"}</strong>
+                  <span>{agentStatus?.ready ? "生成后的草案会自动进行隔离视觉检查" : agentStatus?.connected ? "等待 MAI 或隔离渲染器就绪后再处理视觉检查" : "当前只会生成草案；连接家中节点后才会执行自动视觉检查"}</span>
                 </div>
               </div>
             )}
@@ -727,7 +727,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
                     understanding: "理解需求",
                   generating: "生成视觉草案",
                   validating: "安全检查",
-                    visual_review: agentStatus?.connected ? "隔离视觉检查" : "等待视觉节点连接",
+                    visual_review: agentStatus?.ready ? "隔离视觉检查" : "等待视觉节点就绪",
                   review_ready: "等待审核",
                   } as Record<string, string>
                 )[generationStage] ?? generationStage}

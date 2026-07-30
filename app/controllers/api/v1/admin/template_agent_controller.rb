@@ -4,7 +4,8 @@ class Api::V1::Admin::TemplateAgentController < Api::BaseController
   def status
     node = GpuNode.order(last_seen_at: :desc).first
     render json: {
-      connected: node&.last_seen_at.present? && node.last_seen_at > 2.minutes.ago,
+      connected: node&.online? || false,
+      ready: node&.ready_for_visual_repair? || false,
       node: node && {
         name: node.name,
         last_seen_at: node.last_seen_at&.iso8601,

@@ -51,5 +51,5 @@ export const enqueueVisualRepair = (id: number, versionId: number, diagnostics: 
 export const fetchJob = (id: number) => getJson<{ job: { status: string; stage?: string; stage_message?: string; result?: TemplateProposal; error_message?: string } }>(`/admin/template_generation_jobs/${id}`).then(r => r.job);
 export const fetchStudioJob = (id: number) => getJson<{ job: { status: string; stage?: string; stage_message?: string; result?: TemplateProposal; error_message?: string } }>(`/template_generation_jobs/${id}`).then(r => r.job);
 export const applyJob = (id: number) => sendJson<{ version: TemplateVersion }>(`/admin/template_generation_jobs/${id}/apply`, "POST", {}).then(r => r.version);
-export interface TemplateAgentStatus { connected: boolean; node: { name: string; last_seen_at?: string; capabilities?: Record<string, unknown>; paused?: boolean } | null; }
+export interface TemplateAgentStatus { connected: boolean; ready: boolean; node: { name: string; last_seen_at?: string; capabilities?: Record<string, unknown>; paused?: boolean } | null; }
 export const fetchTemplateAgentStatus = () => getJson<TemplateAgentStatus>("/admin/template-agent/status");

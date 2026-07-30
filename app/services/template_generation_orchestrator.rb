@@ -33,7 +33,8 @@ class TemplateGenerationOrchestrator
     @job.advance_stage!("validating", message: "正在检查模板安全性和可渲染性", result: proposal.fetch("validation_report"))
     renew_lease!
     visual_job = enqueue_visual_review!(proposal, payload)
-    @job.advance_stage!("visual_review", message: visual_node_available? ? "已交给视觉节点进行隔离检查" : "等待视觉节点连接后进行隔离检查", result: { "job_id" => visual_job.id, "node_connected" => visual_node_available? })
+    node_ready = visual_node_available?
+    @job.advance_stage!("visual_review", message: node_ready ? "已交给视觉节点进行隔离检查" : "等待视觉节点就绪后进行隔离检查", result: { "job_id" => visual_job.id, "node_ready" => node_ready })
     @job.update!(status: "waiting_for_visual_review", result: proposal, lease_token_digest: nil, lease_expires_at: nil)
   rescue StandardError => e
     fail_job!(e)
@@ -90,6 +91,6 @@ class TemplateGenerationOrchestrator
   end
 
   def visual_node_available?
-    GpuNode.where(active: true).where.not(last_seen_at: nil).where("last_seen_at > ?", 2.minutes.ago).exists?
+    GpuNode.where(active: true).find_each.any?(&:ready_for_visual_repair?)
   end
 end

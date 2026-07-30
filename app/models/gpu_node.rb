@@ -10,6 +10,15 @@ class GpuNode < ApplicationRecord
     { "paused" => false, "max_iterations" => 3, "max_concurrency" => 1 }.merge(desired_config || {})
   end
 
+  def online?
+    last_seen_at.present? && last_seen_at > 2.minutes.ago
+  end
+
+  def ready_for_visual_repair?
+    online? && active? && effective_desired_config.fetch("paused") == false &&
+      capabilities.to_h["mai_ready"] == true && capabilities.to_h["renderer_ready"] == true
+  end
+
   private
 
   def desired_config_is_hash

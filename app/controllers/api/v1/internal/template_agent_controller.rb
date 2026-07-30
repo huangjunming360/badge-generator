@@ -95,9 +95,7 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
   end
 
   def ready_for_visual_repair?
-    config = @node.effective_desired_config
-    capabilities = @node.capabilities.to_h
-    config.fetch("paused") == false && capabilities["mai_ready"] == true && capabilities["renderer_ready"] == true
+    @node.ready_for_visual_repair?
   end
 
   def complete_parent_generation!(job, result, status, error)
