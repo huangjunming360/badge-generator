@@ -185,6 +185,7 @@ export default function Page1() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const originalFileRef = useRef<File | null>(null);
   const croppedRef = useRef(false);
+  const portraitRemovedRef = useRef(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sourceName, setSourceName] = useState<string | null>(saved?.sourceName ?? null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
@@ -348,7 +349,7 @@ export default function Page1() {
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
 
   const goToDesign = () => {
-    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName, sourceName } as NavState });
+    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName, sourceName, portraitRemoved: portraitRemovedRef.current } as NavState });
   };
 
   /* Padding-top drives the centering ↔ top animation */
@@ -524,7 +525,7 @@ export default function Page1() {
                     else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
                   }} style={{ background: "none", border: "none", cursor: "pointer",
                     color: U.blue, padding: 0, fontSize: 10, lineHeight: 1 }} title="裁切">✂</button>
-                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
+                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); portraitRemovedRef.current = true; }}
                     style={{ background: "none", border: "none", cursor: "pointer",
                       color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
                 </span>

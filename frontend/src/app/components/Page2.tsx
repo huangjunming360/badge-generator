@@ -75,7 +75,7 @@ export default function Page2() {
       .then(([card, schema]) => {
         if (!alive) return;
         // 如果 location.state 没传肖像才用服务器的
-        if (!saved?.portraitUrl) setPortraitUrl(card.portrait?.url ?? null);
+        if (!saved?.portraitUrl && !saved?.portraitRemoved) setPortraitUrl(card.portrait?.url ?? null);
         // 没有从上一页带过来字段时（直接刷新本页），用后端数据填充。
         if (!saved?.fields?.length) setFields(toFields(card.fields, schema.fields));
       })
@@ -85,7 +85,7 @@ export default function Page2() {
   }, [cardId, saved?.fields?.length, saved?.portraitUrl]);
 
   const goBack = () => {
-    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null, sourceName: saved?.sourceName ?? null } satisfies NavState });
+    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null, sourceName: saved?.sourceName ?? null, portraitRemoved: saved?.portraitRemoved } satisfies NavState });
   };
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom, portraitUrl };
