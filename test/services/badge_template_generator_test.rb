@@ -50,6 +50,7 @@ class BadgeTemplateGeneratorTest < ActiveSupport::TestCase
     assert_equal [ asset ], message[:attachments]
     assert_includes message[:content], '"width_mm":85.0'
     assert_includes message[:content], '"height_mm":55.0'
+    assert_includes message[:content], '"reference_asset_slots":1'
   ensure
     asset&.purge
   end

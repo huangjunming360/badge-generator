@@ -43,7 +43,7 @@ class BadgeTemplateRenderer
     report = validate_source(version.source_html, version.source_css)
     raise InvalidTemplate, report.fetch("errors").join("；") unless report.fetch("valid")
 
-    html = Liquid::Template.parse(version.source_html).render!(context_for(card), strict_variables: true)
+    html = Liquid::Template.parse(version.source_html).render!(context_for(card, version.badge_template), strict_variables: true)
     html = sanitize_html(html)
     css = sanitize_css(version.source_css)
     document = document_for(html, css, version.badge_template)
@@ -54,7 +54,7 @@ class BadgeTemplateRenderer
     raise InvalidTemplate, "Liquid 渲染失败：#{e.message}"
   end
 
-  def self.context_for(card)
+  def self.context_for(card, template)
     data = card.normalized_data.transform_values { |value| ERB::Util.html_escape(value.to_s) }
     ai_fields = card.data.to_h.fetch("_ai_fields", [])
     selected = ai_fields.filter { |field| field["selected"] != false }.map do |field|
@@ -72,6 +72,7 @@ class BadgeTemplateRenderer
         "portrait_url" => portrait_url(card)
       ),
       "fields" => data,
+      "assets" => template_asset_urls(template),
       "selected_fields" => selected
     }
   end
@@ -82,6 +83,13 @@ class BadgeTemplateRenderer
     Rails.application.routes.url_helpers.rails_storage_proxy_path(card.portrait, only_path: true)
   end
   private_class_method :portrait_url
+
+  def self.template_asset_urls(template)
+    template.design_assets.attachments.order(:id).each_with_index.to_h do |attachment, index|
+      [ "reference_#{index + 1}", Rails.application.routes.url_helpers.rails_storage_proxy_path(attachment, only_path: true) ]
+    end
+  end
+  private_class_method :template_asset_urls
 
   def self.sanitize_html(html)
     raise InvalidTemplate, "HTML 包含不允许的标签" if html.match?(FORBIDDEN_HTML)

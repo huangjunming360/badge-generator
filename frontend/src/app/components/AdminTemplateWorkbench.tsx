@@ -55,7 +55,8 @@ const liquidSample = (s: string) =>
     .replace(
       /{{\s*fields\.([\w_]+)\s*}}/g,
       (_, key) => sample[key as keyof typeof sample] ?? "",
-    );
+    )
+    .replace(/{{\s*assets\.[\w_]+\s*}}/g, sample.portrait_url);
 
 const latestGenerationStorageKey = (studio: boolean) =>
   studio ? "badge-template-studio-generation-job" : "badge-template-admin-generation-job";
@@ -269,6 +270,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
             height_mm: heightMm,
             html,
             css,
+            generation_job_id: generationJobId ?? undefined,
           })
         : await (studio ? createStudioTemplate : createAdminTemplate)({
             name,
@@ -277,6 +279,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
             height_mm: heightMm,
             html,
             css,
+            generation_job_id: generationJobId ?? undefined,
           });
       setSelected(t);
       refresh();

@@ -160,6 +160,30 @@ class Api::V1::BadgeTemplatesTest < ActionDispatch::IntegrationTest
     assert_equal 1, job.reference_assets.count
   end
 
+  test "保存 AI 草案时只复制当前管理员生成任务的参考素材" do
+    sign_in(@admin)
+    job = @admin.template_generation_jobs.create!(job_type: "template_generation", payload: { "requirement" => "品牌模板" })
+    job.reference_assets.attach(fixture_file_upload("portrait.png", "image/png"))
+
+    post "/api/v1/admin/badge_templates", params: {
+      badge_template: { name: "品牌模板", orientation: "portrait", width_mm: 55, height_mm: 85 },
+      source: { source_html: '<img src="{{ assets.reference_1 }}" alt="品牌">', source_css: "" },
+      generation_job_id: job.id
+    }
+
+    assert_response :created
+    template = @admin.owned_badge_templates.find(body.dig("template", "id"))
+    assert_equal 1, template.design_assets.count
+
+    sign_in(@other_admin)
+    post "/api/v1/admin/badge_templates", params: {
+      badge_template: { name: "越权素材", orientation: "portrait", width_mm: 55, height_mm: 85 },
+      source: source,
+      generation_job_id: job.id
+    }
+    assert_response :not_found
+  end
+
   test "模板生成拒绝过多或不支持的参考素材" do
     sign_in(@admin)
     text = fixture_file_upload("note.txt", "text/plain")
