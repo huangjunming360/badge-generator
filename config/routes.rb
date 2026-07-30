@@ -45,6 +45,12 @@ Rails.application.routes.draw do
       post "template_studio", to: "template_studio#create"
       post "template_studio/generate", to: "template_studio#generate"
       resources :template_generation_jobs, only: :show
+      resources :template_design_sessions, only: %i[index show create update] do
+        member do
+          post :append_message
+          post :interrupt
+        end
+      end
       resources :template_studio, controller: "template_studio", only: %i[show update] do
         member do
           post :archive

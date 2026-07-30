@@ -10,6 +10,7 @@ class TemplateGenerationJob < ApplicationRecord
   belongs_to :requested_by, class_name: "User"
   belongs_to :badge_template, optional: true
   belongs_to :gpu_node, optional: true
+  belongs_to :template_design_session, optional: true
   has_many_attached :reference_assets
 
   validates :job_type, inclusion: { in: JOB_TYPES }
@@ -135,7 +136,7 @@ class TemplateGenerationJob < ApplicationRecord
   end
 
   def payload_is_safe_shape
-    allowed = %w[source_html source_css diagnostics requirement reference_notes model_id width_mm height_mm parent_generation_job_id]
+    allowed = %w[source_html source_css diagnostics requirement reference_notes model_id width_mm height_mm parent_generation_job_id design_message_id]
     return if payload.is_a?(Hash) && payload.keys.all? { |key| allowed.include?(key.to_s) }
 
     errors.add(:payload, "包含不支持的字段")

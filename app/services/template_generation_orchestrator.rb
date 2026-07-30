@@ -61,10 +61,12 @@ class TemplateGenerationOrchestrator
     return unless @lease_token.present? && @job.server_lease_valid?(@lease_token)
 
     @job.update!(status: "failed", stage_message: error.message.to_s.truncate(200), error_message: error.message.to_s.truncate(2_000), completed_at: Time.current, lease_token_digest: nil, lease_expires_at: nil)
+    @job.template_design_session&.finish_job!(@job, succeeded: false, error: error.message)
   end
 
   def enqueue_visual_review!(proposal, payload)
     @job.requested_by.template_generation_jobs.create!(
+      template_design_session: @job.template_design_session,
       job_type: "visual_repair",
       complexity: @job.complexity,
       payload: {

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_30_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_31_000000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -132,6 +132,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_030000) do
     t.index ["key"], name: "index_settings_on_key", unique: true
   end
 
+  create_table "template_design_messages", force: :cascade do |t|
+    t.text "content", default: "", null: false
+    t.datetime "created_at", null: false
+    t.json "metadata", default: {}, null: false
+    t.string "role", null: false
+    t.string "state", default: "complete", null: false
+    t.integer "template_design_session_id", null: false
+    t.integer "template_generation_job_id"
+    t.datetime "updated_at", null: false
+    t.index ["template_design_session_id", "created_at"], name: "index_design_messages_in_order"
+    t.index ["template_design_session_id"], name: "index_design_messages_on_session"
+    t.index ["template_generation_job_id"], name: "index_design_messages_on_job"
+  end
+
+  create_table "template_design_sessions", force: :cascade do |t|
+    t.json "configuration", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "owner_id", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_id", "updated_at"], name: "index_template_design_sessions_on_owner_id_and_updated_at"
+    t.index ["owner_id"], name: "index_template_design_sessions_on_owner_id"
+  end
+
   create_table "template_generation_jobs", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.integer "badge_template_id"
@@ -151,12 +176,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_030000) do
     t.json "stage_results", default: {}, null: false
     t.datetime "started_at"
     t.string "status", default: "queued", null: false
+    t.integer "template_design_session_id"
     t.datetime "updated_at", null: false
     t.index ["badge_template_id"], name: "index_template_generation_jobs_on_badge_template_id"
     t.index ["gpu_node_id", "status"], name: "index_template_generation_jobs_on_gpu_node_id_and_status"
     t.index ["gpu_node_id"], name: "index_template_generation_jobs_on_gpu_node_id"
     t.index ["requested_by_id"], name: "index_template_generation_jobs_on_requested_by_id"
     t.index ["status"], name: "index_template_generation_jobs_on_status"
+    t.index ["template_design_session_id"], name: "index_template_generation_jobs_on_template_design_session_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -182,7 +209,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_030000) do
   add_foreign_key "cards", "users"
   add_foreign_key "messages", "conversations"
   add_foreign_key "sessions", "users"
+  add_foreign_key "template_design_messages", "template_design_sessions"
+  add_foreign_key "template_design_messages", "template_generation_jobs"
+  add_foreign_key "template_design_sessions", "users", column: "owner_id"
   add_foreign_key "template_generation_jobs", "badge_templates"
   add_foreign_key "template_generation_jobs", "gpu_nodes"
+  add_foreign_key "template_generation_jobs", "template_design_sessions"
   add_foreign_key "template_generation_jobs", "users", column: "requested_by_id"
 end

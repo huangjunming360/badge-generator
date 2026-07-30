@@ -116,8 +116,10 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
           "visual_review" => result
         )
         parent.update!(status: "succeeded", stage: "review_ready", stage_message: "视觉检查已完成，等待人工审核", result: reviewed, completed_at: Time.current)
+        parent.template_design_session&.finish_job!(parent, succeeded: true, proposal: reviewed)
       else
         parent.update!(status: "failed", stage: "visual_review", stage_message: "视觉检查失败", error_message: error.to_s.truncate(2_000), completed_at: Time.current)
+        parent.template_design_session&.finish_job!(parent, succeeded: false, error: error)
       end
     end
   end
