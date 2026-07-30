@@ -174,6 +174,7 @@ export function FIcon({ k, size=11 }: { k:string; size?:number }) {
     host_organization: <Building2 size={size}/>,
     host_department:   <Users size={size}/>,
     event_topic:       <BookOpen size={size}/>,
+    event_topic_en:    <BookOpen size={size}/>,
   };
   return <>{m[k] ?? <Hash size={size}/>}</>;
 }
@@ -288,7 +289,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
             {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:13*scale*fz, fontWeight:600, color:"#1A2C40", lineHeight:1.2 }}>{get("name")}</div>}
             {!isL && <div style={{ height:1*scale, background:bdr, margin:`${7*scale}px 0` }}/>}
             <div style={{ display:"flex", flexDirection:"column", gap:4.5*scale, flex:1 }}>
-              {others.slice(0,5).map(f => (
+              {others.slice(0,6).map(f => (
                 <div key={f.key} style={{ display:"flex", flexDirection:"column", gap:1*scale, minWidth:0 }}>
                   <span style={{ fontSize:6.5*scale*fz, color:"#8AABBB", letterSpacing:".1em", textTransform:"uppercase", lineHeight:1.25 }}>{f.label}</span>
                   <span style={{ fontSize:8*scale*fz, color:"#1A2C40", fontWeight:500, lineHeight:1.3,
@@ -367,7 +368,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
         </div>
         <div style={{ height:1*scale, background:bdr, marginBottom:8*scale }}/>
         <div style={{ display:"flex", flexDirection:"column", gap:5.5*scale, flex:1 }}>
-          {others.slice(0,6).map(f => (
+          {others.slice(0,7).map(f => (
             <div key={f.key} style={{ display:"flex", flexDirection:"column", gap:1*scale, minWidth:0 }}>
               <span style={{ fontSize:7*scale*fz, color:"#8AABBB", letterSpacing:".1em", textTransform:"uppercase", lineHeight:1.25 }}>{f.label}</span>
               <span style={{ fontSize:8.5*scale*fz, color:"#1A2C40", fontWeight:500, lineHeight:1.3,
@@ -611,12 +612,20 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
 /* ── Options sidebar (shared between Page2 layouts) ──────────── */
 export function OptionsSidebar({
   template, setTemplate, accent, setAccent,
-  custom, setCustom,
+  custom, setCustom, onExport, exporting, exportSize, setExportSize,
 }: {
   template:Template;   setTemplate:(t:Template)=>void;
   accent:AccentKey;    setAccent:(a:AccentKey)=>void;
   custom:CustomCfg;    setCustom:(c:CustomCfg)=>void;
+  onExport?:()=>void; exporting?:boolean;
+  exportSize?:number; setExportSize?:(size:number)=>void;
 }) {
+  const exportSizes = [
+    { label: "标准 (550×850px)", value: 550 },
+    { label: "高清 (1100×1700px)", value: 1100 },
+    { label: "超清 (2200×3400px)", value: 2200 },
+  ];
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
       {/* Template */}
@@ -675,6 +684,40 @@ export function OptionsSidebar({
           })}
         </div>
       </div>
+
+      {/* 导出尺寸和导出按钮 */}
+      {onExport && (
+        <>
+          <Divider/>
+          <div>
+            <SLabel icon={<Download size={11}/>} text="导出尺寸"/>
+            <div style={{ display:"flex", flexDirection:"column", gap:7, marginBottom:12 }}>
+              {exportSizes.map(size => {
+                const active = exportSize === size.value;
+                return (
+                  <OptionTile key={size.value} active={active} onClick={() => setExportSize?.(size.value)} row>
+                    <span style={{ flex:1, fontSize:11.5, color:active?U.blue:U.text, fontWeight:active?600:500 }}>
+                      {size.label}
+                    </span>
+                    <div style={{ width:9, height:9, borderRadius:"50%",
+                      background:active?U.blue:U.border, transition:`background .2s ${E.spring}` }}/>
+                  </OptionTile>
+                );
+              })}
+            </div>
+            <RippleBtn onClick={onExport} disabled={exporting} style={{
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%",
+              padding:"11px 20px", borderRadius:10, background:U.blue, border:"none",
+              cursor:exporting ? "default" : "pointer", opacity:exporting ? .6 : 1,
+              color:"#fff", fontSize:13, fontWeight:600,
+              boxShadow:exporting ? "none" : "0 4px 16px rgba(58,118,196,.38)",
+              transition:`all .2s ${E.smooth}`,
+            }}>
+              <Download size={14}/> {exporting ? "导出中…" : "导出工牌"}
+            </RippleBtn>
+          </div>
+        </>
+      )}
 
     </div>
   );

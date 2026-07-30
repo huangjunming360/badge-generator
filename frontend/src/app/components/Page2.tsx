@@ -6,9 +6,9 @@ import {
   E, U, ACCENTS,
   BadgeCard, PreviewSheet, OptionsSidebar, RippleBtn, fzHeightFactor,
 } from "./shared";
-import { BadgeCanvas, templateContentSize, canvasSizeMm } from "./BadgeCanvas";
+import { BadgeCanvas, templateContentSize } from "./BadgeCanvas";
 import { PreviewViewport, usePreviewViewport, MIN_ZOOM, MAX_ZOOM } from "./PreviewViewport";
-import { fetchCard, fetchSchema, updateCardSize } from "../../api/cards";
+import { fetchCard, fetchSchema } from "../../api/cards";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import { exportElementToPng, ExportError } from "../exportBadge";
@@ -50,12 +50,10 @@ export default function Page2() {
   const [optPanelOpen, setOptPanelOpen] = useState(true);
 
   const [cardId] = useState<number | null>(saved?.cardId ?? null);
-  // 实物尺寸以后端为准（默认 55×85mm）。刷新丢了 state 时用后端默认值兜底。
-  const [sizeMm, setSizeMm] = useState({ widthMm: 55, heightMm: 85 });
+  // 导出尺寸（像素宽度，高度按 55:85 比例自动计算）
+  const [exportSize, setExportSize] = useState(1100); // 默认高清 1100×1700px
   // 预览缩放档位选择器已下线，固定 1×。视口的滚轮/按钮缩放照旧可用。
   const previewScale = 1;
-  // 尺寸边界来自后端 schema，不在前端写死。
-  const [limits, setLimits] = useState({ minMm: 20, maxMm: 200 });
   const [error, setError] = useState<string | null>(null);
   // 上传的证件照。没传就为 null，卡片上退回占位头像。
   // 从 Page1 传过来的裁切/上传照片优先，刷新后才回源拿
@@ -76,33 +74,15 @@ export default function Page2() {
     Promise.all([fetchCard(cardId), fetchSchema()])
       .then(([card, schema]) => {
         if (!alive) return;
-        setSizeMm({ widthMm: card.width_mm, heightMm: card.height_mm });
         // 如果 location.state 没传肖像才用服务器的
         if (!saved?.portraitUrl) setPortraitUrl(card.portrait?.url ?? null);
-        setLimits({ minMm: schema.size.min_mm, maxMm: schema.size.max_mm });
         // 没有从上一页带过来字段时（直接刷新本页），用后端数据填充。
         if (!saved?.fields?.length) setFields(toFields(card.fields, schema.fields));
       })
       .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "读取失败"); });
 
     return () => { alive = false; };
-  }, [cardId, saved?.fields?.length]);
-
-  // 尺寸落库。勾选/配色/字号是纯展示配置不入库，
-  // 但 mm 尺寸决定印出来多大，必须持久化。
-  const persistSize = async (widthMm: number, heightMm: number) => {
-    setSizeMm({ widthMm, heightMm });
-    if (!cardId) return;
-    setError(null);
-    try {
-      await updateCardSize(cardId, widthMm, heightMm);
-    } catch (e) {
-      // 「已保存」提示已去掉，但失败必须说 —— 静默失败会让用户
-      // 以为改了尺寸，导出时才发现是旧的。
-      setError(e instanceof ApiError ? e.message : "保存尺寸失败");
-    }
-  };
-
+  }, [cardId, saved?.fields?.length, saved?.portraitUrl]);
 
   const goBack = () => {
     navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null } satisfies NavState });
@@ -110,23 +90,28 @@ export default function Page2() {
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom, portraitUrl };
 
-  // 导出走离屏重渲染：预览那份套在缩放视口里、还带滤镜和动画，
-  // html2canvas 截它会得到空白图。这里重新渲一份干净的。
+  // 导出：固定 55×85 比例，通过 exportSize（像素宽度）控制尺寸
   const handleExport = useCallback(async () => {
     if (exporting) return;
     setExporting(true);
     try {
       const who = fields.find(f => f.key === "name")?.value?.trim();
+      // 计算高度：按 55:85 比例
+      const exportHeight = Math.round(exportSize * 85 / 55);
+      // 计算 scale：exportSize 是目标宽度（px），BadgeCard 默认宽度约 206px（55mm）
+      const scale = exportSize / 206;
+
       await exportElementToPng(
-        <BadgeCard {...badgeProps} scale={2}/>,
+        <BadgeCard {...badgeProps} scale={1}/>,
         who ? `工牌_${who}` : "工牌",
+        scale,
       );
     } catch (e) {
       setError(e instanceof ExportError ? e.message : "导出失败，请重试");
     } finally {
       setExporting(false);
     }
-  }, [exporting, fields, template, accent, fontSize, styleK, custom, portraitUrl]);
+  }, [exporting, fields, template, accent, fontSize, styleK, custom, portraitUrl, exportSize, badgeProps]);
 
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column",
@@ -220,12 +205,12 @@ export default function Page2() {
           {/* 可缩放拖拽的视口。工牌尺寸一大就超出容器，
               让用户能自己缩小、拖看局部，比只给固定档位实用。 */}
           <PreviewViewport view={view} setView={setView}>
-            <div style={{ animation:`floatIn .5s ${E.spring} both`,
-              filter:"drop-shadow(0 16px 40px rgba(30,50,80,.13))" }}>
+            <div style={{ animation:`floatIn .5s ${E.spring} both` }}>
               {/* 外层是 mm 实物画布，内容等比缩放居中。设计稿模板是像素比例
                   （竖版 2:3），与 55:85 不等，包一层才不会拉伸变形。 */}
               <BadgeCanvas
-                {...canvasSizeMm(sizeMm.widthMm, sizeMm.heightMm, template, custom.orientation)}
+                widthMm={55}
+                heightMm={85}
                 contentWidth={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).width}
                 contentHeight={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).height}
                 previewScale={previewScale}
@@ -259,9 +244,6 @@ export default function Page2() {
               <span style={{ fontSize:10.5, color:U.textFaint, marginLeft:6 }}>
                 滚轮缩放 · 拖拽平移 · 点百分比复位
               </span>
-              <span style={{ fontSize:10.5, color:U.textFaint, marginLeft:6 }}>
-                · 实物 {sizeMm.widthMm}×{sizeMm.heightMm}mm
-              </span>
             </div>
           </div>
         </div>
@@ -281,8 +263,8 @@ export default function Page2() {
                 template={template}   setTemplate={setTemplate}
                 accent={accent}       setAccent={setAccent}
                 custom={custom}       setCustom={setCustom}
-                onExport={handleExport}
-                exporting={exporting}
+                onExport={handleExport} exporting={exporting}
+                exportSize={exportSize} setExportSize={setExportSize}
               />
             </div>
           </div>
@@ -291,12 +273,7 @@ export default function Page2() {
 
       {/* Preview sheet */}
       <PreviewSheet open={sheetOpen} onClose={() => setSheetOpen(false)} {...badgeProps}
-        onExport={handleExport} exporting={exporting}
-        size={{
-          widthMm: sizeMm.widthMm, heightMm: sizeMm.heightMm,
-          minMm: limits.minMm, maxMm: limits.maxMm,
-          onCommit: persistSize,
-        }}/>
+        onExport={handleExport} exporting={exporting} />
     </div>
   );
 }
