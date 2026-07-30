@@ -96,7 +96,9 @@ class DocumentTextExtractor
     Rails.logger.warn("MinerU 解析失败，降级到旧解析器: #{e.message}")
     nil
   ensure
-    tmpfile&.close!
+    # close! 会 unlink，Windows 上文件若还被持着就抛 EACCES，
+    # 会盖掉本来成功的 MinerU 结果。跟 with_tempfile 一样宽容处理。
+    cleanup_tempfile(tmpfile) if tmpfile
   end
 
   def save_tempfile(uploaded_file, ext)
@@ -104,7 +106,10 @@ class DocumentTextExtractor
     uploaded_file.rewind if uploaded_file.respond_to?(:rewind)
     IO.copy_stream(uploaded_file.to_io, tmp)
     tmp.flush
-    tmp  # 返回 Tempfile 对象防止 GC 删除文件
+    # 关掉自己这份句柄：MineruService 只按路径读，Windows 上留着句柄
+    # 会和它的 File.open 抢占。返回 Tempfile 对象本身防止 GC 删掉文件。
+    tmp.close
+    tmp
   end
 
   def validate_size!(file)
@@ -122,18 +127,38 @@ class DocumentTextExtractor
   end
 
   # 解析库大多只认磁盘路径，统一落到临时文件再处理。
+  #
+  # 不用 Tempfile.create 的块形式：它在块结束时 unlink，而 docx 走的
+  # Zip::File.open 会一直持着这个路径的句柄（rubyzip 3 的 Zip::File#close
+  # 只是 commit 的别名，不释放句柄）。Windows 上删不掉仍被打开的文件，
+  # unlink 抛 EACCES，正文其实已经读出来了却被报成解析失败。
+  # 改成手动删，删不掉只记日志 —— 临时文件留给系统回收，
+  # 不能让清理失败盖掉已经成功的解析结果。
   def with_tempfile(uploaded_file)
     ext = File.extname(uploaded_file.original_filename.to_s).downcase
-    Tempfile.create([ "upload", ext ], binmode: true) do |tmp|
+    tmp = Tempfile.new([ "upload", ext ], binmode: true)
+    begin
       uploaded_file.rewind if uploaded_file.respond_to?(:rewind)
       IO.copy_stream(uploaded_file.to_io, tmp)
       tmp.flush
+      # 关掉自己这份句柄，解析库才好在 Windows 上按路径打开。
+      tmp.close
       yield tmp.path
+    ensure
+      cleanup_tempfile(tmp)
     end
   rescue UnsupportedFormat, ParseError, OcrExtractor::OcrError
     raise
   rescue StandardError => e
     raise ParseError, "文件解析失败：#{e.message}"
+  end
+
+  # 删不掉不是错误：解析已经完成，残留的临时文件由系统的临时目录清理兜底。
+  def cleanup_tempfile(tmp)
+    tmp.close unless tmp.closed?
+    tmp.unlink
+  rescue Errno::EACCES, Errno::ENOENT => e
+    Rails.logger.warn("临时文件清理失败（不影响解析结果）：#{e.message}")
   end
 
   def parse_docx(path)

@@ -174,6 +174,7 @@ export function FIcon({ k, size=11 }: { k:string; size?:number }) {
     host_organization: <Building2 size={size}/>,
     host_department:   <Users size={size}/>,
     event_topic:       <BookOpen size={size}/>,
+    event_topic_en:    <BookOpen size={size}/>,
   };
   return <>{m[k] ?? <Hash size={size}/>}</>;
 }
@@ -246,7 +247,9 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
   // 字号放大时卡片同步变高，内容才不会顶掉底部的二维码。
   const hf  = fzHeightFactor(fontSize);
   const rad = styleK==="minimal" ? 12 : 4;
-  const SH  = "0 8px 32px rgba(30,50,80,.13), 0 2px 8px rgba(30,50,80,.08)";
+  // 不加投影。卡片本身有 1px 边框，再叠阴影在浅底上会糊成一圈灰框，
+  // 导出 PNG 时那圈灰也会一起被截进去。
+  const SH  = "none";
   const bg="#FDFBF7", bgH="#F5F1E8", bdr="#E0D8C8";
 
   if (sel.length === 0) return (
@@ -575,17 +578,20 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
 /* ── Options sidebar (shared between Page2 layouts) ──────────── */
 export function OptionsSidebar({
   template, setTemplate, accent, setAccent,
-  fontSize, setFontSize, styleK, setStyleK,
-  custom, setCustom, onExport, exporting,
+  custom, setCustom, onExport, exporting, exportSize, setExportSize,
 }: {
   template:Template;   setTemplate:(t:Template)=>void;
   accent:AccentKey;    setAccent:(a:AccentKey)=>void;
-  fontSize:FontSz;     setFontSize:(f:FontSz)=>void;
-  styleK:StyleKey;     setStyleK:(s:StyleKey)=>void;
   custom:CustomCfg;    setCustom:(c:CustomCfg)=>void;
-  onExport?:()=>void;
-  exporting?:boolean;
+  onExport?:()=>void; exporting?:boolean;
+  exportSize?:number; setExportSize?:(size:number)=>void;
 }) {
+  const exportSizes = [
+    { label: "标准 (550×850px)", value: 550 },
+    { label: "高清 (1100×1700px)", value: 1100 },
+    { label: "超清 (2200×3400px)", value: 2200 },
+  ];
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
       {/* Template */}
@@ -657,52 +663,30 @@ export function OptionsSidebar({
 
       <Divider/>
 
-      {/* Font size */}
-      <div>
-        <SLabel icon={<Type size={11}/>} text="字号大小"/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7 }}>
-          {(["sm","md","lg"] as FontSz[]).map((s, i) => (
-            <OptionTile key={s} active={fontSize===s} onClick={()=>setFontSize(s)}>
-              <span style={{ fontSize:[14,18,22][i], lineHeight:1,
-                color:fontSize===s?U.blue:U.textMid, fontFamily:"'Playfair Display',serif" }}>文</span>
-              <span style={{ fontSize:9.5, color:fontSize===s?U.blue:U.textLight, fontWeight:fontSize===s?600:400 }}>
-                {["偏小","标准","偏大"][i]}
-              </span>
-            </OptionTile>
-          ))}
+      {/* Export size */}
+      {exportSize !== undefined && setExportSize && (
+        <div>
+          <SLabel icon={<Download size={11}/>} text="导出尺寸"/>
+          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+            {exportSizes.map(s => {
+              const active = exportSize === s.value;
+              return (
+                <OptionTile key={s.value} active={active} onClick={() => setExportSize(s.value)} row>
+                  <div style={{ flex:1, fontSize:12, color:active?U.blue:U.text, fontWeight:active?600:500 }}>
+                    {s.label}
+                  </div>
+                  {active && <Check size={13} color={U.blue}/>}
+                </OptionTile>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <Divider/>
 
-      {/* Style */}
-      <div>
-        <SLabel icon={<Columns size={11}/>} text="边框风格"/>
-        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-          {(["minimal","formal"] as StyleKey[]).map(s => {
-            const active = styleK===s;
-            const meta = { minimal:{n:"圆润简约",d:"圆角边框"}, formal:{n:"方正正式",d:"直角边框"} }[s];
-            return (
-              <OptionTile key={s} active={active} onClick={()=>setStyleK(s)} row>
-                <div style={{ width:30, height:30, flexShrink:0,
-                  borderRadius:s==="minimal"?15:4,
-                  background:active?U.blueLight:U.border,
-                  border:`1px solid ${active?U.blue+"44":U.borderLight}`,
-                  transition:`border-radius .25s ${E.spring}, background .15s` }}/>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, color:active?U.blue:U.text, fontWeight:active?600:500 }}>{meta.n}</div>
-                  <div style={{ fontSize:10, color:U.textFaint }}>{meta.d}</div>
-                </div>
-                {active && <Check size={13} color={U.blue}/>}
-              </OptionTile>
-            );
-          })}
-        </div>
-      </div>
-
       {onExport && (
         <>
-          <Divider/>
           <RippleBtn onClick={onExport} disabled={exporting} style={{
             width:"100%", padding:"12px 0", borderRadius:10, border:"none",
             cursor:exporting ? "default" : "pointer", opacity:exporting ? .6 : 1,
