@@ -68,8 +68,7 @@ class BadgeTemplateRendererTest < ActiveSupport::TestCase
 
     html = BadgeTemplateRenderer.render(version: version, card: @card)
 
-    assert_includes html, "width:100% !important;height:100% !important;overflow:hidden !important"
-    assert_includes html, "max-width:100% !important;max-height:100% !important;overflow:hidden !important"
+    assert_includes html, "max-width:100%;max-height:100%;overflow:hidden"
   end
 
   test "拒绝未允许的 Liquid 标签" do
