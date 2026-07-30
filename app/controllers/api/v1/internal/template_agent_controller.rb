@@ -13,7 +13,7 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
       last_seen_at: Time.current
     )
     renewing = renew_current_lease!
-    claimed = TemplateGenerationJob.claim_next_for!(@node) if @node.effective_desired_config.fetch("paused") == false && !renewing
+    claimed = TemplateGenerationJob.claim_next_for!(@node) if ready_for_visual_repair? && !renewing
     render json: {
       desired_config: @node.effective_desired_config,
       job: claimed && job_payload(*claimed)
@@ -92,6 +92,12 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
     return false unless job_id
 
     @node.template_generation_jobs.find_by(id: job_id)&.renew_node_lease!(@node) || false
+  end
+
+  def ready_for_visual_repair?
+    config = @node.effective_desired_config
+    capabilities = @node.capabilities.to_h
+    config.fetch("paused") == false && capabilities["mai_ready"] == true && capabilities["renderer_ready"] == true
   end
 
   def complete_parent_generation!(job, result, status, error)

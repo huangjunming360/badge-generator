@@ -81,9 +81,24 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     assert_equal "queued", TemplateGenerationJob.last.status
   end
 
+  test "未就绪的节点只上报状态，不会领取视觉任务" do
+    job = queued_job
+
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: { agent_version: "0.2.0", mai_ready: false, renderer_ready: true }
+    }, headers: node_headers
+
+    assert_response :success
+    assert_nil body["job"]
+    assert_equal "queued", job.reload.status
+    assert_equal false, @node.reload.capabilities["mai_ready"]
+  end
+
   test "其他节点不能完成已租出的任务" do
     job = queued_job
-    post "/api/v1/internal/template-agent/heartbeat", params: { capabilities: { agent_version: "0.2.0" } }, headers: node_headers
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+    }, headers: node_headers
     lease = body.dig("job", "lease_token")
     GpuNode.create!(node_key: "other-node", name: "Other", token: "other-secret")
 
@@ -114,7 +129,9 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
       }
     )
 
-    post "/api/v1/internal/template-agent/heartbeat", params: { capabilities: { agent_version: "0.2.0" } }, headers: node_headers
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+    }, headers: node_headers
     lease = body.dig("job", "lease_token")
     post "/api/v1/internal/template-agent/jobs/#{job.id}/complete", params: {
       lease_token: lease,
