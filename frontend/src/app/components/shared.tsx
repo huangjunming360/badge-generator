@@ -246,7 +246,9 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
   // 字号放大时卡片同步变高，内容才不会顶掉底部的二维码。
   const hf  = fzHeightFactor(fontSize);
   const rad = styleK==="minimal" ? 12 : 4;
-  const SH  = "0 8px 32px rgba(30,50,80,.13), 0 2px 8px rgba(30,50,80,.08)";
+  // 不加投影。卡片本身有 1px 边框，再叠阴影在浅底上会糊成一圈灰框，
+  // 导出 PNG 时那圈灰也会一起被截进去。
+  const SH  = "none";
   const bg="#FDFBF7", bgH="#F5F1E8", bdr="#E0D8C8";
 
   if (sel.length === 0) return (
@@ -609,13 +611,11 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
 /* ── Options sidebar (shared between Page2 layouts) ──────────── */
 export function OptionsSidebar({
   template, setTemplate, accent, setAccent,
-  custom, setCustom, onExport, exporting,
+  custom, setCustom,
 }: {
   template:Template;   setTemplate:(t:Template)=>void;
   accent:AccentKey;    setAccent:(a:AccentKey)=>void;
   custom:CustomCfg;    setCustom:(c:CustomCfg)=>void;
-  onExport?:()=>void;
-  exporting?:boolean;
 }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
@@ -623,10 +623,10 @@ export function OptionsSidebar({
       <div>
         <SLabel icon={<Layout size={11}/>} text="模板"/>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7, marginBottom:9 }}>
-          {(["visitor","access","business","custom"] as Template[]).map(t => {
+          {(["visitor","business"] as Template[]).map(t => {
             const active = template===t;
             const meta: Record<Template,{label:string;icon:React.ReactNode}> = {
-              visitor:  {label:"访客证", icon:<Shield size={13}/>},
+              visitor:  {label:"胸牌", icon:<Shield size={13}/>},
               access:   {label:"通行证", icon:<Hash size={13}/>},
               business: {label:"名片",   icon:<AlignLeft size={13}/>},
               custom:   {label:"自定义", icon:<Sliders size={13}/>},
@@ -642,14 +642,6 @@ export function OptionsSidebar({
               </OptionTile>
             );
           })}
-        </div>
-        <div style={{ fontSize:10, color:U.textFaint, lineHeight:1.65, marginBottom:8 }}>
-          {{ visitor:"访客当日通行，附二维码验证", access:"员工长期凭证，含权限等级",
-             business:"横版名片，附完整联系方式", custom:"自由组合版式与元素" }[template]}
-        </div>
-        <div style={{ maxHeight:template==="custom"?600:0, overflow:"hidden",
-          transition:`max-height .38s ${E.smooth}` }}>
-          <CustomPanel cfg={custom} onChange={setCustom}/>
         </div>
       </div>
 
@@ -684,21 +676,6 @@ export function OptionsSidebar({
         </div>
       </div>
 
-      {onExport && (
-        <>
-          <Divider/>
-          <RippleBtn onClick={onExport} disabled={exporting} style={{
-            width:"100%", padding:"12px 0", borderRadius:10, border:"none",
-            cursor:exporting ? "default" : "pointer", opacity:exporting ? .6 : 1,
-            background:`linear-gradient(135deg, ${U.blue}, ${U.blueDark})`,
-            color:"#fff", fontSize:13, fontWeight:600, letterSpacing:".05em",
-            display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            boxShadow:"0 6px 22px rgba(58,118,196,.38)",
-          }}>
-            <Download size={14}/> {exporting ? "导出中…" : "导出工牌"}
-          </RippleBtn>
-        </>
-      )}
     </div>
   );
 }
