@@ -325,6 +325,8 @@ export default function Page1() {
     setImgName("📷 已上传照片");
     setPortraitFile(file);
     croppedRef.current = false;
+    // 保存原始文件到 ref，裁切后可恢复
+    originalFileRef.current = file;
     // 原始照片（文档识别那张）不清，留在 originalFileRef 里供切换用
     // 已有 card → 立即上传替换
     if (cardId) {
