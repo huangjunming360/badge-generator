@@ -11,7 +11,7 @@ interface Props {
 }
 
 const RATIOS: { label: string; value: number }[] = [
-  { label: "全屏", value: -1 },
+  { label: "原始", value: -1 },
   { label: "1:1", value: 1 },
   { label: "3:4", value: 3 / 4 },
   { label: "4:3", value: 4 / 3 },

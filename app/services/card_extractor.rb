@@ -28,12 +28,17 @@ class CardExtractor
     - host_organization: 组织项目的机构
     - host_department: 组织项目的机构部门
     - event_topic: 项目主题（活动/课程名称）
+    - event_topic_en: 项目主题的英文名。资料里明确写了就照抄；没写则由
+      event_topic 翻译生成，不要音译、不要留 null。用地道的英文活动名写法，
+      实词首字母大写，例如 中法人工智能暑期学校 →
+      Sino-French Summer School on Artificial Intelligence。
+      event_topic 本身为 null 时 event_topic_en 才填 null。
 
     输出示例（organization 为学校）：
-    {"name":"林小明","name_en":"Xiaoming Lin","organization":"北京大学物理学院","host_organization":null,"host_department":null,"event_topic":null}
+    {"name":"林小明","name_en":"Xiaoming Lin","organization":"北京大学物理学院","host_organization":null,"host_department":null,"event_topic":null,"event_topic_en":null}
 
-    输出示例（资料未写英文名，由中文姓名音译）：
-    {"name":"王建国","name_en":"Jianguo Wang","organization":"上海市第一人民医院","host_organization":null,"host_department":null,"event_topic":null}
+    输出示例（资料未写英文名，由中文姓名音译；主题英文由主题翻译）：
+    {"name":"王建国","name_en":"Jianguo Wang","organization":"上海市第一人民医院","host_organization":null,"host_department":null,"event_topic":"智能制造研讨会","event_topic_en":"Symposium on Intelligent Manufacturing"}
   PROMPT
 
   def initialize(client: nil, session: nil, model_id: nil)
