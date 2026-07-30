@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
-  Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, FileText,
-  Sparkles, Layers, GripVertical, Plus,
+  Upload, Image as ImageIcon, ChevronRight, RefreshCw, FileText,
+  Sparkles, Layers, Plus,
 } from "lucide-react";
 import {
   Field, NavState,
@@ -17,59 +17,44 @@ import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
 /* ── Editable field row ──────────────────────────────────────── */
-function EditableFieldRow({ field, onToggle, onChange, index }: {
-  field: Field; onToggle: () => void;
+function EditableFieldRow({ field, onChange, index }: {
+  field: Field;
   onChange: (v: string) => void; index: number;
 }) {
   const { hovered, bind } = usePress();
+  const [focused, setFocused] = useState(false);
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
       padding: "10px 14px", borderRadius: 10,
-      border: `1px solid ${field.selected ? U.blue + "55" : hovered ? U.border : U.borderLight}`,
-      background: field.selected ? U.blueXLight : U.surface,
+      border: `1px solid ${hovered ? U.border : U.borderLight}`,
+      background: U.surface,
       animation: `fadeSlideIn .28s ${E.smooth} ${index * 70}ms both`,
-      transition: `border .18s ${E.smooth}, background .18s ${E.smooth}, box-shadow .2s ${E.smooth}`,
-      boxShadow: field.selected ? "0 2px 12px rgba(58,118,196,.12)" : "none",
+      transition: `border .18s ${E.smooth}, background .18s ${E.smooth}`,
     }} {...bind}>
-      <button onClick={onToggle} style={{
-        width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-        border: field.selected ? "none" : `1.5px solid ${U.textFaint}`,
-        background: field.selected ? U.blue : "transparent",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        cursor: "pointer", transition: `all .16s ${E.spring}`,
-      }}>
-        {field.selected && <Check size={10} color="#fff" strokeWidth={3} />}
-      </button>
       <div style={{ display: "flex", alignItems: "center", gap: 5, width: 72, flexShrink: 0 }}>
-        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0, fontSize: 12 }}>
+        <span style={{ color: U.textLight, flexShrink: 0, fontSize: 12 }}>
           {field.icon ? <i className={`${["fa-linkedin", "fa-github", "fa-twitter"].includes(field.icon) ? "fa-brands" : "fas"} ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
         </span>
-        <span style={{ fontSize: 11, color: field.selected ? U.blue : U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 11, color: U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
           {field.label}
         </span>
       </div>
+      {/* 下划线常显，让用户看出这里能改；聚焦时变蓝加粗。 */}
       <input value={field.value} onChange={e => onChange(e.target.value)}
+        placeholder="点击填写"
         style={{
           flex: 1, border: "none", background: "transparent",
           fontSize: 12.5, color: U.text, fontFamily: "'Outfit',sans-serif",
           outline: "none", fontWeight: 500,
-          borderBottom: "1.5px solid transparent", paddingBottom: 1,
-          transition: `border-color .16s`,
+          borderBottom: `1.5px ${focused ? "solid" : "dashed"} ${focused ? U.blue : U.border}`,
+          paddingBottom: 2,
+          transition: `border-color .16s ${E.smooth}`,
+          cursor: "text",
         }}
-        onFocus={e => { e.target.style.borderBottomColor = U.blue; }}
-        onBlur={e =>  { e.target.style.borderBottomColor = "transparent"; }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
-      <button title="拖拽排序" style={{
-        width: 22, height: 22, borderRadius: 6, border: "none",
-        background: "transparent", display: "flex", alignItems: "center",
-        justifyContent: "center", cursor: "grab", color: U.textFaint,
-        flexShrink: 0, transition: `color .14s`,
-      }}
-        onMouseEnter={e => { e.currentTarget.style.color = "#C05060"; }}
-        onMouseLeave={e => { e.currentTarget.style.color = U.textFaint; }}>
-        <GripVertical size={12} />
-      </button>
     </div>
   );
 }
@@ -289,16 +274,9 @@ export default function Page1() {
     }
   }, [cardId]);
 
-  const toggleField  = (key: string) => setFields(p => p.map(f => f.key === key ? { ...f, selected: !f.selected } : f));
   const changeValue  = (key: string, v: string) => setFields(p => p.map(f => f.key === key ? { ...f, value: v } : f));
-  // 后端是固定 schema，字段删不掉。这里的语义是清空值并取消勾选，
-  // 字段留在列表里但不出现在挂牌上。
-  const deleteField  = (key: string) =>
-    setFields(p => p.map(f => f.key === key ? { ...f, value: "", selected: false } : f));
 
   const hasFields     = fields.length > 0;
-  const hasSelected   = fields.some(f => f.selected);
-  const selectedCount = fields.filter(f => f.selected).length;
   const isStreaming   = hasFields && streamIdx < fields.length - 1;
 
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
@@ -662,32 +640,9 @@ export default function Page1() {
                       AI 解析结果
                     </div>
                     <div style={{ fontSize: 10, color: U.textFaint, marginTop: 3 }}>
-                      可直接编辑 · 点击勾选显示字段
+                      点击下方字段可直接编辑
                     </div>
                   </div>
-                  <div style={{
-                    padding: "3px 9px", borderRadius: 99,
-                    background: U.blueXLight, border: `1px solid ${U.blueLight}`,
-                    fontSize: 10.5, color: U.blue, fontWeight: 500,
-                  }}>
-                    {selectedCount}/{fields.length} 已选
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {[
-                    { label: "全选", fn: () => setFields(p => p.map(f => ({ ...f, selected: true }))) },
-                    { label: "清空", fn: () => setFields(p => p.map(f => ({ ...f, selected: false }))) },
-                  ].map(b => (
-                    <button key={b.label} onClick={b.fn} style={{
-                      fontSize: 11, color: U.textMid, background: "none",
-                      border: `1px solid ${U.border}`, padding: "4px 11px",
-                      borderRadius: 7, cursor: "pointer", transition: `all .14s ${E.smooth}`,
-                    }}
-                      onMouseEnter={e => { e.currentTarget.style.color = U.blue; e.currentTarget.style.borderColor = U.blue + "66"; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = U.textMid; e.currentTarget.style.borderColor = U.border; }}>
-                      {b.label}
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -695,7 +650,6 @@ export default function Page1() {
                 {fields.map((f, i) =>
                   i <= streamIdx ? (
                     <EditableFieldRow key={f.key} field={f} index={i}
-                      onToggle={() => toggleField(f.key)}
                       onChange={v => changeValue(f.key, v)} />
                   ) : null
                 )}
@@ -740,17 +694,17 @@ export default function Page1() {
         background: U.surface, borderTop: `1px solid ${U.border}`,
         padding: "14px 32px 20px",
         boxShadow: "0 -8px 32px rgba(20,35,55,.09)",
-        transform: hasSelected ? "translateY(0)" : "translateY(110%)",
+        transform: hasFields ? "translateY(0)" : "translateY(110%)",
         transition: `transform .4s ${E.spring}`,
         willChange: "transform",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20,
       }}>
         <div>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: U.text }}>
-            已选 {selectedCount} 个字段
+            {fields.length} 个字段
           </div>
           <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>
-            确认字段后进入名牌设计
+            确认内容后进入卡片设计
           </div>
         </div>
         <RippleBtn onClick={goToDesign} {...goBind} style={{
