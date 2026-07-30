@@ -56,6 +56,9 @@ export default function UserMenu({ dark }: { dark?: boolean }) {
           <button onClick={() => { setOpen(false); nav("/change-password"); }} style={itemStyle}>
             修改密码
           </button>
+          <button onClick={() => { setOpen(false); nav("/history"); }} style={itemStyle}>
+            历史记录
+          </button>
           <button onClick={() => { logout(); nav("/login"); setOpen(false); }} style={itemStyle}>
             退出登录
           </button>
