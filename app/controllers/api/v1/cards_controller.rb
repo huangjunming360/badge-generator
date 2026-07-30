@@ -127,7 +127,7 @@ class Api::V1::CardsController < Api::BaseController
         tempfile: tmpfile
       )
 
-      use_mineru = mineru_enabled != "0" && Setting.bool("mineru_enabled") && ENV["MINERU_API_KEY"].present?
+      use_mineru = mineru_enabled != "0" && Setting.bool("mineru_enabled") && (Setting.get("mineru_api_key").present? || ENV["MINERU_API_KEY"].present?)
       if use_mineru
         allowed = Setting.get("mineru_extensions").to_s.split
         allowed = %w[.pdf .docx .png .jpg .jpeg] if allowed.empty?
