@@ -21,14 +21,7 @@ class OcrExtractor
   end
 
   def self.available?
-    return @available unless @available.nil?
-
-    _output, status = Open3.capture2("which", "tesseract")
-    return @available = false unless status.success?
-
-    languages, status = Open3.capture2("tesseract", "--list-langs")
-    required_languages = LANGUAGES.split("+")
-    @available = status.success? && required_languages.all? { |language| languages.lines.any? { |line| line.strip == language } }
+    @available = system("which tesseract > /dev/null 2>&1") if @available.nil?
     @available
   end
 
@@ -56,7 +49,7 @@ class OcrExtractor
   private
 
   def ensure_available!
-    raise OcrError, "服务器未安装支持中英文识别的 tesseract 语言包，无法识别扫描件" unless available?
+    raise OcrError, "服务器未安装 tesseract，无法识别扫描件" unless available?
   end
 
   def recognize(image_path)
