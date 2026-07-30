@@ -74,6 +74,7 @@
 
 | 问题 | 改进 |
 |------|------|
+| tesseract-ocr 未安装 | 上线前 `apt install -y tesseract-ocr tesseract-ocr-chi-sim tesseract-ocr-chi-tra` |
 | 每次部署要手动找命令 | ✅ 已写好 `deploy/update.sh`（安全拉取 + 构建，nginx 相关让用户手动） |
 | 前端 `--legacy-peer-deps` 烦人 | 在 `frontend/.npmrc` 里写入 `legacy-peer-deps=true`，以后免参数 |
 | `publish.sh` 过时 | 更新为用当前路径 + `su -c` |
