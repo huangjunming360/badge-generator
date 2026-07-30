@@ -34,30 +34,6 @@
       </div>
     </div>
 
-    <div class="mt-8 mb-2">
-      <h2 class="text-lg font-bold">用户自定义模板</h2>
-    </div>
-    <div class="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
-      <div class="p-5 flex items-center justify-between">
-        <div>
-          <label class="text-sm font-medium">开放普通用户模板设计</label>
-          <p class="text-xs text-stone-400 mt-0.5">用户的模板默认私有，不会自动进入公共模板库</p>
-        </div>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <%= f.check_box :user_templates_enabled, checked: @settings[:user_templates_enabled], class: "sr-only peer" %>
-          <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
-        </label>
-      </div>
-      <div class="p-5 grid grid-cols-2 gap-4">
-        <label class="block text-sm font-medium">每用户模板上限
-          <%= f.number_field :user_template_limit, value: @settings[:user_template_limit], min: 0, max: 1000, class: "block w-full mt-2 rounded-lg border border-stone-300 px-3 py-2" %>
-        </label>
-        <label class="block text-sm font-medium">每月 AI 生成额度
-          <%= f.number_field :user_template_generation_monthly_limit, value: @settings[:user_template_generation_monthly_limit], min: 0, max: 1000, class: "block w-full mt-2 rounded-lg border border-stone-300 px-3 py-2" %>
-        </label>
-      </div>
-    </div>
-
     <!-- 实验性功能 -->
     <div class="mt-8 mb-2">
       <h2 class="text-lg font-bold">实验性功能</h2>

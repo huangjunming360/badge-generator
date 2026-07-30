@@ -8,9 +8,3 @@ if [ -f "$PIDFILE" ]; then
 else
   echo "⚠ Puma 没有在运行"
 fi
-
-WORKER_PIDFILE="tmp/pids/template-generation-worker.pid"
-if [ -f "$WORKER_PIDFILE" ]; then
-  kill "$(cat "$WORKER_PIDFILE")" 2>/dev/null && echo "✓ 模板生成 worker 已停止" || echo "⚠ 模板生成 worker 不存在"
-  rm -f "$WORKER_PIDFILE"
-fi

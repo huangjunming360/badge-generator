@@ -8,8 +8,6 @@ import RegisterPage from "./components/RegisterPage";
 import SetupPage from "./components/SetupPage";
 import InactivePage from "./components/InactivePage";
 import ChangePasswordPage from "./components/ChangePasswordPage";
-import AdminTemplateWorkbench from "./components/AdminTemplateWorkbench";
-import TemplateStudioWorkbench from "./components/TemplateStudioWorkbench";
 
 export const router = createBrowserRouter([
   {
@@ -23,8 +21,6 @@ export const router = createBrowserRouter([
       { path: "/setup", Component: SetupPage },
       { path: "/inactive", Component: InactivePage },
       { path: "/change-password", Component: ChangePasswordPage },
-      { path: "/admin/templates", Component: AdminTemplateWorkbench },
-      { path: "/templates", Component: TemplateStudioWorkbench },
     ],
   },
 ]);

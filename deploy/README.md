@@ -44,15 +44,6 @@ PIDFILE=tmp/pids/puma.pid bin/rails s -p 8000 -b 127.0.0.1
 
 必须显式指定 `PIDFILE`，否则 Rails 会误判系统的 `/run/tat_agent.pid` 而拒绝启动。
 
-模板生成使用数据库租约，必须有一个独立 worker 领取任务；生产环境使用
-`./deploy/start.sh` 会自动启动。手动启动 Rails 时，在另一个终端执行：
-
-```bash
-TEMPLATE_GENERATION_POLL_SECONDS=2 bin/rails template_generation:worker
-```
-
-worker 崩溃或服务器重启后，超过租约时间的生成任务会自动回到队列，不会丢失。
-
 ## 开发模式
 
 ```bash

@@ -64,13 +64,11 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
   const [name, setName] = useState("夏令营模板");
   const [widthMm, setWidthMm] = useState(55);
   const [heightMm, setHeightMm] = useState(85);
-  const [widthInput, setWidthInput] = useState("55");
-  const [heightInput, setHeightInput] = useState("85");
   const [html, setHtml] = useState(
     '<article class="badge"><img class="portrait" src="{{ card.portrait_url }}" alt=""><div class="content"><p class="eyebrow">{{ card.event_topic }}</p><h1>{{ card.name }}</h1><p class="organization">{{ card.organization }}</p></div></article>',
   );
   const [css, setCss] = useState(
-    '.badge { height: 100%; max-height: 100%; overflow: hidden; box-sizing: border-box; padding: 9mm; display: grid; grid-template-columns: 23mm minmax(0, 1fr); gap: 6mm; align-items: center; color: #17283b; font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; } .portrait { width: 23mm; height: 23mm; border-radius: 50%; object-fit: cover; } .content { min-width: 0; } .eyebrow { margin: 0 0 2mm; font-size: 3mm; color: #54718d; } h1 { margin: 0; font-size: clamp(6mm, 9vw, 10mm); line-height: 1.1; overflow-wrap: anywhere; } .organization { margin: 3mm 0 0; font-size: 3.8mm; line-height: 1.45; overflow-wrap: anywhere; }',
+    '.badge { min-height: 100%; box-sizing: border-box; padding: 9mm; display: grid; grid-template-columns: 23mm minmax(0, 1fr); gap: 6mm; align-items: center; color: #17283b; font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; } .portrait { width: 23mm; height: 23mm; border-radius: 50%; object-fit: cover; } .content { min-width: 0; } .eyebrow { margin: 0 0 2mm; font-size: 3mm; color: #54718d; } h1 { margin: 0; font-size: clamp(6mm, 9vw, 10mm); line-height: 1.1; overflow-wrap: anywhere; } .organization { margin: 3mm 0 0; font-size: 3.8mm; line-height: 1.45; overflow-wrap: anywhere; }',
   );
   const [requirement, setRequirement] = useState("炫酷但适合打印的夏令营名牌");
   const [complexity, setComplexity] = useState(6);
@@ -148,8 +146,6 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
       setName(selected.name);
       setWidthMm(selected.width_mm);
       setHeightMm(selected.height_mm);
-      setWidthInput(String(selected.width_mm));
-      setHeightInput(String(selected.height_mm));
       setHtml(v.source_html ?? "");
       setCss(v.source_css ?? "");
     }
@@ -187,14 +183,10 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
             setGenerationStatus(job.status);
             setGenerationStage(job.stage ?? "");
             setGenerationMessage(job.stage_message ?? "");
-            if (["succeeded", "waiting_for_visual_review"].includes(job.status) && job.result?.html) {
+            if (job.status === "succeeded" && job.result) {
               setHtml(job.result.html);
               setCss(job.result.css);
-              setMessage(
-                job.status === "succeeded"
-                  ? "设计草案已完成，请检查画布；你可以继续提出修改要求"
-                  : "AI 草案已生成，当前等待视觉节点；你仍可先检查画布或继续修改需求",
-              );
+              setMessage("设计草案已完成，请检查画布；你可以继续提出修改要求");
             }
             if (job.status === "failed")
               setMessage(job.error_message ?? "设计任务失败");
@@ -211,7 +203,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
     ${css}
     html,body{width:100% !important;height:100% !important;min-width:0 !important;min-height:0 !important;overflow:hidden !important}
     #badge-preview-root{position:relative;width:100%;height:100%;overflow:hidden;box-sizing:border-box}
-    #badge-preview-root>*:first-child{box-sizing:border-box;max-width:100%;max-height:100%;overflow:hidden}
+    #badge-preview-root>*:first-child{box-sizing:border-box}
   </style></head><body><div id="badge-preview-root">${liquidSample(html)}</div></body></html>`,
     [html, css],
   );
@@ -420,8 +412,6 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
               setName("夏令营模板");
               setWidthMm(55);
               setHeightMm(85);
-              setWidthInput("55");
-              setHeightInput("85");
             }}
             style={secondary}
           >
@@ -469,13 +459,12 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
                 type="number"
                 min="20"
                 max="200"
-                value={widthInput}
-                onChange={(e) => setWidthInput(e.target.value)}
-                onBlur={() => {
-                  const value = Math.max(20, Math.min(200, Number(widthInput) || 55));
-                  setWidthMm(value);
-                  setWidthInput(String(value));
-                }}
+                value={widthMm}
+                onChange={(e) =>
+                  setWidthMm(
+                    Math.max(20, Math.min(200, Number(e.target.value) || 20)),
+                  )
+                }
                 style={input}
               />
             </label>
@@ -485,13 +474,12 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
                 type="number"
                 min="20"
                 max="200"
-                value={heightInput}
-                onChange={(e) => setHeightInput(e.target.value)}
-                onBlur={() => {
-                  const value = Math.max(20, Math.min(200, Number(heightInput) || 85));
-                  setHeightMm(value);
-                  setHeightInput(String(value));
-                }}
+                value={heightMm}
+                onChange={(e) =>
+                  setHeightMm(
+                    Math.max(20, Math.min(200, Number(e.target.value) || 20)),
+                  )
+                }
                 style={input}
               />
             </label>
@@ -504,6 +492,12 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
               <button title="放大" aria-label="放大" onClick={() => setCanvasZoom((z) => Math.min(1.35, z + 0.1))}><ZoomIn size={15} /></button>
             </div>
           </div>
+          <div className="ai-constraints">
+            <span>AI 设计约束</span>
+            <b>{widthMm} × {heightMm} mm 画布</b>
+            <b>中文字段留足伸缩空间</b>
+            <b>{referenceAssets.length ? `${referenceAssets.length} 张参考素材` : "无参考素材"}</b>
+          </div>
           <div
             className="canvas-stage"
           >
@@ -512,6 +506,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
               <iframe title="设计画布预览" sandbox="" onLoad={() => setCanvasPreviewReady(true)} srcDoc={preview} />
               {!canvasPreviewReady && <div className="canvas-loading">画布加载中…</div>}
             </div>
+            <div className="canvas-drop-hint">AI 会根据需求自动安排字段位置和文字空间</div>
           </div>
           <details style={{ marginTop: 22 }}>
             <summary
@@ -885,6 +880,9 @@ const workbenchStyles = `
   .canvas-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:18px 0 10px; }
   .canvas-heading > div:first-child { display:flex; align-items:center; gap:8px; }
   .canvas-heading span { font-size:11px; color:${U.textFaint}; }
+  .ai-constraints { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:-2px 0 10px; color:${U.textFaint}; font-size:10px; }
+  .ai-constraints span { color:${U.blue}; font-weight:600; margin-right:2px; }
+  .ai-constraints b { padding:4px 7px; border:1px solid ${U.border}; border-radius:4px; background:${U.surface}; font-weight:500; }
   .canvas-tools { display:flex; gap:4px; }
   .canvas-tools button { display:grid; place-items:center; width:30px; height:30px; border:1px solid ${U.border}; border-radius:6px; background:${U.surface}; color:${U.textMid}; cursor:pointer; }
   .canvas-tools button:hover, .field-palette button:hover { border-color:${U.blue}; color:${U.blue}; }
@@ -897,6 +895,7 @@ const workbenchStyles = `
   .badge-canvas { position:relative; width:min(100%, 390px); max-height:360px; transition:transform .18s ease; transform-origin:center center; }
   .badge-canvas iframe { display:block; width:100%; height:100%; aspect-ratio:inherit; border:1px solid ${U.border}; background:#fff; box-shadow:0 12px 30px rgba(20,35,55,.15); }
   .canvas-loading { position:absolute; inset:0; display:grid; place-items:center; color:${U.textFaint}; font-size:12px; background:#fff; }
+  .canvas-drop-hint { position:absolute; bottom:12px; display:flex; align-items:center; gap:5px; color:${U.textFaint}; font-size:10px; }
   .density-picker { display:flex; gap:5px; margin-top:6px; }
   .density-picker button { flex:1; justify-content:center; }
   .agent-status { display:flex; gap:9px; align-items:flex-start; margin:2px 0 12px; padding:10px; border:1px solid ${U.border}; border-radius:7px; background:${U.bg}; }

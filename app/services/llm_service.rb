@@ -14,7 +14,6 @@ class LlmService
   # 模型 id 传错是客户端的问题，与上游服务故障要分开处理，
   # 所以单独一个类型 —— 靠匹配错误消息文字来区分太脆弱。
   class UnknownModel < Error; end
-  class UnknownFunction < Error; end
 
   # 全局并发控制：默认最多 3 个 LLM 请求同时运行
   MAX_CONCURRENCY = [ ENV.fetch("LLM_MAX_CONCURRENCY", 3).to_i, 1 ].max
@@ -45,26 +44,13 @@ class LlmService
 
   # model_id 供无状态的 JSON API 使用：分离架构下前端不共享 cookie session，
   # 选中的模型随请求参数传入。session 仍供 ERB 页面使用。
-  def initialize(session: nil, model_id: nil, function: nil)
+  def initialize(session: nil, model_id: nil)
     @session = session
-    @function = function&.to_s
-    @function_config = resolve_function_config
-    @model_id = model_id || @function_config["model"]
+    @model_id = model_id
     @config = resolve_config
   end
 
-  def function_prompt
-    @function_config["prompt"].to_s
-  end
-
-  def function_max_tokens
-    value = @function_config["max_tokens"]
-    value.present? ? value.to_i : nil
-  end
-
-  def complete(messages, system: nil, max_tokens: nil)
-    system ||= function_prompt.presence
-    max_tokens = function_max_tokens || 4096 if max_tokens.nil?
+  def complete(messages, system: nil, max_tokens: 4096)
     # 等待并发槽位
     acquired = false
     self.class.await_slot
@@ -92,10 +78,7 @@ class LlmService
     messages.each do |msg|
       role = (msg[:role] || msg["role"]).to_s
       next if role == "system"
-      content = msg[:content] || msg["content"]
-      attachments = msg[:attachments] || msg["attachments"]
-      content = RubyLLM::Content.new(content, attachments) if attachments.present?
-      chat.add_message(role: role.to_sym, content: content)
+      chat.add_message(role: role.to_sym, content: msg[:content] || msg["content"])
     end
 
     response = chat.complete
@@ -135,16 +118,6 @@ class LlmService
     # 否则用默认模型
     default_id = models_config["default"]
     models.find { |m| m["id"] == default_id } || models.first || {}
-  end
-
-  def resolve_function_config
-    return {} if @function.blank?
-
-    functions = Rails.application.config.x.llm_functions || {}
-    config = functions[@function] || functions[@function.to_sym]
-    raise UnknownFunction, "未知的 LLM 函数：#{@function}" unless config.is_a?(Hash)
-
-    config.stringify_keys
   end
 
   def all_models

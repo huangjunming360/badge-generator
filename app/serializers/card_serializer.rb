@@ -26,7 +26,6 @@ class CardSerializer
       height_mm: @card.height,
       default_size: @card.default_size?,
       portrait: portrait_payload,
-      badge_template: template_payload,
       created_at: @card.created_at&.iso8601,
       updated_at: @card.updated_at&.iso8601
     }
@@ -57,17 +56,6 @@ class CardSerializer
       filename: blob.filename.to_s,
       content_type: blob.content_type,
       byte_size: blob.byte_size
-    }
-  end
-
-  def template_payload
-    return nil unless @card.badge_template && @card.badge_template_version
-
-    {
-      id: @card.badge_template.id,
-      name: @card.badge_template.name,
-      version_id: @card.badge_template_version.id,
-      version: @card.badge_template_version.version
     }
   end
 end

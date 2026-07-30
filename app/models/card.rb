@@ -30,8 +30,6 @@ class Card < ApplicationRecord
 
   # 证件照/大头照。本阶段只存不用，后续模板渲染时才读。
   belongs_to :user, optional: true
-  belongs_to :badge_template, optional: true
-  belongs_to :badge_template_version, optional: true
 
   has_one_attached :portrait
 
@@ -61,7 +59,6 @@ class Card < ApplicationRecord
 
   validates :raw_input, presence: { message: "请先输入个人资料" }
   validate :portrait_must_be_supported_image
-  validate :badge_template_version_matches_template
 
   # 保证读出来总是 FIELDS 全部 key 齐全的 Hash，视图不用做 nil 判断。
   # 注意 data 列里 schema 外的旧键（职位/电话等）会被静默忽略。
@@ -98,18 +95,5 @@ class Card < ApplicationRecord
     if portrait.blob.byte_size > PORTRAIT_MAX_BYTES
       errors.add(:portrait, "照片不能超过 #{PORTRAIT_MAX_BYTES / 1.megabyte}MB")
     end
-  end
-
-  def badge_template_version_matches_template
-    return if badge_template_version.blank? && badge_template.blank?
-
-    if badge_template_version.blank? || badge_template.blank?
-      errors.add(:badge_template_version, "必须与模板一起指定")
-      return
-    end
-
-    return if badge_template_version.badge_template_id == badge_template_id
-
-    errors.add(:badge_template_version, "不属于所选模板")
   end
 end

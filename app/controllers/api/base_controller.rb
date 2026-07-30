@@ -37,10 +37,4 @@ class Api::BaseController < ActionController::API
   def render_error(messages, status:)
     render json: { errors: Array(messages) }, status: status
   end
-
-  def require_api_admin
-    return if Current.user&.admin?
-
-    render json: { errors: [ "需要管理员权限" ] }, status: :forbidden
-  end
 end

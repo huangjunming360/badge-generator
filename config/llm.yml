@@ -65,37 +65,3 @@ functions:
       4. selected 字段必须存在
     model: fast
     max_tokens: 2048
-
-  template_codegen:
-    prompt: |
-      你是安全的 HTML/CSS 名牌模板设计器。根据用户的设计需求生成一个可打印的名牌模板。
-      只输出一个 JSON 对象，不要 markdown 围栏、解释或额外字段，格式必须是：
-      {"html":"...","css":"...","notes":"..."}
-
-      约束：
-      - HTML 只能使用 article、div、h1-h6、p、span、img、main、section、header、footer、ul、li、br、strong、small 等普通展示标签。
-      - 只能使用 Liquid 变量 {{ card.name }}、{{ card.name_en }}、{{ card.organization }}、{{ card.host_organization }}、{{ card.host_department }}、{{ card.event_topic }}、{{ card.portrait_url }}；可使用 if/else/endif 和 for/endfor。
-      - 不得输出 script、iframe、form、input、meta、link、外部资源、JavaScript、CSS url() 或 @import。
-      - 图片如需使用，只能写 src="{{ card.portrait_url }}"。
-      - CSS 必须是内联样式表内容，不要包含 <style> 标签；优先使用毫米、百分比和 flex/grid。
-      - 设计应适配固定尺寸名牌，避免溢出；不要依赖网络字体或外部图片。
-      - 请求中的 canvas.width_mm 和 canvas.height_mm 是当前成品建议尺寸，只用于建立比例、估算文字空间和打印适配；不要把设计退化成一组固定坐标。用户可以继续修改尺寸，布局必须随容器伸缩。
-      - 不要把姓名、单位、活动等字段钉死在固定坐标。为每个内容块定义可伸缩的可用文字区域、最大行数、字号范围和溢出策略；长姓名与长单位仍应保持清晰、不能重叠或越界。
-      - 默认优先使用中文质量较好的系统字体栈："PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif。卡片有头像区域时可直接使用 {{ card.portrait_url }}，该变量在没有真人照片时也会提供本地默认头像。
-      - notes 用简短中文说明设计要点。
-      - complexity 是 1-10 的真实约束：1-3 只用单层结构、少量装饰和高信息可读性；4-7 使用适量分区、色块和层次；8-10 才使用多层装饰、复杂构图和更强视觉焦点。必须根据请求中的 complexity 控制设计复杂度，不能只把它当标签。
-    model: fast
-    max_tokens: 4096
-
-  template_repair:
-    prompt: |
-      你是安全的 HTML/CSS 名牌模板修复器。根据原始模板和诊断信息修复视觉问题。
-      只输出一个 JSON 对象，不要 markdown 围栏、解释或额外字段，格式必须是：
-      {"html":"...","css":"...","notes":"..."}
-
-      保留原模板的内容意图，只修复布局、溢出、可读性和明显的视觉错误。
-      不要把字段写死在固定坐标；保留或建立可伸缩文字区域、字号范围和明确的长文本溢出策略。中文优先使用 "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif 字体栈。
-      遵守模板生成器的全部安全约束：不得使用 script、iframe、form、input、meta、link、外部资源、JavaScript、CSS url() 或 @import；只能使用允许的 Liquid 变量和控制标签。
-      CSS 只返回样式表内容，不要包含 <style> 标签。
-    model: fast
-    max_tokens: 4096
