@@ -57,9 +57,6 @@ const liquidSample = (s: string) =>
       (_, key) => sample[key as keyof typeof sample] ?? "",
     );
 
-const latestGenerationStorageKey = (studio: boolean) =>
-  studio ? "badge-template-studio-generation-job" : "badge-template-admin-generation-job";
-
 export default function AdminTemplateWorkbench({ studio = false }: { studio?: boolean }) {
   const nav = useNavigate();
   const [templates, setTemplates] = useState<BadgeTemplate[]>([]);
@@ -111,37 +108,6 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
   useEffect(() => {
     refresh();
   }, []);
-  useEffect(() => {
-    const rawJobId = window.sessionStorage.getItem(latestGenerationStorageKey(studio));
-    const storedJobId = Number(rawJobId);
-    if (!Number.isSafeInteger(storedJobId) || storedJobId <= 0) return;
-
-    let alive = true;
-    (studio ? fetchStudioJob(storedJobId) : fetchJob(storedJobId))
-      .then((job) => {
-        if (!alive) return;
-        setGenerationJobId(storedJobId);
-        setGenerationStatus(job.status);
-        setGenerationStage(job.stage ?? "");
-        setGenerationMessage(job.stage_message ?? "");
-        if (["succeeded", "waiting_for_visual_review"].includes(job.status) && job.result?.html) {
-          setHtml(job.result.html);
-          setCss(job.result.css);
-          setMessage(
-            job.status === "succeeded"
-              ? "已恢复最近完成的设计草案"
-              : "已恢复最近的 AI 草案，当前等待视觉节点",
-          );
-        }
-        if (["failed", "cancelled"].includes(job.status)) {
-          window.sessionStorage.removeItem(latestGenerationStorageKey(studio));
-        }
-      })
-      .catch(() => window.sessionStorage.removeItem(latestGenerationStorageKey(studio)));
-    return () => {
-      alive = false;
-    };
-  }, [studio]);
   useEffect(() => {
     if (studio) return;
     let alive = true;
@@ -239,12 +205,12 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
     return () => window.clearInterval(timer);
   }, [generationJobId, generationStatus]);
   const preview = useMemo(
-    () => `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'"><style>
-    html,body{margin:0;padding:0;width:100vw;height:100vh;overflow:hidden;box-sizing:border-box}
+    () => `<!doctype html><html><head><meta charset="utf-8"><style>
+    html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;box-sizing:border-box}
     body{background:#fff}
     ${css}
-    html,body{width:100vw !important;height:100vh !important;min-width:0 !important;min-height:0 !important;overflow:hidden !important}
-    #badge-preview-root{position:fixed;inset:0;overflow:hidden;box-sizing:border-box}
+    html,body{width:100% !important;height:100% !important;min-width:0 !important;min-height:0 !important;overflow:hidden !important}
+    #badge-preview-root{position:relative;width:100%;height:100%;overflow:hidden;box-sizing:border-box}
     #badge-preview-root>*:first-child{box-sizing:border-box;max-width:100%;max-height:100%;overflow:hidden}
   </style></head><body><div id="badge-preview-root">${liquidSample(html)}</div></body></html>`,
     [html, css],
@@ -305,7 +271,6 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
       setGenerationStatus(job.status);
       setGenerationStage(job.stage);
       setGenerationMessage(job.stage_message ?? "任务已创建");
-      window.sessionStorage.setItem(latestGenerationStorageKey(studio), String(job.id));
       setMessage("设计任务已启动，正在分阶段处理");
     });
   const repair = () => {
@@ -543,16 +508,8 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
             className="canvas-stage"
           >
             <div className="canvas-ruler">成品 {widthMm} mm × {heightMm} mm · {Math.round(canvasZoom * 100)}%</div>
-            <div
-              className="badge-canvas"
-              style={{
-                width: Math.min(390, 360 * (widthMm / heightMm)),
-                maxWidth: "100%",
-                aspectRatio: `${widthMm} / ${heightMm}`,
-                transform: `scale(${canvasZoom})`,
-              }}
-            >
-              <iframe title="设计画布预览" sandbox="allow-same-origin" onLoad={() => setCanvasPreviewReady(true)} srcDoc={preview} />
+            <div className="badge-canvas" style={{ aspectRatio: `${widthMm} / ${heightMm}`, transform: `scale(${canvasZoom})` }}>
+              <iframe title="设计画布预览" sandbox="" onLoad={() => setCanvasPreviewReady(true)} srcDoc={preview} />
               {!canvasPreviewReady && <div className="canvas-loading">画布加载中…</div>}
             </div>
           </div>
@@ -937,7 +894,7 @@ const workbenchStyles = `
   .field-palette button.selected, .density-picker button.selected { border-color:${U.blue}; color:${U.blue}; background:${U.blueXLight}; }
   .canvas-stage { position:relative; min-height:430px; overflow:hidden; border:1px solid ${U.border}; border-radius:8px; background:linear-gradient(90deg, rgba(40,70,100,.035) 1px, transparent 1px), linear-gradient(rgba(40,70,100,.035) 1px, transparent 1px), #f5f7fa; background-size:20px 20px; display:grid; place-items:center; padding:40px 24px 48px; }
   .canvas-ruler { position:absolute; top:10px; left:12px; color:${U.textFaint}; font-size:10px; letter-spacing:.02em; }
-  .badge-canvas { transition:transform .18s ease; transform-origin:center center; }
+  .badge-canvas { position:relative; width:min(100%, 390px); max-height:360px; transition:transform .18s ease; transform-origin:center center; }
   .badge-canvas iframe { display:block; width:100%; height:100%; aspect-ratio:inherit; border:1px solid ${U.border}; background:#fff; box-shadow:0 12px 30px rgba(20,35,55,.15); }
   .canvas-loading { position:absolute; inset:0; display:grid; place-items:center; color:${U.textFaint}; font-size:12px; background:#fff; }
   .density-picker { display:flex; gap:5px; margin-top:6px; }
