@@ -85,7 +85,7 @@ export default function Page2() {
   }, [cardId, saved?.fields?.length, saved?.portraitUrl]);
 
   const goBack = () => {
-    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null } satisfies NavState });
+    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null, sourceName: saved?.sourceName ?? null } satisfies NavState });
   };
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom, portraitUrl };

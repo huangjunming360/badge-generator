@@ -186,6 +186,7 @@ export default function Page1() {
   const originalFileRef = useRef<File | null>(null);
   const croppedRef = useRef(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [sourceName, setSourceName] = useState<string | null>(saved?.sourceName ?? null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
     saved?.fields?.length ? "active" : "idle"
@@ -313,6 +314,7 @@ export default function Page1() {
 
   // 上传文件仅暂存，用户点击「提取」后再发送给后端
   const handleFile = useCallback((file: File) => {
+    setSourceName(file.name);
     if (parsing) return;
     setPendingFile(file);
     setPhase("active");
@@ -344,7 +346,7 @@ export default function Page1() {
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
 
   const goToDesign = () => {
-    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName } as NavState });
+    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName, sourceName } as NavState });
   };
 
   /* Padding-top drives the centering ↔ top animation */
@@ -486,7 +488,7 @@ export default function Page1() {
                 <Plus size={15} />
               </button>
               {/* 文件名标签 */}
-              {pendingFile && (
+              {(pendingFile || sourceName) && (
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
                   padding: "3px 8px", borderRadius: 99, maxWidth: 280,
@@ -496,7 +498,7 @@ export default function Page1() {
                 }}>
                   <FileText size={11} />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {pendingFile.name}
+                    {pendingFile?.name || sourceName}
                   </span>
                   <button onClick={() => setPendingFile(null)} title="移除文件" style={{
                     background: "none", border: "none", cursor: "pointer",

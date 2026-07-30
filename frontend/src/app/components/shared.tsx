@@ -45,6 +45,7 @@ export interface NavState {
   cardId: number | null;
   portraitUrl?: string | null;
   imgName?: string | null;
+  sourceName?: string | null;
 }
 
 /* ── Easing ─────────────────────────────────────────────────── */
