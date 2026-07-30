@@ -46,6 +46,7 @@ export interface NavState {
   portraitUrl?: string | null;
   imgName?: string | null;
   sourceName?: string | null;
+  portraitRemoved?: boolean;
 }
 
 /* ── Easing ─────────────────────────────────────────────────── */
