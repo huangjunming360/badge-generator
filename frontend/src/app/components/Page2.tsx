@@ -57,7 +57,6 @@ export default function Page2() {
   // 尺寸边界来自后端 schema，不在前端写死。
   const [limits, setLimits] = useState({ minMm: 20, maxMm: 200 });
   const [error, setError] = useState<string | null>(null);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   // 上传的证件照。没传就为 null，卡片上退回占位头像。
   // 从 Page1 传过来的裁切/上传照片优先，刷新后才回源拿
   const [portraitUrl, setPortraitUrl] = useState<string | null>(

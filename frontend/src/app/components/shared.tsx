@@ -478,12 +478,66 @@ export function CustomPanel({ cfg, onChange }: { cfg:CustomCfg; onChange:(c:Cust
   );
 }
 
+/* ── 导出面板里的实物尺寸输入 ─────────────────────────────────
+   本地保留字符串草稿：中途清空或输入半个数字时不该立刻改预览。
+   失焦或回车才提交。 */
+function SheetSizeFields({ widthMm, heightMm, minMm, maxMm, onCommit }: {
+  widthMm:number; heightMm:number; minMm:number; maxMm:number;
+  onCommit:(w:number, h:number)=>void;
+}) {
+  const [draft, setDraft] = useState({ w:String(widthMm), h:String(heightMm) });
+
+  // 外部尺寸变了（换卡片/回源重取）要跟上，否则显示的是上一张的尺寸。
+  useEffect(() => {
+    setDraft({ w:String(widthMm), h:String(heightMm) });
+  }, [widthMm, heightMm]);
+
+  const valid = (n:number) => Number.isInteger(n) && n >= minMm && n <= maxMm;
+  const wNum = parseInt(draft.w, 10);
+  const hNum = parseInt(draft.h, 10);
+  const bad  = !valid(wNum) || !valid(hNum);
+
+  const commit = () => {
+    if (bad) { setDraft({ w:String(widthMm), h:String(heightMm) }); return; }
+    onCommit(wNum, hNum);
+  };
+
+  const box: React.CSSProperties = {
+    width:52, padding:"6px 8px", borderRadius:7,
+    border:`1px solid ${bad ? "#C05060" : U.border}`, background:U.surface,
+    fontSize:12, color:U.text, fontFamily:"'Outfit',sans-serif",
+    outline:"none", textAlign:"center",
+  };
+
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:6 }}
+      title={`实物尺寸，${minMm}–${maxMm}mm`}>
+      <input type="number" inputMode="numeric" value={draft.w} aria-label="宽 (mm)"
+        min={minMm} max={maxMm} step={1} style={box}
+        onChange={e => setDraft(d => ({ ...d, w:e.target.value }))}
+        onBlur={commit} onKeyDown={e => e.key === "Enter" && commit()}/>
+      <span style={{ fontSize:11, color:U.textFaint }}>×</span>
+      <input type="number" inputMode="numeric" value={draft.h} aria-label="高 (mm)"
+        min={minMm} max={maxMm} step={1} style={box}
+        onChange={e => setDraft(d => ({ ...d, h:e.target.value }))}
+        onBlur={commit} onKeyDown={e => e.key === "Enter" && commit()}/>
+      <span style={{ fontSize:11, color:U.textFaint }}>mm</span>
+    </div>
+  );
+}
+
 /* ── PreviewSheet ────────────────────────────────────────────── */
-export function PreviewSheet({ open, onClose, fields, template, accent, fontSize, styleK, custom, portraitUrl, onExport, exporting }: {
+export function PreviewSheet({ open, onClose, fields, template, accent, fontSize, styleK, custom, portraitUrl, onExport, exporting, size }: {
   open:boolean; onClose:()=>void;
   fields:Field[]; template:Template; accent:AccentKey;
   fontSize:FontSz; styleK:StyleKey; custom:CustomCfg; portraitUrl?:string|null;
   onExport?:()=>void; exporting?:boolean;
+  // 实物尺寸收进导出面板：改尺寸和导出是同一件事的两步，
+  // 分散在两处会让人以为底栏的宽高跟导出无关。
+  size?:{
+    widthMm:number; heightMm:number; minMm:number; maxMm:number;
+    onCommit:(w:number, h:number)=>void;
+  };
 }) {
   return (
     <>
@@ -505,13 +559,14 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
         <div style={{ padding:"18px 24px 14px", borderBottom:`1px solid ${U.borderLight}`,
           display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div>
-            <div style={{ fontSize:15, fontWeight:700, color:U.text }}>工牌预览</div>
+            <div style={{ fontSize:15, fontWeight:700, color:U.text }}>导出工牌</div>
             <div style={{ fontSize:10.5, color:U.textLight, marginTop:3 }}>
               {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义" }[template]}
               {" · "}{ACCENTS[accent].label}
             </div>
           </div>
-          <div style={{ display:"flex", gap:8 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            {size && <SheetSizeFields {...size}/>}
             <RippleBtn onClick={onExport} disabled={exporting} style={{
               display:"flex", alignItems:"center", gap:6, padding:"8px 18px",
               borderRadius:9, background:U.blue, border:"none",
