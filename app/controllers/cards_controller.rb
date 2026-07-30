@@ -1,11 +1,10 @@
-# 公开挂牌展示。不继承 API 的 require_authentication，
-# 挂牌页是公开访问的。
+# 挂牌展示。仅在开发环境中公开访问，生产环境需先补鉴权。
 class CardsController < ApplicationController
-  # 挂牌页供分享/预览，无需登录
-  skip_before_action :check_admin_exists, :require_authentication, only: :show
+  before_action :require_authentication
+  before_action :check_admin_exists
 
   def show
-    @card = Card.find(params[:id])
+    @card = Current.user.cards.find(params[:id])
     render layout: "public"
   rescue ActiveRecord::RecordNotFound
     render plain: "挂牌不存在", status: :not_found

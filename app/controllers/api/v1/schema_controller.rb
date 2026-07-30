@@ -31,7 +31,7 @@ class Api::V1::SchemaController < Api::BaseController
       # 资料文件上传约束。accept 由后端的 EXTENSIONS 单一来源导出，
       # 避免前端写死一份名单后与解析器支持范围跑偏。
       document: {
-        accept: DocumentTextExtractor::ACCEPT_ATTRIBUTE,
+        accept: DocumentTextExtractor::ACCEPT_ATTRIBUTE.call,
         extensions: DocumentTextExtractor::EXTENSIONS.keys,
         max_bytes: DocumentTextExtractor::MAX_BYTES
       },
