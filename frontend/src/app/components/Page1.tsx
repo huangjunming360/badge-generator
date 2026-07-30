@@ -325,6 +325,7 @@ export default function Page1() {
   const handleImg = useCallback((file: File) => {
     setImgName("📷 已上传照片");
     setPortraitFile(file);
+    setPortraitRemoved(false);
     croppedRef.current = false;
     // 保存原始文件到 ref，裁切后可恢复
     originalFileRef.current = file;
