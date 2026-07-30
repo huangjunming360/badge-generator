@@ -66,6 +66,7 @@ class Api::V1::CardsController < Api::BaseController
     card = Current.user.cards.find(params[:id])
 
     card.assign_attributes(size_params)
+    assign_template(card)
     if (incoming = fields_param)
       card.data = card.normalized_data.merge(incoming)
     end
@@ -271,6 +272,25 @@ class Api::V1::CardsController < Api::BaseController
   def size_params
     return {} if params[:card].blank?
     params.require(:card).permit(:width_mm, :height_mm)
+  end
+
+  def assign_template(card)
+    nested_card = params[:card]
+    nested_template_id_present = nested_card.respond_to?(:key?) && nested_card.key?(:badge_template_version_id)
+    return unless params.key?(:badge_template_version_id) || nested_template_id_present
+
+    raw_id = params[:badge_template_version_id] || nested_card[:badge_template_version_id]
+    if raw_id.blank?
+      card.badge_template = nil
+      card.badge_template_version = nil
+      return
+    end
+
+    version = BadgeTemplateVersion.joins(:badge_template)
+      .merge(BadgeTemplate.published)
+      .find(raw_id)
+    card.badge_template_version = version
+    card.badge_template = version.badge_template
   end
 
   def resolve_raw_input

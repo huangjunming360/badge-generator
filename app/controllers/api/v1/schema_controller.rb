@@ -50,7 +50,9 @@ class Api::V1::SchemaController < Api::BaseController
       mineru: {
         available: Setting.bool("mineru_enabled", default: false) && (Setting.get("mineru_api_key").present? || ENV["MINERU_API_KEY"].present?),
         portrait_detect: Setting.bool("portrait_detect", default: true)
-      }
+      },
+      template_studio: TemplateDesignPolicy.settings_payload
+        .merge(available: Current.user&.admin? || Setting.bool("user_templates_enabled", default: false))
     }
   end
 

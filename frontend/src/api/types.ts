@@ -70,6 +70,12 @@ export interface SchemaPayload {
     available: boolean;
     portrait_detect: boolean;
   };
+  template_studio: {
+    available: boolean;
+    enabled: boolean;
+    template_limit: number;
+    monthly_generation_limit: number;
+  };
 }
 
 export interface ProgressStatus {

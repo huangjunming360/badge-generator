@@ -35,6 +35,9 @@ class User < ApplicationRecord
   has_secure_password
   has_many :sessions, dependent: :destroy
   has_many :cards, dependent: :nullify
+  has_many :owned_badge_templates, class_name: "BadgeTemplate", foreign_key: :owner_id, dependent: :restrict_with_error
+  has_many :badge_template_versions, foreign_key: :created_by_id, dependent: :restrict_with_error
+  has_many :template_generation_jobs, foreign_key: :requested_by_id, dependent: :restrict_with_error
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
