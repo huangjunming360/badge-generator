@@ -123,31 +123,6 @@ function SlotAction({ label, onClick }: { label: string; onClick: () => void }) 
   );
 }
 
-/* ── 加号菜单里的一项 ───────────────────────────────────────── */
-function ImportMenuItem({ icon, label, onClick }: {
-  icon: React.ReactNode; label: string; onClick: () => void;
-}) {
-  return (
-    <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: 8, width: "100%",
-      padding: "8px 10px", borderRadius: 7, border: "none",
-      background: "transparent", cursor: "pointer", fontSize: 12,
-      color: U.textMid, textAlign: "left",
-      transition: `background .14s ${E.smooth}, color .14s ${E.smooth}`,
-    }}
-      onMouseEnter={e => {
-        e.currentTarget.style.background = U.surfaceBlue;
-        e.currentTarget.style.color = U.blue;
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = U.textMid;
-      }}>
-      {icon}{label}
-    </button>
-  );
-}
-
 /* ── Page 1 ──────────────────────────────────────────────────── */
 export default function Page1() {
   const navigate = useNavigate();
@@ -190,25 +165,10 @@ export default function Page1() {
   const [cardId, setCardId] = useState<number | null>(saved?.cardId ?? null);
   // 证件照留在本页，随建卡请求一起上传。
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
-  // 导入菜单：文件与图片两个入口收在输入框内的加号里。
-  const [showImportMenu, setShowImportMenu] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef     = useRef<HTMLInputElement>(null);
   const imgRef      = useRef<HTMLInputElement>(null);
-  const importMenuRef = useRef<HTMLDivElement>(null);
-
-  /* 点外面关掉导入菜单 */
-  useEffect(() => {
-    if (!showImportMenu) return;
-    function onDown(e: MouseEvent) {
-      if (importMenuRef.current && !importMenuRef.current.contains(e.target as Node)) {
-        setShowImportMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [showImportMenu]);
 
   /* Auto-resize textarea — single line → expands with content */
   useEffect(() => {
@@ -484,44 +444,28 @@ export default function Page1() {
               }}
             />
 
-            {/* 输入框内的加号：文件与图片导入都收在这里 */}
+            {/* 输入框内的加号：直接导入文件 */}
             <div style={{
               padding: "0 12px 10px", display: "flex", alignItems: "center", gap: 8,
             }}>
-              <div ref={importMenuRef} style={{ position: "relative" }}>
-                <button onClick={() => setShowImportMenu(v => !v)}
-                  title="添加文件或图片" aria-label="添加文件或图片"
-                  style={{
-                    width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                    border: `1px solid ${showImportMenu ? U.blue + "66" : U.border}`,
-                    background: showImportMenu ? U.surfaceBlue : U.surface,
-                    color: showImportMenu ? U.blue : U.textMid,
-                    cursor: "pointer", display: "flex", alignItems: "center",
-                    justifyContent: "center",
-                    transform: `rotate(${showImportMenu ? 45 : 0}deg)`,
-                    transition: `all .18s ${E.smooth}`,
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = U.blue + "66"; e.currentTarget.style.color = U.blue; }}
-                  onMouseLeave={e => {
-                    if (showImportMenu) return;
-                    e.currentTarget.style.borderColor = U.border;
-                    e.currentTarget.style.color = U.textMid;
-                  }}>
-                  <Plus size={15} />
-                </button>
-                {showImportMenu && (
-                  <div style={{
-                    position: "absolute", left: 0, bottom: "100%", marginBottom: 6,
-                    zIndex: 60, width: 152, background: U.surface, borderRadius: 10,
-                    border: `1px solid ${U.border}`,
-                    boxShadow: "0 6px 22px rgba(30,50,80,.12)",
-                    padding: 4, animation: `fadeSlideIn .16s ${E.smooth} both`,
-                  }}>
-                    <ImportMenuItem icon={<Upload size={13} />} label="导入文件"
-                      onClick={() => { setShowImportMenu(false); fileRef.current?.click(); }} />
-                  </div>
-                )}
-              </div>
+              <button onClick={() => fileRef.current?.click()}
+                title="导入文件" aria-label="导入文件"
+                style={{
+                  width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                  border: `1px solid ${U.border}`,
+                  background: U.surface,
+                  color: U.textMid,
+                  cursor: "pointer", display: "flex", alignItems: "center",
+                  justifyContent: "center",
+                  transition: `all .18s ${E.smooth}`,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = U.blue + "66"; e.currentTarget.style.color = U.blue; }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = U.border;
+                  e.currentTarget.style.color = U.textMid;
+                }}>
+                <Plus size={15} />
+              </button>
               {pendingFile && (
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
@@ -635,24 +579,45 @@ export default function Page1() {
           {/* ── AI result section ───────────────────────── */}
           {hasFields && (
             <div style={{ animation: `fadeSlideIn .3s ${E.smooth} both` }}>
-              {/* 证件照：移到字段列表上方，居右显示 */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-                <PortraitSlot
-                  url={portraitUrl}
-                  onPick={() => imgRef.current?.click()}
-                  onCrop={async () => {
-                    if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
-                      try {
-                        const res = await fetch(portraitUrl);
-                        const blob = await res.blob();
-                        originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
-                      } catch { /* 拉不到原图就退回用当前图裁 */ }
-                    }
-                    const orig = originalFileRef.current;
-                    setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
-                  }}
-                  onClear={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
-                />
+              {/* 标题区域 */}
+              <div style={{
+                display: "flex", alignItems: "flex-start",
+                marginBottom: 13, gap: 9,
+              }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: 8, background: U.blueLight,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <Sparkles size={13} color={U.blue} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: U.text, lineHeight: 1 }}>
+                    AI 解析结果
+                  </div>
+                  <div style={{ fontSize: 10, color: U.textFaint, marginTop: 3 }}>
+                    点击下方字段可直接编辑
+                  </div>
+                  {/* 证件照：放在标题下方 */}
+                  <div style={{ marginTop: 10 }}>
+                    <PortraitSlot
+                      url={portraitUrl}
+                      onPick={() => imgRef.current?.click()}
+                      onCrop={async () => {
+                        if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                          try {
+                            const res = await fetch(portraitUrl);
+                            const blob = await res.blob();
+                            originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                          } catch { /* 拉不到原图就退回用当前图裁 */ }
+                        }
+                        const orig = originalFileRef.current;
+                        setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
+                      }}
+                      onClear={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
