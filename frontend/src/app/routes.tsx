@@ -7,6 +7,7 @@ import RegisterPage from "./components/RegisterPage";
 import SetupPage from "./components/SetupPage";
 import InactivePage from "./components/InactivePage";
 import ChangePasswordPage from "./components/ChangePasswordPage";
+import HistoryPage from "./components/HistoryPage";
 
 export const router = createBrowserRouter([
   {
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
       { path: "/setup", Component: SetupPage },
       { path: "/inactive", Component: InactivePage },
       { path: "/change-password", Component: ChangePasswordPage },
+      { path: "/history", Component: HistoryPage },
     ],
   },
 ]);
