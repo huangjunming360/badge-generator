@@ -362,7 +362,12 @@ export default function Page1() {
         background: U.blueDark, padding: "18px 0 16px",
         textAlign: "center", flexShrink: 0, position: "relative",
       }}>
-        <div style={{ position: "absolute", top: 12, right: 16, zIndex: 1 }}>
+        <div style={{ position: "absolute", top: 12, right: 16, zIndex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => navigate("/history")} style={{
+            padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,.22)",
+            background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.75)",
+            cursor: "pointer", fontSize: 11, fontFamily: "'Outfit',sans-serif",
+          }}>历史记录</button>
           <UserMenu dark />
         </div>
 
