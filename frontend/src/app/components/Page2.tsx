@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Eye, SlidersHorizontal, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Download, SlidersHorizontal, Plus, Minus } from "lucide-react";
 import {
   Field, Template, AccentKey, FontSz, StyleKey, CustomCfg, NavState,
   E, U, ACCENTS,
@@ -8,7 +8,6 @@ import {
 } from "./shared";
 import { BadgeCanvas, templateContentSize, canvasSizeMm } from "./BadgeCanvas";
 import { PreviewViewport, usePreviewViewport, MIN_ZOOM, MAX_ZOOM } from "./PreviewViewport";
-import { SizeControls } from "./SizeControls";
 import { fetchCard, fetchSchema, updateCardSize } from "../../api/cards";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
@@ -53,14 +52,12 @@ export default function Page2() {
   const [cardId] = useState<number | null>(saved?.cardId ?? null);
   // 实物尺寸以后端为准（默认 55×85mm）。刷新丢了 state 时用后端默认值兜底。
   const [sizeMm, setSizeMm] = useState({ widthMm: 55, heightMm: 85 });
-  const [previewScale, setPreviewScale] = useState(1);
-  // 尺寸边界与缩放档位来自后端 schema，不在前端写死。
-  const [limits, setLimits] = useState({
-    minMm: 20, maxMm: 200, defaultWidthMm: 55, defaultHeightMm: 85,
-    scales: [ 1, 1.5, 2, 3 ],
-  });
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // 预览缩放档位选择器已下线，固定 1×。视口的滚轮/按钮缩放照旧可用。
+  const previewScale = 1;
+  // 尺寸边界来自后端 schema，不在前端写死。
+  const [limits, setLimits] = useState({ minMm: 20, maxMm: 200 });
   const [error, setError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   // 上传的证件照。没传就为 null，卡片上退回占位头像。
   // 从 Page1 传过来的裁切/上传照片优先，刷新后才回源拿
   const [portraitUrl, setPortraitUrl] = useState<string | null>(
@@ -83,14 +80,7 @@ export default function Page2() {
         setSizeMm({ widthMm: card.width_mm, heightMm: card.height_mm });
         // 如果 location.state 没传肖像才用服务器的
         if (!saved?.portraitUrl) setPortraitUrl(card.portrait?.url ?? null);
-        setPreviewScale(schema.preview.default_scale);
-        setLimits({
-          minMm: schema.size.min_mm,
-          maxMm: schema.size.max_mm,
-          defaultWidthMm: schema.size.default_width_mm,
-          defaultHeightMm: schema.size.default_height_mm,
-          scales: schema.preview.scales,
-        });
+        setLimits({ minMm: schema.size.min_mm, maxMm: schema.size.max_mm });
         // 没有从上一页带过来字段时（直接刷新本页），用后端数据填充。
         if (!saved?.fields?.length) setFields(toFields(card.fields, schema.fields));
       })
@@ -104,13 +94,12 @@ export default function Page2() {
   const persistSize = async (widthMm: number, heightMm: number) => {
     setSizeMm({ widthMm, heightMm });
     if (!cardId) return;
-    setSaveState("saving");
     setError(null);
     try {
       await updateCardSize(cardId, widthMm, heightMm);
-      setSaveState("saved");
     } catch (e) {
-      setSaveState("error");
+      // 「已保存」提示已去掉，但失败必须说 —— 静默失败会让用户
+      // 以为改了尺寸，导出时才发现是旧的。
       setError(e instanceof ApiError ? e.message : "保存尺寸失败");
     }
   };
@@ -193,7 +182,7 @@ export default function Page2() {
         }}
           onMouseEnter={e => { e.currentTarget.style.background=U.blueLight; e.currentTarget.style.boxShadow="0 3px 12px rgba(58,118,196,.22)"; }}
           onMouseLeave={e => { e.currentTarget.style.background=U.blueXLight; e.currentTarget.style.boxShadow="none"; }}>
-          <Eye size={13}/> 预览成品
+          <Download size={13}/> 导出工牌
         </button>
       </div>
 
@@ -271,22 +260,10 @@ export default function Page2() {
               <span style={{ fontSize:10.5, color:U.textFaint, marginLeft:6 }}>
                 滚轮缩放 · 拖拽平移 · 点百分比复位
               </span>
+              <span style={{ fontSize:10.5, color:U.textFaint, marginLeft:6 }}>
+                · 实物 {sizeMm.widthMm}×{sizeMm.heightMm}mm
+              </span>
             </div>
-
-            {/* 实物尺寸与预览缩放 */}
-            <SizeControls
-              widthMm={sizeMm.widthMm}
-              heightMm={sizeMm.heightMm}
-              minMm={limits.minMm}
-              maxMm={limits.maxMm}
-              defaultWidthMm={limits.defaultWidthMm}
-              defaultHeightMm={limits.defaultHeightMm}
-              previewScale={previewScale}
-              scales={limits.scales}
-              saveState={saveState}
-              onCommitSize={persistSize}
-              onPreviewScale={setPreviewScale}
-            />
           </div>
         </div>
 
@@ -315,7 +292,12 @@ export default function Page2() {
 
       {/* Preview sheet */}
       <PreviewSheet open={sheetOpen} onClose={() => setSheetOpen(false)} {...badgeProps}
-        onExport={handleExport} exporting={exporting}/>
+        onExport={handleExport} exporting={exporting}
+        size={{
+          widthMm: sizeMm.widthMm, heightMm: sizeMm.heightMm,
+          minMm: limits.minMm, maxMm: limits.maxMm,
+          onCommit: persistSize,
+        }}/>
     </div>
   );
 }

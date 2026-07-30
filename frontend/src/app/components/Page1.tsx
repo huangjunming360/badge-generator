@@ -471,7 +471,7 @@ export default function Page1() {
               ref={textareaRef}
               value={rawText}
               onChange={e => setRawText(e.target.value)}
-              placeholder="姓名 · 机构 · 项目主题…"
+              placeholder="请输入用户信息："
               style={{
                 width: "100%", border: "none", outline: "none",
                 padding: "14px 16px 6px", resize: "none", overflow: "hidden",
@@ -519,8 +519,6 @@ export default function Page1() {
                   }}>
                     <ImportMenuItem icon={<Upload size={13} />} label="导入文件"
                       onClick={() => { setShowImportMenu(false); fileRef.current?.click(); }} />
-                    <ImportMenuItem icon={<ImageIcon size={13} />} label="导入图片"
-                      onClick={() => { setShowImportMenu(false); imgRef.current?.click(); }} />
                   </div>
                 )}
               </div>
@@ -542,6 +540,59 @@ export default function Page1() {
                   }}>×</button>
                 </span>
               )}
+
+              {/* 右侧：MinerU 选项 + 开始解析，贴在框内右下角 */}
+              <div style={{ flex: 1 }} />
+
+              {mineruCfg?.available && !!pendingFile && (
+                <div style={{ position: "relative" }}>
+                  <button onClick={() => setShowMineruOpts(v => !v)} style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    padding: "5px 10px", borderRadius: 8, border: `1px solid ${U.border}`,
+                    background: showMineruOpts ? U.surfaceBlue : "transparent",
+                    cursor: "pointer", fontSize: 11, color: U.textMid,
+                    transition: `all .15s ${E.smooth}`,
+                  }}>
+                    <Layers size={12} /> 识别
+                  </button>
+                  {showMineruOpts && (
+                    <div style={{
+                      position: "absolute", right: 0, bottom: "100%", marginBottom: 4, zIndex: 100,
+                      width: 140, background: "#fff", borderRadius: 8,
+                      border: `1px solid ${U.border}`, boxShadow: "0 4px 16px rgba(0,0,0,.08)",
+                      padding: "4px 6px", fontSize: 10.5,
+                    }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
+                        <input type="checkbox" checked={mineruEnabled} onChange={e => setMineruEnabled(e.target.checked)}
+                               style={{ width: 14, height: 14, cursor: "pointer" }} />
+                        <span style={{ color: U.textMid }}>文档解析</span>
+                      </label>
+                      {mineruEnabled && (
+                        <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
+                          <input type="checkbox" checked={portraitDetect} onChange={e => setPortraitDetect(e.target.checked)}
+                                 style={{ width: 14, height: 14, cursor: "pointer" }} />
+                          <span style={{ color: U.textMid }}>人像识别</span>
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <RippleBtn onClick={handleParse} disabled={(!rawText.trim() && !pendingFile) || parsing} style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "7px 16px",
+                borderRadius: 8, border: "none", flexShrink: 0,
+                cursor: (!rawText.trim() && !pendingFile) || parsing ? "default" : "pointer",
+                background: (!rawText.trim() && !pendingFile) || parsing ? U.border : U.blue,
+                color: "#fff", fontSize: 12, fontWeight: 600, letterSpacing: ".03em",
+                boxShadow: (!rawText.trim() && !pendingFile) || parsing
+                  ? "none" : "0 3px 12px rgba(58,118,196,.34)",
+                transition: `all .2s ${E.smooth}`,
+              }}>
+                {parsing
+                  ? <><RefreshCw size={12} style={{ animation: "spin .8s linear infinite" }} /> 解析中…</>
+                  : <><Sparkles size={12} /> 开始解析</>}
+              </RippleBtn>
             </div>
           </div>
 
@@ -574,92 +625,18 @@ export default function Page1() {
             </div>
           )}
 
-          {/* ── Action bar ─────────────────────────────── */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input ref={fileRef} type="file" accept={uploadCfg?.allowed_extensions?.join(",") || ".txt,.csv,.vcf"} style={{ display: "none" }}
-              onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-            <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
-              onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
-
-            {mineruCfg?.available && !!pendingFile && (
-              <div style={{ position: "relative" }}>
-                <button onClick={() => setShowMineruOpts(v => !v)} style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  padding: "5px 10px", borderRadius: 8, border: `1px solid ${U.border}`,
-                  background: showMineruOpts ? U.surfaceBlue : "transparent",
-                  cursor: "pointer", fontSize: 11, color: U.textMid,
-                  transition: `all .15s ${E.smooth}`,
-                }}>
-                  <Layers size={12} /> 识别
-                </button>
-                {showMineruOpts && (
-                  <div style={{
-                    position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 100,
-                    width: 140, background: "#fff", borderRadius: 8,
-                    border: `1px solid ${U.border}`, boxShadow: "0 4px 16px rgba(0,0,0,.08)",
-                    padding: "4px 6px", fontSize: 10.5,
-                  }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
-                      <input type="checkbox" checked={mineruEnabled} onChange={e => setMineruEnabled(e.target.checked)}
-                             style={{ width: 14, height: 14, cursor: "pointer" }} />
-                      <span style={{ color: U.textMid }}>文档解析</span>
-                    </label>
-                    {mineruEnabled && (
-                      <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
-                        <input type="checkbox" checked={portraitDetect} onChange={e => setPortraitDetect(e.target.checked)}
-                               style={{ width: 14, height: 14, cursor: "pointer" }} />
-                        <span style={{ color: U.textMid }}>人像识别</span>
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div style={{ flex: 1 }} />
-
-            <RippleBtn onClick={handleParse} disabled={(!rawText.trim() && !pendingFile) || parsing} style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "9px 22px",
-              borderRadius: 9, border: "none",
-              cursor: (!rawText.trim() && !pendingFile) || parsing ? "default" : "pointer",
-              background: (!rawText.trim() && !pendingFile) || parsing ? U.border : U.blue,
-              color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: ".04em",
-              boxShadow: (!rawText.trim() && !pendingFile) || parsing
-                ? "none" : "0 4px 16px rgba(58,118,196,.38)",
-              transition: `all .2s ${E.smooth}`,
-            }}>
-              {parsing
-                ? <><RefreshCw size={13} style={{ animation: "spin .8s linear infinite" }} /> 解析中…</>
-                : <><Sparkles size={13} /> 开始解析</>}
-            </RippleBtn>
-          </div>
+          {/* 隐藏的文件选择器，由框内加号和证件照方框触发 */}
+          <input ref={fileRef} type="file" accept={uploadCfg?.allowed_extensions?.join(",") || ".txt,.csv,.vcf"} style={{ display: "none" }}
+            onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+          <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
+            onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
 
 
           {/* ── AI result section ───────────────────────── */}
           {hasFields && (
             <div style={{ animation: `fadeSlideIn .3s ${E.smooth} both` }}>
-              <div style={{
-                display: "flex", alignItems: "center",
-                justifyContent: "space-between", marginBottom: 13,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <div style={{
-                    width: 26, height: 26, borderRadius: 8, background: U.blueLight,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <Sparkles size={13} color={U.blue} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: U.text, lineHeight: 1 }}>
-                      AI 解析结果
-                    </div>
-                    <div style={{ fontSize: 10, color: U.textFaint, marginTop: 3 }}>
-                      点击下方字段可直接编辑
-                    </div>
-                  </div>
-                </div>
-
-                {/* 证件照：点这块方框直接换图，取代原来的「导入图片」按钮 */}
+              {/* 证件照：移到字段列表上方，居右显示 */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
                 <PortraitSlot
                   url={portraitUrl}
                   onPick={() => imgRef.current?.click()}
@@ -731,13 +708,8 @@ export default function Page1() {
         willChange: "transform",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20,
       }}>
-        <div>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: U.text }}>
-            {fields.length} 个字段
-          </div>
-          <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>
-            确认内容后进入卡片设计
-          </div>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: U.text }}>
+          {fields.length} 个字段
         </div>
         <RippleBtn onClick={goToDesign} {...goBind} style={{
           display: "flex", alignItems: "center", gap: 9, padding: "12px 28px",
