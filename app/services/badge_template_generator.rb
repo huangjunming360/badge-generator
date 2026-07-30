@@ -14,7 +14,7 @@ class BadgeTemplateGenerator
   def generate(requirement:, complexity: 5, reference_notes: nil, model_id: nil, width_mm: 55, height_mm: 85, reference_assets: [])
     call_function(
       :template_codegen,
-      build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm, reference_assets.size),
+      build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm),
       model_id: model_id,
       attachments: reference_assets
     )
@@ -33,12 +33,11 @@ class BadgeTemplateGenerator
 
   private
 
-  def build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm, reference_asset_slots)
+  def build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm)
     payload = {
       requirement: requirement.to_s,
       complexity: [ [ complexity.to_i, 1 ].max, 10 ].min,
       reference_notes: reference_notes.to_s,
-      reference_asset_slots: reference_asset_slots.to_i.clamp(0, TemplateGenerationJob::MAX_REFERENCE_ASSETS),
       canvas: { width_mm: width_mm.to_f.clamp(20, 200), height_mm: height_mm.to_f.clamp(20, 200) }
     }
     ensure_request_size!(payload)

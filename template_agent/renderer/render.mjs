@@ -17,7 +17,6 @@ const portraitPlaceholder = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 const sample = source.html
   .replaceAll(/{{\s*card\.portrait_url\s*}}/g, portraitPlaceholder)
   .replaceAll(/{{\s*card\.[\w_]+\s*}}/g, "示例文本")
-  .replaceAll(/{{\s*assets\.[\w_]+\s*}}/g, portraitPlaceholder)
   .replaceAll(/{{\s*fields\.[\w_]+\s*}}/g, "示例信息");
 const document = `<!doctype html><html><head><meta charset="utf-8"><style>
 ${source.css}

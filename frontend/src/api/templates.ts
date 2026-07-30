@@ -6,27 +6,25 @@ export interface TemplateProposal { html: string; css: string; notes: string; va
 
 export const fetchAdminTemplates = () => getJson<{ templates: BadgeTemplate[] }>("/admin/badge_templates").then(r => r.templates);
 export const fetchStudioTemplates = () => getJson<{ templates: BadgeTemplate[] }>("/template_studio").then(r => r.templates);
-export const createAdminTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string; generation_job_id?: number }) =>
+export const createAdminTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string }) =>
   sendJson<{ template: BadgeTemplate }>("/admin/badge_templates", "POST", {
     badge_template: { name: data.name, orientation: data.orientation, width_mm: data.width_mm, height_mm: data.height_mm },
-    source: { source_html: data.html, source_css: data.css, source_kind: "manual" }, generation_job_id: data.generation_job_id,
+    source: { source_html: data.html, source_css: data.css, source_kind: "manual" },
   }).then(r => r.template);
-export const createStudioTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string; generation_job_id?: number }) =>
+export const createStudioTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string }) =>
   sendJson<{ template: BadgeTemplate }>("/template_studio", "POST", {
     badge_template: { name: data.name, orientation: data.orientation, width_mm: data.width_mm, height_mm: data.height_mm },
-    source: { source_html: data.html, source_css: data.css }, generation_job_id: data.generation_job_id,
+    source: { source_html: data.html, source_css: data.css },
   }).then(r => r.template);
-export const updateAdminTemplate = (id: number, data: Partial<{ name: string; orientation: string; width_mm: number; height_mm: number }> & { html?: string; css?: string; generation_job_id?: number }) =>
+export const updateAdminTemplate = (id: number, data: Partial<{ name: string; orientation: string; width_mm: number; height_mm: number }> & { html?: string; css?: string }) =>
   sendJson<{ template: BadgeTemplate }>(`/admin/badge_templates/${id}`, "PATCH", {
     badge_template: { name: data.name, orientation: data.orientation, width_mm: data.width_mm, height_mm: data.height_mm },
     ...(data.html !== undefined ? { source: { source_html: data.html, source_css: data.css ?? "", source_kind: "manual" } } : {}),
-    generation_job_id: data.generation_job_id,
   }).then(r => r.template);
-export const updateStudioTemplate = (id: number, data: Partial<{ name: string; orientation: string; width_mm: number; height_mm: number }> & { html?: string; css?: string; generation_job_id?: number }) =>
+export const updateStudioTemplate = (id: number, data: Partial<{ name: string; orientation: string; width_mm: number; height_mm: number }> & { html?: string; css?: string }) =>
   sendJson<{ template: BadgeTemplate }>(`/template_studio/${id}`, "PATCH", {
     badge_template: { name: data.name, orientation: data.orientation, width_mm: data.width_mm, height_mm: data.height_mm },
     ...(data.html !== undefined ? { source: { source_html: data.html, source_css: data.css ?? "" } } : {}),
-    generation_job_id: data.generation_job_id,
   }).then(r => r.template);
 export const generateTemplate = (requirement: string, complexity: number, reference_notes: string, model_id: string | null, width_mm: number, height_mm: number, assets: File[]) => {
   const form = new FormData();

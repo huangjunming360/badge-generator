@@ -63,19 +63,6 @@ class BadgeTemplateRendererTest < ActiveSupport::TestCase
     assert_includes html, 'src="/default-avatar.svg"'
   end
 
-  test "模板素材以本地受控地址提供给 Liquid" do
-    @template.design_assets.attach(
-      io: File.open(Rails.root.join("test/fixtures/files/portrait.png")),
-      filename: "brand.png",
-      content_type: "image/png"
-    )
-    version = create_version(html: '<img src="{{ assets.reference_1 }}" alt="品牌">')
-
-    html = BadgeTemplateRenderer.render(version: version, card: @card)
-
-    assert_includes html, 'src="/rails/active_storage/'
-  end
-
   test "模板首个元素不会撑出成品画布" do
     version = create_version(html: '<article class="badge"><div>内容</div></article>')
 

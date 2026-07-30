@@ -75,7 +75,6 @@ functions:
       约束：
       - HTML 只能使用 article、div、h1-h6、p、span、img、main、section、header、footer、ul、li、br、strong、small 等普通展示标签。
       - 只能使用 Liquid 变量 {{ card.name }}、{{ card.name_en }}、{{ card.organization }}、{{ card.host_organization }}、{{ card.host_department }}、{{ card.event_topic }}、{{ card.portrait_url }}；可使用 if/else/endif 和 for/endfor。
-      - 请求中的 reference_asset_slots 是可复用的本地品牌/装饰素材数量。需要在最终成品中使用第 N 张素材时，只能使用 {{ assets.reference_N }}（N 从 1 开始且不能超过该数量）；没有素材时绝不能引用 assets。素材会在管理员保存草案时安全归属到该模板。
       - 不得输出 script、iframe、form、input、meta、link、外部资源、JavaScript、CSS url() 或 @import。
       - 图片如需使用，只能写 src="{{ card.portrait_url }}"。
       - CSS 必须是内联样式表内容，不要包含 <style> 标签；优先使用毫米、百分比和 flex/grid。

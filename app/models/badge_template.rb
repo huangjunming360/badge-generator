@@ -7,7 +7,6 @@ class BadgeTemplate < ApplicationRecord
   belongs_to :published_version, class_name: "BadgeTemplateVersion", optional: true
   has_many :versions, class_name: "BadgeTemplateVersion", dependent: :destroy
   has_many :cards, dependent: :restrict_with_error
-  has_many_attached :design_assets
 
   validates :name, presence: true, length: { maximum: 80 }
   validates :orientation, inclusion: { in: ORIENTATIONS }

@@ -21,11 +21,6 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
     BadgeTemplate.transaction do
       template = Current.user.owned_badge_templates.create!(template_params)
       create_version!(template)
-      TemplateAssetBinder.attach_generation_assets!(
-        template: template,
-        user: Current.user,
-        generation_job_id: params[:generation_job_id]
-      )
     end
     render json: { template: BadgeTemplateSerializer.new(template).admin_detail }, status: :created
   rescue ActiveRecord::RecordInvalid => e
@@ -62,11 +57,6 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
     BadgeTemplate.transaction do
       @template.update!(template_params)
       create_version!(@template) if source_params[:source_html].present? || source_params.key?(:source_css)
-      TemplateAssetBinder.attach_generation_assets!(
-        template: @template,
-        user: Current.user,
-        generation_job_id: params[:generation_job_id]
-      )
     end
     render json: { template: BadgeTemplateSerializer.new(@template).admin_detail }
   rescue ActiveRecord::RecordInvalid => e
