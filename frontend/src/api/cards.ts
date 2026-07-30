@@ -3,6 +3,22 @@ import type { CardPayload, CardFields, SchemaPayload, ProgressStatus } from "./t
 
 export const fetchSchema = () => getJson<SchemaPayload>("/schema");
 
+// 同步建卡（sync=1）：等 LLM 返回后才响应，适合建卡后立刻编辑
+export const createCardFromText = (rawInput: string, modelId: string | null) =>
+  sendJson<{ card: CardPayload }>("/cards", "POST", {
+    raw_input: rawInput, model_id: modelId, sync: "1",
+  }).then(r => ({ fields: r.card.fields as unknown as Record<string, string | null>, id: r.card.id }));
+
+export const createCardFromDocument = (file: File, portrait: File | null, modelId: string | null) => {
+  const form = new FormData();
+  form.append("document", file);
+  if (portrait) form.append("portrait", portrait);
+  if (modelId) form.append("model_id", modelId);
+  form.append("sync", "1");
+  return sendForm<{ card: CardPayload }>("/cards", "POST", form)
+    .then(r => ({ fields: r.card.fields as unknown as Record<string, string | null>, id: r.card.id }));
+};
+
 export const fetchCards = () =>
   getJson<{ cards: CardPayload[] }>("/cards").then((r) => r.cards);
 
@@ -26,12 +42,15 @@ export function pollCard(params: {
   rawInput?: string; file?: File; portrait?: File | null; modelId?: string | null;
   mineru_enabled?: boolean; portrait_detect?: boolean;
 }, onProgress: (p: ProgressStatus) => void): Promise<number> {
-  const work = params.file
+  // 有文件或手动上传了照片 → 走 FormData，否则走 JSON
+  const needsForm = params.file || params.portrait;
+  const work = needsForm
     ? (() => {
         const form = new FormData();
-        form.append("document", params.file);
+        if (params.file) form.append("document", params.file);
         if (params.portrait) form.append("portrait", params.portrait);
         if (params.modelId) form.append("model_id", params.modelId);
+        if (params.rawInput) form.append("raw_input", params.rawInput);
         form.append("mineru_enabled", params.mineru_enabled !== false ? "1" : "0");
         form.append("portrait_detect", params.portrait_detect !== false ? "1" : "0");
         return startCreateForm(form);

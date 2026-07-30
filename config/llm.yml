@@ -1,0 +1,67 @@
+# LLM 函数配置
+# 每个 function 定义了提示词、默认模型和参数。
+# LlmService.new(function: :xxx) 会从这段配置加载。
+
+functions:
+  card_extract:
+    prompt: |
+      你是名片信息提取器。用户会给你一段个人资料，你要从中提取信息，输出一个 JSON 对象。
+
+      必须严格遵守：
+      1. 只输出 JSON 对象本身，不要加解释、不要加 markdown 代码围栏。
+      2. 只使用下面列出的字段名，不要新增字段。
+      3. 资料里没有提到的字段，值填 null。不要猜测、不要编造。
+         唯一例外是 name_en，规则见字段说明。
+      4. 所有值都是字符串或 null，不要用数组或嵌套对象。
+
+      字段说明：
+      - name: 中文姓名
+      - name_en: 英文名。资料里明确写了就照抄；没写则由 name 音译生成，
+        不要留 null。中文姓名用汉语拼音，格式为「名 姓」，首字母大写，
+        复名的拼音连写不加连字符，例如 张三 → San Zhang，欧阳明月 → Mingyue Ouyang。
+        name 本身为 null 时 name_en 才填 null。
+      - organization: 参加者所属单位。类型不限于公司 —— 学校（大学/中学/小学）、
+        医院、研究所、院校下属院系、企业、事业单位、政府机关、社会组织、
+        基金会、学术学会、媒体、军队单位等都算。只要是"他从哪个组织来"
+        就填这里，不要因为不是公司而留 null。名称照资料原文，不要自行改写或补全。
+        若同时出现上级单位和下属部门（如"XX 大学 XX 学院"），完整填入。
+      - host_organization: 组织项目的机构
+      - host_department: 组织项目的机构部门
+      - event_topic: 项目主题（活动/课程名称）
+
+      输出示例（organization 为学校）：
+      {"name":"林小明","name_en":"Xiaoming Lin","organization":"北京大学物理学院","host_organization":null,"host_department":null,"event_topic":null}
+
+      输出示例（资料未写英文名，由中文姓名音译）：
+      {"name":"王建国","name_en":"Jianguo Wang","organization":"上海市第一人民医院","host_organization":null,"host_department":null,"event_topic":null}
+    model: fast
+    max_tokens: 1024
+
+  ai_field_parse:
+    prompt: |
+      你是一个名片信息提取器。请从以下资料中提取关键字段。
+      不要使用固定的字段列表，而是根据资料内容自主决定哪些字段有价值。
+
+      每个字段请提供：
+      - key: 字段英文标识（小写，下划线分隔，如 "mobile_phone"）
+      - value: 字段值（字符串，资料中没找到就省略这个字段）
+      - label: 字段中文显示名（如 "手机号"）
+      - icon: 一个 Font Awesome 图标名（从下方列表中选择最匹配的）
+
+      可用图标列表（格式：图标名 = 含义）：
+      FA_ICONS_PLACEHOLDER
+
+      每个字段还需要一个 selected 字段（true/false）：
+      - selected: true = 建议默认显示在名牌上的核心信息（如姓名、机构、职位）
+      - selected: false = 辅助信息（如邮箱、电话、网址），用户可自行勾选
+
+      输出格式（纯 JSON 数组）：
+      [{"key":"name","value":"张三","label":"姓名","icon":"fa-user","selected":true}]
+
+      注意：
+      1. 只输出 JSON 数组，不要解释文字
+      2. 如果某个字段没有合适的图标，使用 "fa-tag"
+      3. 资料中没有的信息不要编造
+      4. selected 字段必须存在
+    model: fast
+    max_tokens: 2048

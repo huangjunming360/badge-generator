@@ -44,6 +44,9 @@ Rails.application.routes.draw do
     end
   end
 
+  # 公开挂牌展示
+  resources :cards, only: :show, controller: "cards"
+
   # 前端 SPA —— 所有非 /admin /api 的路径都渲染 index.html
   root "frontend#index"
   get "/*path" => "frontend#index",

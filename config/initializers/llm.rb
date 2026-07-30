@@ -5,8 +5,10 @@
 # 存入 Rails.application.config.x.models 供运行时查表。
 
 require "json"
+require "yaml"
 
 models_path = Rails.root.join("config/models.json")
+llm_config_path = Rails.root.join("config/llm.yml")
 
 if File.exist?(models_path)
   raw = JSON.parse(File.read(models_path))
@@ -34,4 +36,11 @@ if File.exist?(models_path)
   end
 else
   Rails.application.config.x.models = { "default" => nil, "models" => [] }
+end
+
+# LLM 函数配置（提示词模板等）
+if File.exist?(llm_config_path)
+  Rails.application.config.x.llm_functions = YAML.load_file(llm_config_path)["functions"] || {}
+else
+  Rails.application.config.x.llm_functions = {}
 end

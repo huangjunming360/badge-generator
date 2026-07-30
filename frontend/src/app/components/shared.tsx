@@ -11,10 +11,26 @@ import {
 export interface Field {
   id: string; key: string; label: string; value: string;
   selected: boolean; category: "person" | "contact" | "access";
+  icon?: string;
 }
 export type Template  = "visitor" | "access" | "business" | "custom";
 export type AccentKey = "rose" | "blue" | "gold";
 export type FontSz    = "sm" | "md" | "lg";
+
+/* 字号系数。卡片高度要跟着字号一起撑，否则大字号下内容超高，
+   底部的二维码会被卡片的 overflow:hidden 裁掉。
+   BadgeCanvas 算等比缩放系数时用的是同一套值，两边必須一致。 */
+export const FZ: Record<FontSz, number> = { sm:.84, md:1, lg:1.15 };
+
+/* 内容区高度的字号补偿。只补高不补宽 —— 宽度由折行吸收，
+   高度才是会把二维码顶出去的方向。 */
+export function fzHeightFactor(fontSize: FontSz) {
+  // 只向上补高，不向下压。字号变小时内容本来就有余量，
+  // 而 padding、二维码、分隔线这些固定量不跟着缩，
+  // 再压卡片高度只会把它们挤到一起。
+  const f = FZ[fontSize];
+  return f <= 1 ? 1 : 1 + (f - 1) * 0.85;
+}
 export type StyleKey  = "minimal" | "formal";
 export interface CustomCfg {
   orientation: "portrait" | "landscape";
@@ -25,6 +41,7 @@ export interface CustomCfg {
 export interface NavState {
   rawText: string;
   fields: Field[];
+  // 后端建卡后的 id。刷新会丢 location.state，第二页据此回源重取。
   cardId: number | null;
   portraitUrl?: string | null;
   imgName?: string | null;
@@ -64,14 +81,6 @@ export const ACCENTS: Record<AccentKey, { main:string; deep:string; muted:string
   blue: { main:"#3A76C4", deep:"#1D4F8A", muted:"#D8E9F8", label:"靛青蓝", desc:"沉稳专业" },
   gold: { main:"#9A7840", deep:"#6A5020", muted:"#EEE0C4", label:"暖砂金", desc:"低调精致" },
 };
-
-/* ── Sample data ─────────────────────────────────────────────── */
-export const SAMPLE = `{
-  "名称": "林思远",
-  "组织项目的机构": "清华大学",
-  "组织项目的机构部门": "人工智能研究院",
-  "项目主题": "2026 · 暑期 AI 研修营"
-}`;
 
 /* Field descriptor used by both JSON and line parsers */
 /* 本地解析已删除：提取统一由后端 CardExtractor 走 LLM 完成。
@@ -182,7 +191,7 @@ export function MiniQR({ color="#1A2C40", size=44 }: { color?:string; size?:numb
     [14,8],[14,12],[14,16],[15,9],[15,13],[16,8],[16,11],[16,13],[16,16],
   ];
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink:0, display:"block" }}>
       {corners.map(([r,c,h,w],i) => <rect key={`c${i}`} x={c*s+.3} y={r*s+.3} width={w*s} height={h*s} fill="none" stroke={color} strokeWidth={s*.6} opacity={.5} rx={s*.18}/>)}
       {inners.map( ([r,c,h,w],i) => <rect key={`i${i}`} x={c*s+.3} y={r*s+.3} width={w*s} height={h*s} fill={color} opacity={.5} rx={s*.1}/>)}
       {data.map(   ([r,c],i)     => <rect key={`d${i}`} x={c*s+.3} y={r*s+.3} width={s*.8} height={s*.8} fill={color} opacity={.38} rx={s*.08}/>)}
@@ -197,22 +206,45 @@ export function Barcode({ color="#4E718A" }: { color?:string }) {
   const bars: { x:number; w:number }[] = [];
   ws.forEach((w, i) => { if (i%2===0) bars.push({x,w}); x+=w+.7; });
   return (
-    <svg width={x} height={18} viewBox={`0 0 ${x} 18`} style={{display:"block"}}>
+    <svg width={x} height={18} viewBox={`0 0 ${x} 18`} style={{display:"block", flexShrink:0}}>
       {bars.map((b,i) => <rect key={i} x={b.x} y={0} width={b.w} height={18} fill={color} opacity={.45}/>)}
     </svg>
   );
 }
 
+/* 卡片上的证件照。传了图就显图，没传退回人像图标占位。
+   objectFit:cover 保证不拉伸 —— 证件照比例不一，又是圆形框，
+   拉伸变形比裁切难看得多。 */
+function Portrait({ url, size, ac, iconSize }: {
+  url?:string|null; size:number;
+  ac:{ main:string; deep:string; muted:string }; iconSize:number;
+}) {
+  return (
+    <div style={{
+      width:size, height:size, borderRadius:"50%",
+      background:ac.muted, border:`1px solid ${ac.main}44`,
+      display:"flex", alignItems:"center", justifyContent:"center",
+      flexShrink:0, overflow:"hidden",
+    }}>
+      {url
+        ? <img src={url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+        : <User size={iconSize} color={ac.deep} strokeWidth={1.2}/>}
+    </div>
+  );
+}
+
 /* ── BadgeCard ───────────────────────────────────────────────── */
-export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, scale=1 }: {
+export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, portraitUrl, scale=1 }: {
   fields:Field[]; template:Template; accent:AccentKey;
-  fontSize:FontSz; styleK:StyleKey; custom:CustomCfg; scale?:number;
+  fontSize:FontSz; styleK:StyleKey; custom:CustomCfg; portraitUrl?:string|null; scale?:number;
 }) {
   const ac  = ACCENTS[accent];
   const sel = fields.filter(f => f.selected);
   const get = (k:string) => sel.find(f => f.key===k)?.value ?? "";
   const has = (k:string) => sel.some(f => f.key===k);
-  const fz  = { sm:.84, md:1, lg:1.15 }[fontSize];
+  const fz  = FZ[fontSize];
+  // 字号放大时卡片同步变高，内容才不会顶掉底部的二维码。
+  const hf  = fzHeightFactor(fontSize);
   const rad = styleK==="minimal" ? 12 : 4;
   const SH  = "0 8px 32px rgba(30,50,80,.13), 0 2px 8px rgba(30,50,80,.08)";
   const bg="#FDFBF7", bgH="#F5F1E8", bdr="#E0D8C8";
@@ -228,7 +260,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
 
   if (template === "custom") {
     const isL = custom.orientation === "landscape";
-    const W = isL ? 320 : 200, H = isL ? 190 : 300;
+    const W = isL ? 320 : 200, H = (isL ? 190 : 300) * hf;
     const others = sel.filter(f => f.key !== "name");
     return (
       <div style={{ width:W*scale, height:H*scale, background:bg, borderRadius:rad*scale,
@@ -247,27 +279,24 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
         <div style={{ flex:1, padding:`${11*scale}px ${14*scale}px ${10*scale}px`,
           display:"flex", flexDirection: isL?"row":"column", gap:10*scale }}>
           {custom.showPhoto && (
-            <div style={{ width:isL?50*scale:40*scale, height:isL?50*scale:40*scale,
-              borderRadius:"50%", background:ac.muted, border:`1px solid ${ac.main}44`,
-              display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <User size={isL?22*scale:18*scale} color={ac.deep} strokeWidth={1.2}/>
-            </div>
+            <Portrait url={portraitUrl} size={isL?50*scale:40*scale}
+              ac={ac} iconSize={isL?22*scale:18*scale}/>
           )}
           <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
             {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:13*scale*fz, fontWeight:600, color:"#1A2C40", lineHeight:1.2 }}>{get("name")}</div>}
             {!isL && <div style={{ height:1*scale, background:bdr, margin:`${7*scale}px 0` }}/>}
             <div style={{ display:"flex", flexDirection:"column", gap:4.5*scale, flex:1 }}>
               {others.slice(0,5).map(f => (
-                <div key={f.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
-                  <span style={{ fontSize:6.5*scale*fz, color:"#8AABBB", letterSpacing:".12em", textTransform:"uppercase", flexShrink:0 }}>{f.label}</span>
-                  <span style={{ fontSize:8*scale*fz, color:"#1A2C40", fontWeight:500,
-                    maxWidth:isL?150*scale:105*scale, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"right" }}>{f.value}</span>
+                <div key={f.key} style={{ display:"flex", flexDirection:"column", gap:1*scale, minWidth:0 }}>
+                  <span style={{ fontSize:6.5*scale*fz, color:"#8AABBB", letterSpacing:".1em", textTransform:"uppercase", lineHeight:1.25 }}>{f.label}</span>
+                  <span style={{ fontSize:8*scale*fz, color:"#1A2C40", fontWeight:500, lineHeight:1.3,
+                    overflowWrap:"break-word", wordBreak:"break-word" }}>{f.value}</span>
                 </div>
               ))}
             </div>
             {(custom.showQR || custom.showBarcode || custom.showDots) && (
               <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10*scale,
-                paddingTop:6*scale, borderTop:`1px solid ${bdr}`, marginTop:4*scale }}>
+                paddingTop:6*scale, borderTop:`1px solid ${bdr}`, marginTop:4*scale, flexShrink:0 }}>
                 {custom.showQR      && <MiniQR color={ac.deep} size={36*scale}/>}
                 {custom.showBarcode && <Barcode color={ac.deep}/>}
                 {custom.showDots    && (
@@ -303,9 +332,6 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
         </div>
         <div style={{ height:1*scale, background:bdr, marginBottom:10*scale }}/>
         <div style={{ display:"flex", flexDirection:"column", gap:5*scale }}>
-          {has("phone") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Phone size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("phone")}</span></div>}
-          {has("email") && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><Mail size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("email")}</span></div>}
-          {has("address")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("address")}</span></div>}
           {has("area")  && <div style={{ display:"flex", gap:7*scale, alignItems:"center" }}><MapPin size={9*scale} color="#8AABBB"/><span style={{ fontSize:9.5*scale*fz, color:"#4E718A" }}>{get("area")}</span></div>}
         </div>
         <div style={{ height:3*scale, background:ac.main, position:"absolute", bottom:0, left:0, right:0 }}/>
@@ -316,7 +342,7 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
   const isVisitor = template === "visitor";
   const others    = sel.filter(f => f.key !== "name");
   return (
-    <div style={{ width:200*scale, height:300*scale, background:bg, borderRadius:rad*scale,
+    <div style={{ width:200*scale, height:300*hf*scale, background:bg, borderRadius:rad*scale,
       border:`1px solid ${bdr}`, boxShadow:SH, display:"flex", flexDirection:"column",
       overflow:"hidden", fontFamily:"'Outfit',sans-serif" }}>
       <div style={{ height:4*scale, background:ac.main }}/>
@@ -331,10 +357,8 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
       </div>
       <div style={{ flex:1, padding:`${12*scale}px ${14*scale}px ${10*scale}px`, display:"flex", flexDirection:"column" }}>
         <div style={{ display:"flex", alignItems:"center", gap:9*scale, marginBottom:9*scale }}>
-          <div style={{ width:40*scale, height:40*scale, borderRadius:"50%", background:ac.muted,
-            border:`1px solid ${ac.main}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <User size={18*scale} color={ac.deep} strokeWidth={1.2}/>
-          </div>
+          <Portrait url={portraitUrl} size={40*scale}
+            ac={ac} iconSize={18*scale}/>
           <div>
             {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:13*scale*fz, fontWeight:600, color:"#1A2C40", lineHeight:1.2 }}>{get("name")}</div>}
           </div>
@@ -342,21 +366,21 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
         <div style={{ height:1*scale, background:bdr, marginBottom:8*scale }}/>
         <div style={{ display:"flex", flexDirection:"column", gap:5.5*scale, flex:1 }}>
           {others.slice(0,6).map(f => (
-            <div key={f.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
-              <span style={{ fontSize:7*scale*fz, color:"#8AABBB", letterSpacing:".12em", textTransform:"uppercase", flexShrink:0 }}>{f.label}</span>
-              <span style={{ fontSize:8.5*scale*fz, color:"#1A2C40", fontWeight:500,
-                maxWidth:112*scale, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"right" }}>{f.value}</span>
+            <div key={f.key} style={{ display:"flex", flexDirection:"column", gap:1*scale, minWidth:0 }}>
+              <span style={{ fontSize:7*scale*fz, color:"#8AABBB", letterSpacing:".1em", textTransform:"uppercase", lineHeight:1.25 }}>{f.label}</span>
+              <span style={{ fontSize:8.5*scale*fz, color:"#1A2C40", fontWeight:500, lineHeight:1.3,
+                overflowWrap:"break-word", wordBreak:"break-word" }}>{f.value}</span>
             </div>
           ))}
         </div>
         {!isVisitor
-          ? <div style={{ paddingTop:7*scale, borderTop:`1px solid ${bdr}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          ? <div style={{ paddingTop:7*scale, borderTop:`1px solid ${bdr}`, display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
               <span style={{ fontSize:6.5*scale*fz, color:"#8AABBB", letterSpacing:".16em" }}>ACCESS LEVEL</span>
               <div style={{ display:"flex", gap:3*scale }}>
                 {[1,2,3,4].map(i => <div key={i} style={{ width:6*scale, height:6*scale, borderRadius:"50%", background:i<=3?ac.main:bdr }}/>)}
               </div>
             </div>
-          : <div style={{ display:"flex", justifyContent:"center", paddingTop:5*scale }}>
+          : <div style={{ display:"flex", justifyContent:"center", paddingTop:5*scale, flexShrink:0 }}>
               <MiniQR color={ac.deep} size={42*scale}/>
             </div>
         }
@@ -455,10 +479,11 @@ export function CustomPanel({ cfg, onChange }: { cfg:CustomCfg; onChange:(c:Cust
 }
 
 /* ── PreviewSheet ────────────────────────────────────────────── */
-export function PreviewSheet({ open, onClose, fields, template, accent, fontSize, styleK, custom }: {
+export function PreviewSheet({ open, onClose, fields, template, accent, fontSize, styleK, custom, portraitUrl, onExport, exporting }: {
   open:boolean; onClose:()=>void;
   fields:Field[]; template:Template; accent:AccentKey;
-  fontSize:FontSz; styleK:StyleKey; custom:CustomCfg;
+  fontSize:FontSz; styleK:StyleKey; custom:CustomCfg; portraitUrl?:string|null;
+  onExport?:()=>void; exporting?:boolean;
 }) {
   return (
     <>
@@ -487,12 +512,13 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
             </div>
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <RippleBtn style={{
+            <RippleBtn onClick={onExport} disabled={exporting} style={{
               display:"flex", alignItems:"center", gap:6, padding:"8px 18px",
-              borderRadius:9, background:U.blue, border:"none", cursor:"pointer",
+              borderRadius:9, background:U.blue, border:"none",
+              cursor:exporting ? "default" : "pointer", opacity:exporting ? .6 : 1,
               color:"#fff", fontSize:12.5, fontWeight:600,
             }}>
-              <Download size={13}/> 导出
+              <Download size={13}/> {exporting ? "导出中…" : "导出"}
             </RippleBtn>
             <button onClick={onClose} style={{
               width:36, height:36, borderRadius:"50%",
@@ -515,7 +541,8 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
             </svg>
             <div style={{ position:"relative", zIndex:1, animation:`floatIn .5s ${E.spring} both` }}>
               <BadgeCard fields={fields} template={template} accent={accent}
-                fontSize={fontSize} styleK={styleK} custom={custom} scale={1.2}/>
+                fontSize={fontSize} styleK={styleK} custom={custom}
+                portraitUrl={portraitUrl} scale={1.2}/>
             </div>
           </div>
         </div>
@@ -528,7 +555,7 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
 export function OptionsSidebar({
   template, setTemplate, accent, setAccent,
   fontSize, setFontSize, styleK, setStyleK,
-  custom, setCustom, onExport,
+  custom, setCustom, onExport, exporting,
 }: {
   template:Template;   setTemplate:(t:Template)=>void;
   accent:AccentKey;    setAccent:(a:AccentKey)=>void;
@@ -536,6 +563,7 @@ export function OptionsSidebar({
   styleK:StyleKey;     setStyleK:(s:StyleKey)=>void;
   custom:CustomCfg;    setCustom:(c:CustomCfg)=>void;
   onExport?:()=>void;
+  exporting?:boolean;
 }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
@@ -652,14 +680,15 @@ export function OptionsSidebar({
       {onExport && (
         <>
           <Divider/>
-          <RippleBtn onClick={onExport} style={{
-            width:"100%", padding:"12px 0", borderRadius:10, border:"none", cursor:"pointer",
+          <RippleBtn onClick={onExport} disabled={exporting} style={{
+            width:"100%", padding:"12px 0", borderRadius:10, border:"none",
+            cursor:exporting ? "default" : "pointer", opacity:exporting ? .6 : 1,
             background:`linear-gradient(135deg, ${U.blue}, ${U.blueDark})`,
             color:"#fff", fontSize:13, fontWeight:600, letterSpacing:".05em",
             display:"flex", alignItems:"center", justifyContent:"center", gap:8,
             boxShadow:"0 6px 22px rgba(58,118,196,.38)",
           }}>
-            <Download size={14}/> 导出工牌
+            <Download size={14}/> {exporting ? "导出中…" : "导出工牌"}
           </RippleBtn>
         </>
       )}

@@ -7,7 +7,7 @@ interface Props {
   src: string;
   open: boolean;
   onClose: () => void;
-  onCrop: (blob: Blob) => void;
+  onCrop: (blob: Blob, fullScreen?: boolean) => void;
 }
 
 const RATIOS: { label: string; value: number }[] = [
@@ -29,8 +29,9 @@ export default function CropModal({ src, open, onClose, onCrop }: Props) {
   }, []);
 
   const doCrop = async () => {
+    const fullScreen = ratio < 0;
     // 全屏模式：返回完整图片
-    if (ratio < 0) {
+    if (fullScreen) {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.src = src;
@@ -38,7 +39,7 @@ export default function CropModal({ src, open, onClose, onCrop }: Props) {
       const c = document.createElement("canvas");
       c.width = img.width; c.height = img.height;
       c.getContext("2d")!.drawImage(img, 0, 0);
-      c.toBlob(b => b && onCrop(b), "image/jpeg", 0.92);
+      c.toBlob(b => b && onCrop(b, true), "image/jpeg", 0.92);
       return;
     }
     if (!croppedAreaPixels) return;

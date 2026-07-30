@@ -2,25 +2,25 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X, FileText,
-  Sparkles, Layers, Settings,
+  Sparkles, Layers, Settings, GripVertical,
 } from "lucide-react";
 import {
   Field, NavState,
-  E, U, SAMPLE,
+  E, U,
   usePress, RippleBtn, FIcon,
 } from "./shared";
-import { fetchSchema, pollCard, fetchCard } from "../../api/cards";
+import { fetchSchema, pollCard, fetchCard, uploadPortrait } from "../../api/cards";
 import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import CropModal from "./CropModal";
-import { toFields } from "../../api/fields";
+import { toFields, toAiFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
 /* ── Editable field row ──────────────────────────────────────── */
-function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
+function EditableFieldRow({ field, onToggle, onChange, index }: {
   field: Field; onToggle: () => void;
-  onChange: (v: string) => void; onDelete: () => void; index: number;
+  onChange: (v: string) => void; index: number;
 }) {
   const { hovered, bind } = usePress();
   return (
@@ -43,8 +43,8 @@ function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
         {field.selected && <Check size={10} color="#fff" strokeWidth={3} />}
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 5, width: 72, flexShrink: 0 }}>
-        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0 }}>
-          <FIcon k={field.key} size={12} />
+        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0, fontSize: 12 }}>
+          {field.icon ? <i className={`${["fa-linkedin", "fa-github", "fa-twitter"].includes(field.icon) ? "fa-brands" : "fas"} ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
         </span>
         <span style={{ fontSize: 11, color: field.selected ? U.blue : U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
           {field.label}
@@ -61,15 +61,15 @@ function EditableFieldRow({ field, onToggle, onChange, onDelete, index }: {
         onFocus={e => { e.target.style.borderBottomColor = U.blue; }}
         onBlur={e =>  { e.target.style.borderBottomColor = "transparent"; }}
       />
-      <button onClick={onDelete} style={{
+      <button title="拖拽排序" style={{
         width: 22, height: 22, borderRadius: 6, border: "none",
         background: "transparent", display: "flex", alignItems: "center",
-        justifyContent: "center", cursor: "pointer", color: U.textFaint,
+        justifyContent: "center", cursor: "grab", color: U.textFaint,
         flexShrink: 0, transition: `color .14s`,
       }}
         onMouseEnter={e => { e.currentTarget.style.color = "#C05060"; }}
         onMouseLeave={e => { e.currentTarget.style.color = U.textFaint; }}>
-        <X size={12} />
+        <GripVertical size={12} />
       </button>
     </div>
   );
@@ -107,7 +107,12 @@ export default function Page1() {
   const location = useLocation();
   const saved    = location.state as NavState | null;
 
-  const [rawText, setRawText] = useState(saved?.rawText ?? SAMPLE);
+  // 清除 history.state 防止 F5 后旧数据还在
+  useEffect(() => {
+    if (location.state) window.history.replaceState({}, "", location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [rawText, setRawText] = useState(saved?.rawText ?? "");
   const [fields, setFields]   = useState<Field[]>(saved?.fields ?? []);
   const [parsing, setParsing] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -118,8 +123,9 @@ export default function Page1() {
   );
   const [imgName, setImgName]   = useState<string | null>(saved?.imgName ?? null);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(saved?.portraitUrl ?? null);
-  const [showConflict, setShowConflict] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const originalFileRef = useRef<File | null>(null);
+  const croppedRef = useRef(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
@@ -190,8 +196,11 @@ export default function Page1() {
     setError(null);
     setStreamIdx(-1);
     setFields([]);
-    setPortraitUrl(null);
-    setImgName(null);
+    // 用户手动上传的照片在解析期间保留预览，不清掉
+    if (!portraitFile) {
+      setPortraitUrl(null);
+      setImgName(null);
+    }
     setProgressMsg("提交中…");
     setProgressStage("uploading");
 
@@ -201,18 +210,30 @@ export default function Page1() {
         setProgressStage(p.stage);
       });
       const card = await fetchCard(cardId);
-      const parsed = toFields(card.fields, schema);
+      const parsed = card.ai_fields?.length
+        ? toAiFields(card.ai_fields)
+        : toFields(card.fields, schema);
       setCardId(card.id);
       setFields(parsed);
-      // 自动识别的证件照
+      // 证件照：后端已按"手动上传优先于自动识别"处理，
+      // 所以 card.portrait 就是最终要用的那张。
       if (card.portrait) {
-        // 用户已手动上传照片 → 询问替换
-        if (portraitFile) {
-          setPortraitUrl(card.portrait.url);
-          setShowConflict(true);
+        const url = card.portrait.url;
+        setPortraitUrl(url);
+        // 用户手动上传了照片 → 解析完成后上传替换自动识别的
+        if (portraitFile && cardId) {
+          uploadPortrait(cardId, portraitFile).then(c => {
+            setPortraitUrl(c.portrait?.url ?? url);
+            setImgName("📷 已上传照片");
+          }).catch(() => {});
         } else {
-          setPortraitUrl(card.portrait.url);
-          setImgName("📷 " + card.portrait.filename);
+          setImgName("📷 原始照片");
+        }
+        // 保存自动识别的照片作为原始底稿（供切换/裁切用）
+        if (!originalFileRef.current && !url.startsWith("blob:")) {
+          fetch(url).then(r => r.blob()).then(blob => {
+            originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+          }).catch(() => {});
         }
       }
       startStream(parsed);
@@ -228,9 +249,9 @@ export default function Page1() {
 
   const handleParse = useCallback(() => {
     if (parsing) return;
-    const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect };
+    const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect, portrait: portraitFile };
     if (pendingFile) {
-      runExtraction({ file: pendingFile, portrait: portraitFile, modelId, ...opts });
+      runExtraction({ file: pendingFile, modelId, ...opts });
     } else if (rawText.trim()) {
       runExtraction({ rawInput: rawText, modelId, ...opts });
     }
@@ -245,9 +266,21 @@ export default function Page1() {
 
   // 证件照只记下来，随下一次建卡一起提交。
   const handleImg = useCallback((file: File) => {
-    setImgName(file.name);
+    setImgName("📷 已上传照片");
     setPortraitFile(file);
-  }, []);
+    croppedRef.current = false;
+    // 原始照片（文档识别那张）不清，留在 originalFileRef 里供切换用
+    // 已有 card → 立即上传替换
+    if (cardId) {
+      uploadPortrait(cardId, file).then(card => {
+        setPortraitUrl(card.portrait?.url ?? null);
+      }).catch(() => {
+        setPortraitUrl(URL.createObjectURL(file));
+      });
+    } else {
+      setPortraitUrl(URL.createObjectURL(file));
+    }
+  }, [cardId]);
 
   const toggleField  = (key: string) => setFields(p => p.map(f => f.key === key ? { ...f, selected: !f.selected } : f));
   const changeValue  = (key: string, v: string) => setFields(p => p.map(f => f.key === key ? { ...f, value: v } : f));
@@ -266,12 +299,6 @@ export default function Page1() {
   const goToDesign = () => {
     navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName } as NavState });
   };
-
-  const conflictBtnStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px", borderRadius: 8, border: `1px solid ${active ? U.green + "44" : U.border}`,
-    background: active ? U.greenLight : U.surface, cursor: "pointer", fontSize: 11,
-    color: active ? U.green : U.textMid, fontWeight: active ? 600 : 400,
-  });
 
   /* Padding-top drives the centering ↔ top animation */
   const contentPaddingTop = phase === "active" ? "28px" : "calc(50vh - 180px)";
@@ -422,7 +449,7 @@ export default function Page1() {
                   animation: `fadeSlideIn .2s ${E.smooth} both`,
                 }}>
                   <ImageIcon size={10} color={U.green} />
-                  <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName}</span>
+                  <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName?.replace("📷 ", "")}</span>
                   <button onClick={() => {
                     if (portraitUrl) setCropSrc(portraitUrl);
                     else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
@@ -564,25 +591,8 @@ export default function Page1() {
             </RippleBtn>
           </div>
 
-          {/* ── 证件照冲突选择 ──────────────────────────── */}
-          {showConflict && portraitUrl && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
-            }}>
-              <span style={{ fontSize: 12, color: U.textMid }}>使用照片：</span>
-              <button onClick={() => { setShowConflict(false); setPortraitUrl(null); setImgName("📷 手动上传"); }}
-                style={conflictBtnStyle(false)}>
-                手动上传
-              </button>
-              <button onClick={() => { setShowConflict(false); setPortraitUrl(portraitUrl); setImgName("📷 " + (imgName?.replace("📷 ","") || "文档中的人像")); }}
-                style={conflictBtnStyle(true)}>
-                📷 文档中
-              </button>
-            </div>
-          )}
-
           {/* ── 证件照预览 ──────────────────────────────── */}
-          {!showConflict && portraitUrl && (
+          {portraitUrl && (
             <div style={{
               display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
               animation: `fadeSlideIn .3s ${E.smooth} both`,
@@ -591,13 +601,44 @@ export default function Page1() {
                 style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover",
                   border: `2px solid ${U.green}44`, boxShadow: "0 2px 8px rgba(0,0,0,.06)" }} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: U.green }}>已识别到证件照</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: U.green }}>
+                  {portraitFile ? "已上传照片" : "已识别到证件照"}
+                </div>
                 <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
               </div>
-              <button onClick={() => setCropSrc(portraitUrl)} style={{
+              <button onClick={async () => {
+                // 还没存原图就拉一次
+                if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                  try {
+                    const res = await fetch(portraitUrl);
+                    const blob = await res.blob();
+                    originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                  } catch {}
+                }
+                // 裁切总是从原始图片开始
+                const orig = originalFileRef.current;
+                setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
+              }} style={{
                 padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
                 background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
               }}>裁切</button>
+              {originalFileRef.current && portraitFile && (
+                <button onClick={async () => {
+                  const orig = originalFileRef.current!;
+                  if (cardId) {
+                    const card = await uploadPortrait(cardId, orig).catch(() => null);
+                    setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(orig));
+                  } else {
+                    setPortraitUrl(URL.createObjectURL(orig));
+                  }
+                  setPortraitFile(null);
+                  setImgName("📷 原始照片");
+                  croppedRef.current = false;
+                }} style={{
+                  padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
+                  background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
+                }}>切换至文档</button>
+              )}
             </div>
           )}
 
@@ -654,8 +695,7 @@ export default function Page1() {
                   i <= streamIdx ? (
                     <EditableFieldRow key={f.key} field={f} index={i}
                       onToggle={() => toggleField(f.key)}
-                      onChange={v => changeValue(f.key, v)}
-                      onDelete={() => deleteField(f.key)} />
+                      onChange={v => changeValue(f.key, v)} />
                   ) : null
                 )}
               </div>
@@ -733,11 +773,43 @@ export default function Page1() {
       {/* ── Crop Modal ─────────────────────────────────── */}
       {cropSrc && (
         <CropModal src={cropSrc} open={!!cropSrc}
-          onClose={() => { if (cropSrc?.startsWith("blob:")) URL.revokeObjectURL(cropSrc); setCropSrc(null); }}
-          onCrop={blob => {
+          onClose={() => { setCropSrc(null); }}
+          onCrop={async (blob, fullScreen) => {
             setCropSrc(null);
-            setPortraitFile(new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" }));
-            setImgName("📷 已裁切");
+            // 全屏 = 恢复原始照片。上传之前保存的原文件。
+            const orig = originalFileRef.current;
+            if (fullScreen && orig) {
+              setPortraitFile(orig);
+              croppedRef.current = false;
+              setImgName("📷 原始照片");
+              if (cardId) {
+                const card = await uploadPortrait(cardId, orig).catch(() => null);
+                setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(orig));
+              } else {
+                setPortraitUrl(URL.createObjectURL(orig));
+              }
+              return;
+            }
+            const file = new File([blob], "portrait-cropped.jpg", { type: "image/jpeg" });
+            setPortraitFile(file);
+            croppedRef.current = !fullScreen;
+            setImgName(fullScreen ? "📷 原始照片" : "📷 已裁切");
+            // 已有 card → 立即上传，拿到真实 URL
+            if (cardId) {
+              uploadPortrait(cardId, file).then(card => {
+                const url = card.portrait?.url ?? null;
+                setPortraitUrl(url);
+                if (url && !url.startsWith("blob:") && !originalFileRef.current) {
+                  fetch(url).then(r => r.blob()).then(blob => {
+                    originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                  }).catch(() => {});
+                }
+              }).catch(() => {
+                setPortraitUrl(URL.createObjectURL(file));
+              });
+            } else {
+              setPortraitUrl(URL.createObjectURL(file));
+            }
           }}
         />
       )}

@@ -21,8 +21,8 @@ class Card < ApplicationRecord
     "name" => "姓名",
     "name_en" => "英文名",
     "organization" => "单位",
-    "host_organization" => "组织项目的机构",
-    "host_department" => "组织项目的机构部门",
+    "host_organization" => "组织机构",
+    "host_department" => "组织部门",
     "event_topic" => "项目主题"
   }.freeze
 

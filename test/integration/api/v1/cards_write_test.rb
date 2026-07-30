@@ -125,7 +125,7 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     portrait = body.dig("card", "portrait")
     assert_equal "portrait.png", portrait["filename"]
     assert_equal "image/png", portrait["content_type"]
-    assert_match %r{\Ahttps?://}, portrait["url"]
+    assert_match %r{\A/rails/active_storage/}, portrait["url"]
   end
 
   test "拒绝非图片格式的照片" do

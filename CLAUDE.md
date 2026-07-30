@@ -171,6 +171,123 @@ params.require(:user).permit(:email_address, :password, :role, :model_level)
 - `config/models.json` 里存的是 `"model"` 键，但 HTML 表单的 name 是 `model_name`（Rails 的 params permit 要求）。
 - `fillRow` 从 JSON 读数据时要用 `field === "model_name" ? m.model : m[field]` 做映射，否则提交时 model 字段为空。
 
+## 开发经验手册（踩坑记）
+
+### 数据库与部署
+
+- **SQLite 易损坏**。多次 kill -9 + 进程残留会导致 `database disk image is malformed`。务必用 `-d` 模式启动，`kill` 前确认 PID。备份习惯：`cp storage/development.sqlite3 /tmp/backup.sqlite3`
+- **首次启动无管理员**。RootLayout 调用 `/api/v1/setup` 检查，`needs_setup: true` 时所有页面自动跳 `/setup`
+- **`public/index.html` 是静态文件**，Rails 直接返回不经过控制器。别指望 before_action 能拦截它
+- **前端构建产物放 `public/`**，`cp dist/index.html public/ && cp -r dist/assets public/`
+- **生产环境用 nginx** 反代，`deploy/nginx/badge-generator.conf` 已写好
+
+### 权限与安全
+
+- **数据隔离三件套**：`Current.user.cards.find`、`Current.user.cards.new`、`Current.user.cards.where`
+- **API 鉴权两层**：`require_api_authentication`（登录） + 封禁/激活检查在 `Api::BaseController`
+- **管理员不能操作自己**：toggle_active、toggle_ban、toggle_role、destroy 都要检查 `@user == Current.user`
+- **`user_params` 不能 permit `:role` `:model_level`**，在 action 里显式赋值
+- **SSL 验证**：别用 `VERIFY_NONE`，用 `cert_store.set_default_paths`。CI 会扫描字面量
+- **XSS 防护**：别用 `innerHTML` 拼用户输入，用 `createElement` + `textContent`/`value`
+
+### 前端开发
+
+- **构建命令**：`cd frontend && yarn build && cp dist/index.html ../public/ && cp -r dist/assets ../public/`
+- **Turbo 环境**：`data-confirm` 无效，要用 `data-turbo-confirm`。事件用 `turbo:load` 而非 `DOMContentLoaded`
+- **React Router**：所有路由放 RootLayout 内才能共享状态检查
+- **跨域图片**：不要用绝对 URL（`127.0.0.1` vs `localhost` 跨域），用相对路径
+- **ActiveStorage 图片**：`identify: false` 阻止 content_type 被覆盖
+- **FA 图标**：CDN 加载 `font-awesome/6.5.1/css/all.min.css`，用 `<i class="fas fa-xxx">`
+- **react-easy-crop**：不支持自由拖拽调框大小，交互模型是移动图片+缩放。比例按钮用 `NaN` 或条件渲染隐藏
+
+### MinerU 集成
+
+- **双模式**：有 Key 走精准 API（上传→OSS→轮询→ZIP），无 Key 走 Agent（仅 Markdown）
+- **图片在 ZIP 里**：直接在 `Zip::File.open_buffer` 块内读，别两阶段（先收集 refs 再读）
+- **图片筛选**：`process_zip` 按扩展名匹配 `\.(png|jpg|jpeg|webp)$`，并过滤掉小于 512 字节的文件
+- **StringIO 陷阱**：rubyzip 某些版本 `get_input_stream.read` 返回 StringIO 而非 String，到处要 `.is_a?(StringIO) ? data.string : data`
+- **轮询要加超时**：不能用 `TIMEOUT.times`（时间不准），用 `elapsed` 累加
+- **MineruService 重试 SSL**：别做，CI 会报。用 `cert_store`
+
+### 人像识别
+
+- **单独服务**：`PortraitDetector`，走 RubyLLM 多模态，不要自己拼 HTTP
+- **候选筛选**：`detect` 过滤掉小于 512 字节的图片（太小可能是图标）
+- **null 处理**：LLM 说 null 时返回 nil，别回退到第一张
+
+### 文件上传
+
+- **Tempfile 生命周期**：返回对象而非路径，否则 GC 会删文件。`ensure tmpfile&.close!`
+- **文件描述符**：`File.open` 做 body_stream 要用块形式保证关闭
+- **文本清洗**：存库前 `encode("UTF-8", invalid: :replace)` + 去控制字符 + 截断
+
+### ERB 模板
+
+- **`case/when` 跨 `<% %>` 标签** → 解析错误，用 `if/elsif` 或 hash 查询
+- **`button_to` 生成 `<form>`** → block 级元素，用 `form_class: "inline"` 或手写 `<form style="display:inline">`
+
+### Ruby 4 兼容
+
+- **数组字面量内 rescue** → 语法错误：`[JSON.parse(x) rescue nil]` 不行，要写方法
+- **keyword args** → `progress.set(:done, card_id: x)` 在 Ruby 4 是位置参数，用 `progress.done(card_id: x)`
+
+### CI
+
+- **RuboCop**：`Layout/SpaceInsideArrayLiteralBrackets` 要求 `[ "a" ]` 而非 `["a"]`
+- **Brakeman**：`params.permit(:role)` → 高危；`VERIFY_NONE` → 高危
+- **提交前必跑**：`bin/rails test && bin/rubocop`，不通过不提交
+
+## 项目功能地图
+
+```
+app/
+├── controllers/
+│   ├── admin/           # 管理后台（ERB 页面）
+│   │   ├── base         # require_admin（封禁/激活/角色检查）
+│   │   ├── users        # 用户 CRUD + 批量 + 角色切换 + 重置密码
+│   │   ├── models       # 模型配置（可视化表格 + JSON 编辑器）
+│   │   ├── permissions  # 权限等级管理（可拖拽排序）
+│   │   ├── general_settings # 通用设置（含 MinerU、AI 字段开关）
+│   │   └── dashboard    # 仪表盘
+│   ├── api/v1/          # JSON API（React SPA 消费）
+│   │   ├── cards        # 卡片 CRUD + 异步解析 + 批量删除
+│   │   ├── sessions     # 登录/登出/状态
+│   │   ├── registrations# 注册（检查 allow_registration）
+│   │   ├── passwords    # 改密码（频率限制 + 踢其他 session）
+│   │   ├── schema       # 字段/模型/MinerU/上传配置
+│   │   ├── setup        # 首次管理员创建
+│   │   └── progress     # 异步解析进度轮询
+│   ├── concerns/
+│   │   └── authentication # 登录 + 封禁/激活检查
+│   └── frontend         # SPA catch-all
+├── models/
+│   ├── user             # has_secure_password + 权限等级体系
+│   ├── card             # 文档解析结果 + 证件照附件
+│   ├── setting          # KV 配置存储
+│   └── session          # cookie session
+├── services/
+│   ├── llm_service      # LLM 调用封装（并发限制 + 模型切换）
+│   ├── card_extractor   # 固定字段 LLM 提取
+│   ├── ai_field_parser  # AI 动态字段提取（实验性）
+│   ├── mineru_service   # MinerU 文档解析 API 客户端
+│   ├── portrait_detector# 人像识别（多模态 LLM）
+│   ├── document_text_extractor # 文件→文本（含 MinerU 集成）
+│   ├── progress_tracker # 异步解析进度缓存
+│   └── ocr_extractor    # tesseract OCR
+└── frontend/src/        # React SPA
+    ├── api/             # API 客户端（cards, sessions, client）
+    ├── components/
+    │   ├── Page1        # 首页（资料输入→AI 提取→字段编辑）
+    │   ├── Page2        # 设计页（模板/配色/尺寸）
+    │   ├── Page3        # 历史记录（批量操作）
+    │   ├── CropModal    # 图片裁切（react-easy-crop）
+    │   ├── ModelPicker  # 模型选择器
+    │   ├── UserMenu     # 用户菜单（登录/后台/改密码/退出）
+    │   ├── LoginPage/RegisterPage/SetupPage/InactivePage/ChangePasswordPage
+    │   └── RootLayout   # 路由守卫（setup 检查 + 登录保护）
+    └── routes.tsx       # SPA 路由表
+```
+
 ## 已知风险
 
-`cards` 的 index/show 无任何鉴权，任何访问者可看到所有记录。仅限本地开发，对外暴露前必须补访问控制。
+（已全部修复，暂无已知风险）

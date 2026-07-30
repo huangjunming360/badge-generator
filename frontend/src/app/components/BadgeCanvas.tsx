@@ -76,9 +76,14 @@ const LANDSCAPE_SIZE = { width: 320, height: 190 } as const;
 export function templateContentSize(
   template: "visitor" | "access" | "business" | "custom",
   orientation: "portrait" | "landscape" = "portrait",
+  // 字号高度补偿。BadgeCard 会按同一个系数把卡片撑高，
+  // 这里不跟着进的话等比缩放会算错，版式就错位了。
+  heightFactor = 1,
 ) {
-  if (isLandscapeTemplate(template, orientation)) return LANDSCAPE_SIZE;
-  return PORTRAIT_SIZE;
+  const base = isLandscapeTemplate(template, orientation) ? LANDSCAPE_SIZE : PORTRAIT_SIZE;
+  // 横版名片没有底部二维码区，不需要补高。
+  if (isLandscapeTemplate(template, orientation)) return base;
+  return { width: base.width, height: base.height * heightFactor };
 }
 
 // 横版模板要配横版画布，否则把 320×190 的内容塞进 55×85mm 竖画布，

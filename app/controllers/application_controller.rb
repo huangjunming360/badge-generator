@@ -12,6 +12,7 @@ class ApplicationController < ActionController::Base
     return if Rails.env.test?
     return if admin_signed_in? || admin_being_created?
     return if User.admins.any?
+    Rails.logger.warn("[Setup] 无管理员，跳转 /setup")
     redirect_to "/setup", allow_other_host: false
   end
 
