@@ -74,12 +74,11 @@ const PORTRAIT_SIZE = { width: 200, height: 300 } as const;
 const LANDSCAPE_SIZE = { width: 320, height: 190 } as const;
 
 export function templateContentSize(
-  template: "visitor" | "access" | "business" | "custom",
+  template: "visitor" | "access" | "business" | "custom" | "figma",
   orientation: "portrait" | "landscape" = "portrait",
-  // 字号高度补偿。BadgeCard 会按同一个系数把卡片撑高，
-  // 这里不跟着进的话等比缩放会算错，版式就错位了。
   heightFactor = 1,
 ) {
+  if (template === "figma") return { width: 440, height: 680 };
   const base = isLandscapeTemplate(template, orientation) ? LANDSCAPE_SIZE : PORTRAIT_SIZE;
   // 横版名片没有底部二维码区，不需要补高。
   if (isLandscapeTemplate(template, orientation)) return base;
@@ -89,17 +88,18 @@ export function templateContentSize(
 // 横版模板要配横版画布，否则把 320×190 的内容塞进 55×85mm 竖画布，
 // 等比缩放后纵向会空掉 6 成，看着就是一张小卡飘在留白里。
 export function isLandscapeTemplate(
-  template: "visitor" | "access" | "business" | "custom",
+  template: "visitor" | "access" | "business" | "custom" | "figma",
   orientation: "portrait" | "landscape" = "portrait",
 ) {
   if (template === "business") return true;
+  if (template === "figma") return false;
   return template === "custom" && orientation === "landscape";
 }
 
 // 把用户设定的 mm 尺寸按模板方向摆正：横版时宽高互换。
 export function canvasSizeMm(
   widthMm: number, heightMm: number,
-  template: "visitor" | "access" | "business" | "custom",
+  template: "visitor" | "access" | "business" | "custom" | "figma",
   orientation: "portrait" | "landscape" = "portrait",
 ) {
   const landscape = isLandscapeTemplate(template, orientation);
