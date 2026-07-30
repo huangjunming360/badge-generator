@@ -16,10 +16,10 @@ export function toAiFields(aiFields: AiField[]): Field[] {
 
 // 后端固定 schema ←→ 前端 Field[] 的转换。
 //
-// 后端的 Card::FIELDS 是固定 6 个字段（姓名/英文名/单位 + 三个活动字段），
+// 后端的 Card::FIELDS 是固定 7 个字段（姓名/英文名/单位 + 四个活动字段），
 // 不接受自由增删（产品决策）。名片类信息（职位/电话/邮箱等）已移出 schema。
 //
-// selected 一律为 true：字段勾选功能已下线，6 个字段全部上挂牌，
+// selected 一律为 true：字段勾选功能已下线，7 个字段全部上挂牌，
 // 用户只编辑值。selected 字段本身留着是因为 BadgeCard 的渲染还按它过滤。
 
 // 字段归类，决定 UI 里的分组。后端不关心这个，纯展示用。
@@ -30,6 +30,7 @@ const CATEGORY: Record<string, Field["category"]> = {
   host_organization: "access",
   host_department: "access",
   event_topic: "access",
+  event_topic_en: "access",
 };
 
 export function toFields(cardFields: CardFields, schema: SchemaFieldDef[]): Field[] {

@@ -193,10 +193,8 @@ export default function Page1() {
   // 后端 schema：字段清单与中文标签的唯一来源，不在前端写死。
   const [schema, setSchema] = useState<SchemaFieldDef[]>([]);
   const [uploadCfg, setUploadCfg] = useState<{ allowed_extensions: string[]; max_bytes: number } | null>(null);
-  const [mineruCfg, setMineruCfg] = useState<{ available: boolean; portrait_detect: boolean } | null>(null);
   const [mineruEnabled, setMineruEnabled] = useState(true);
   const [portraitDetect, setPortraitDetect] = useState(true);
-  const [showMineruOpts, setShowMineruOpts] = useState(false);
   const [error, setError]   = useState<string | null>(null);
   // 建卡后的 id，供第二页读取与后续更新。
   const [cardId, setCardId] = useState<number | null>(saved?.cardId ?? null);
@@ -223,7 +221,8 @@ export default function Page1() {
         if (!alive) return;
         setSchema(s.fields);
         if (s.upload) setUploadCfg(s.upload);
-        if (s.mineru) { setMineruCfg(s.mineru); setMineruEnabled(s.mineru.available); }
+        // MinerU 有 Key 才启用。用户侧没有开关了，跟着后端配置走。
+        if (s.mineru) { setMineruEnabled(s.mineru.available); setPortraitDetect(s.mineru.portrait_detect); }
       })
       .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "无法读取字段配置"); });
     return () => { alive = false; };
@@ -520,43 +519,10 @@ export default function Page1() {
                 </span>
               )}
 
-              {/* 右侧：MinerU 选项 + 开始解析，贴在框内右下角 */}
+              {/* 右侧：开始解析，贴在框内右下角。
+                  MinerU 的「识别」下拉已去掉 —— 两个开关（文档解析 / 人像识别）
+                  仍按后端配置的默认值提交，用户不再需要自己勾。 */}
               <div style={{ flex: 1 }} />
-
-              {mineruCfg?.available && !!pendingFile && (
-                <div style={{ position: "relative" }}>
-                  <button onClick={() => setShowMineruOpts(v => !v)} style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    padding: "5px 10px", borderRadius: 8, border: `1px solid ${U.border}`,
-                    background: showMineruOpts ? U.surfaceBlue : "transparent",
-                    cursor: "pointer", fontSize: 11, color: U.textMid,
-                    transition: `all .15s ${E.smooth}`,
-                  }}>
-                    <Layers size={12} /> 识别
-                  </button>
-                  {showMineruOpts && (
-                    <div style={{
-                      position: "absolute", right: 0, bottom: "100%", marginBottom: 4, zIndex: 100,
-                      width: 140, background: "#fff", borderRadius: 8,
-                      border: `1px solid ${U.border}`, boxShadow: "0 4px 16px rgba(0,0,0,.08)",
-                      padding: "4px 6px", fontSize: 10.5,
-                    }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
-                        <input type="checkbox" checked={mineruEnabled} onChange={e => setMineruEnabled(e.target.checked)}
-                               style={{ width: 14, height: 14, cursor: "pointer" }} />
-                        <span style={{ color: U.textMid }}>文档解析</span>
-                      </label>
-                      {mineruEnabled && (
-                        <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
-                          <input type="checkbox" checked={portraitDetect} onChange={e => setPortraitDetect(e.target.checked)}
-                                 style={{ width: 14, height: 14, cursor: "pointer" }} />
-                          <span style={{ color: U.textMid }}>人像识别</span>
-                        </label>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               <RippleBtn onClick={handleParse} disabled={(!rawText.trim() && !pendingFile) || parsing} style={{
                 display: "flex", alignItems: "center", gap: 6, padding: "7px 16px",
