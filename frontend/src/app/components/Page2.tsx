@@ -168,7 +168,7 @@ export default function Page2() {
         </div>
         <div style={{ fontSize:11, color:U.textFaint }}>/</div>
         <div style={{ fontSize:11, color:U.textMid }}>
-          {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义" }[template]}
+          {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义", figma:"精美设计" }[template]}
           {" · "}{ACCENTS[accent].label}
         </div>
 

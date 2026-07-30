@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import {
   User, Phone, Mail, Building2, Hash, Calendar, MapPin,
   Shield, Check, Download, Layers, AlignLeft, Eye, X,
@@ -13,7 +13,7 @@ export interface Field {
   selected: boolean; category: "person" | "contact" | "access";
   icon?: string;
 }
-export type Template  = "visitor" | "access" | "business" | "custom";
+export type Template  = "visitor" | "access" | "business" | "custom" | "figma";
 export type AccentKey = "rose" | "blue" | "gold";
 export type FontSz    = "sm" | "md" | "lg";
 
@@ -257,6 +257,27 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
       <span style={{ fontSize:11*scale, color:U.textFaint, fontFamily:"'Outfit',sans-serif" }}>选择字段以预览</span>
     </div>
   );
+
+  // ═══ Figma 精美设计 ═══
+  if (template === "figma") {
+    const FigmaBadge = lazy(() => import("./FigmaBadge"));
+    return (
+      <Suspense fallback={<div style={{ width:440*scale, height:680*scale }}/>}>
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
+          <FigmaBadge data={{
+            organizationName:       get("organization") || get("host_organization"),
+            departmentName:         get("host_department"),
+            phaseTagEn:             "",
+            phaseTagZh:             get("event_phase"),
+            eventSubtitle:          get("event_subtitle"),
+            eventTitle:             get("event_topic"),
+            participantName:        get("name"),
+            participantEnglishName: get("name_en"),
+          }}/>
+        </div>
+      </Suspense>
+    );
+  }
 
   if (template === "custom") {
     const isL = custom.orientation === "landscape";
@@ -507,7 +528,7 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
           <div>
             <div style={{ fontSize:15, fontWeight:700, color:U.text }}>工牌预览</div>
             <div style={{ fontSize:10.5, color:U.textLight, marginTop:3 }}>
-              {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义" }[template]}
+              {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义", figma:"精美设计" }[template]}
               {" · "}{ACCENTS[accent].label}
             </div>
           </div>
@@ -570,14 +591,15 @@ export function OptionsSidebar({
       {/* Template */}
       <div>
         <SLabel icon={<Layout size={11}/>} text="模板"/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7, marginBottom:9 }}>
-          {(["visitor","access","business","custom"] as Template[]).map(t => {
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7, marginBottom:9 }}>
+          {(["visitor","access","business","custom","figma"] as Template[]).map(t => {
             const active = template===t;
             const meta: Record<Template,{label:string;icon:React.ReactNode}> = {
               visitor:  {label:"访客证", icon:<Shield size={13}/>},
               access:   {label:"通行证", icon:<Hash size={13}/>},
               business: {label:"名片",   icon:<AlignLeft size={13}/>},
               custom:   {label:"自定义", icon:<Sliders size={13}/>},
+              figma:    {label:"精美",   icon:<Layers size={13}/>},
             };
             return (
               <OptionTile key={t} active={active} onClick={()=>setTemplate(t)}>
@@ -593,7 +615,8 @@ export function OptionsSidebar({
         </div>
         <div style={{ fontSize:10, color:U.textFaint, lineHeight:1.65, marginBottom:8 }}>
           {{ visitor:"访客当日通行，附二维码验证", access:"员工长期凭证，含权限等级",
-             business:"横版名片，附完整联系方式", custom:"自由组合版式与元素" }[template]}
+             business:"横版名片，附完整联系方式", custom:"自由组合版式与元素",
+             figma:"Figma 精美设计，自定义文字+渐变背景" }[template]}
         </div>
         <div style={{ maxHeight:template==="custom"?600:0, overflow:"hidden",
           transition:`max-height .38s ${E.smooth}` }}>
