@@ -52,29 +52,15 @@ docker build -t badge-template-renderer:local ./renderer
 
 Python 节点必须在 WSL 主机运行，而不是容器内运行。这样它可调用 Docker CLI 创建上述受限的一次性容器，同时节点本身不需要 Docker socket 挂载。
 
-节点要求 Python 3.11 或更新版本；Ubuntu 22.04 的默认 Python 可能较旧，先安装对应解释器和 venv 支持：
-
 ```bash
-sudo apt update
-sudo apt install -y python3.11 python3.11-venv
-```
-
-```bash
-python3.11 -m venv .venv
+python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install '.[visual]'
+pip install -e '.[visual]'
 cp .env.example .env
 badge-template-agent
 ```
 
 节点每 15 秒向 Rails 主动心跳。空闲时不访问 MAI；收到 `visual_repair` 任务才会处理。单任务最多 3 轮：渲染截图 -> MAI 诊断/修复 -> 再渲染。截图只停留在本机进程内，不上传 Rails。
-
-不接 GPU 也可以先运行节点单元测试，验证容器隔离参数、MAI 响应解析与多轮修复控制逻辑：
-
-```bash
-python -m unittest discover -s tests -v
-```
 
 ## 必需环境变量
 
