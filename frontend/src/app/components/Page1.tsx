@@ -16,6 +16,10 @@ import { toFields, toAiFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
+/* 标签列宽。「项目主题英文」是最长的标签，窄了会和输入框挨在一起，
+   所以按它撑宽，所有行统一，输入框左边缘才对齐。 */
+const LABEL_W = 88;
+
 /* ── Editable field row ──────────────────────────────────────── */
 function EditableFieldRow({ field, onChange, index }: {
   field: Field;
@@ -25,14 +29,14 @@ function EditableFieldRow({ field, onChange, index }: {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 10,
+      display: "flex", alignItems: "center", gap: 16,
       padding: "10px 14px", borderRadius: 10,
       border: `1px solid ${hovered ? U.border : U.borderLight}`,
       background: U.surface,
       animation: `fadeSlideIn .28s ${E.smooth} ${index * 70}ms both`,
       transition: `border .18s ${E.smooth}, background .18s ${E.smooth}`,
     }} {...bind}>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, width: 72, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, width: LABEL_W, flexShrink: 0 }}>
         <span style={{ color: U.textLight, flexShrink: 0, fontSize: 12 }}>
           {field.icon ? <i className={`${["fa-linkedin", "fa-github", "fa-twitter"].includes(field.icon) ? "fa-brands" : "fas"} ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
         </span>
@@ -108,6 +112,39 @@ function PortraitSlot({ url, onPick, onCrop, onClear }: {
           <SlotAction label="移除" onClick={onClear} />
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── 证件照行 ───────────────────────────────────────────────
+   跟 EditableFieldRow 用同一套白框、同样的标签列宽，
+   排在字段列表里才不会看着像另一个区块。 */
+function PortraitRow({ index, url, onPick, onCrop, onClear }: {
+  index: number;
+  url: string | null;
+  onPick: () => void;
+  onCrop: () => void;
+  onClear: () => void;
+}) {
+  const { hovered, bind } = usePress();
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 16,
+      padding: "10px 14px", borderRadius: 10,
+      border: `1px solid ${hovered ? U.border : U.borderLight}`,
+      background: U.surface,
+      animation: `fadeSlideIn .28s ${E.smooth} ${index * 70}ms both`,
+      transition: `border .18s ${E.smooth}, background .18s ${E.smooth}`,
+    }} {...bind}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, width: LABEL_W, flexShrink: 0 }}>
+        <span style={{ color: U.textLight, flexShrink: 0, fontSize: 12 }}>
+          <ImageIcon size={12} />
+        </span>
+        <span style={{ fontSize: 11, color: U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
+          证件照
+        </span>
+      </div>
+      <PortraitSlot url={url} onPick={onPick} onCrop={onCrop} onClear={onClear} />
     </div>
   );
 }
@@ -401,37 +438,13 @@ export default function Page1() {
                 <Upload size={16} /> 松开以上传文件
               </div>
             )}
-            {/* 已选照片的小标签。原先在标题栏里，标题栏去掉后挪到顶部。 */}
-            {imgName && (
-              <div style={{
-                padding: "10px 14px 0", display: "flex", justifyContent: "flex-end",
-              }}>
-                <div style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  padding: "3px 9px", borderRadius: 99,
-                  background: U.greenLight, border: `1px solid ${U.green}44`,
-                  animation: `fadeSlideIn .2s ${E.smooth} both`,
-                }}>
-                  <ImageIcon size={10} color={U.green} />
-                  <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName?.replace("📷 ", "")}</span>
-                  <button onClick={() => {
-                    if (portraitUrl) setCropSrc(portraitUrl);
-                    else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
-                  }} style={{ background: "none", border: "none", cursor: "pointer",
-                    color: U.blue, padding: 0, fontSize: 10, lineHeight: 1 }} title="裁切">✂</button>
-                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
-                    style={{ background: "none", border: "none", cursor: "pointer",
-                      color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
-                </div>
-              </div>
-            )}
 
             {/* Textarea — starts single-line, expands with content */}
             <textarea
               ref={textareaRef}
               value={rawText}
               onChange={e => setRawText(e.target.value)}
-              placeholder="请输入用户信息："
+              placeholder="请输入用户信息或者上传送用户信息文件（支持docx、pdf和图片）："
               style={{
                 width: "100%", border: "none", outline: "none",
                 padding: "14px 16px 6px", resize: "none", overflow: "hidden",
@@ -466,6 +479,7 @@ export default function Page1() {
                 }}>
                 <Plus size={15} />
               </button>
+              {/* 文件名标签 */}
               {pendingFile && (
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
@@ -482,6 +496,27 @@ export default function Page1() {
                     background: "none", border: "none", cursor: "pointer",
                     color: U.textFaint, padding: 0, fontSize: 13, lineHeight: 1,
                   }}>×</button>
+                </span>
+              )}
+              {/* 照片标签 - 与文件标签并排 */}
+              {imgName && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 9px", borderRadius: 99,
+                  background: U.greenLight, border: `1px solid ${U.green}44`,
+                  fontSize: 10, color: U.green, fontWeight: 500,
+                  animation: `fadeSlideIn .2s ${E.smooth} both`,
+                }}>
+                  <ImageIcon size={10} color={U.green} />
+                  <span>{imgName?.replace("📷 ", "")}</span>
+                  <button onClick={() => {
+                    if (portraitUrl) setCropSrc(portraitUrl);
+                    else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
+                  }} style={{ background: "none", border: "none", cursor: "pointer",
+                    color: U.blue, padding: 0, fontSize: 10, lineHeight: 1 }} title="裁切">✂</button>
+                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
+                    style={{ background: "none", border: "none", cursor: "pointer",
+                      color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
                 </span>
               )}
 
@@ -598,35 +633,42 @@ export default function Page1() {
                   <div style={{ fontSize: 10, color: U.textFaint, marginTop: 3 }}>
                     点击下方字段可直接编辑
                   </div>
-                  {/* 证件照：放在标题下方 */}
-                  <div style={{ marginTop: 10 }}>
-                    <PortraitSlot
-                      url={portraitUrl}
-                      onPick={() => imgRef.current?.click()}
-                      onCrop={async () => {
-                        if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
-                          try {
-                            const res = await fetch(portraitUrl);
-                            const blob = await res.blob();
-                            originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
-                          } catch { /* 拉不到原图就退回用当前图裁 */ }
-                        }
-                        const orig = originalFileRef.current;
-                        setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
-                      }}
-                      onClear={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
-                    />
-                  </div>
                 </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                {fields.map((f, i) =>
-                  i <= streamIdx ? (
-                    <EditableFieldRow key={f.key} field={f} index={i}
-                      onChange={v => changeValue(f.key, v)} />
-                  ) : null
-                )}
+                {fields.map((f, i) => {
+                  if (i > streamIdx) return null;
+                  return (
+                    <div key={f.key}>
+                      <EditableFieldRow field={f} index={i}
+                        onChange={v => changeValue(f.key, v)} />
+                      {/* 证件照排在英文名后面，跟字段共用同一种白色横框，
+                          视觉上属于同一份资料，不再是标题区的附属物。 */}
+                      {f.key === "name_en" && (
+                        <div style={{ marginTop: 7 }}>
+                          <PortraitRow
+                            index={i}
+                            url={portraitUrl}
+                            onPick={() => imgRef.current?.click()}
+                            onCrop={async () => {
+                              if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                                try {
+                                  const res = await fetch(portraitUrl);
+                                  const blob = await res.blob();
+                                  originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                                } catch { /* 拉不到原图就退回用当前图裁 */ }
+                              }
+                              const orig = originalFileRef.current;
+                              setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
+                            }}
+                            onClear={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Streaming indicator */}
@@ -671,11 +713,8 @@ export default function Page1() {
         transform: hasFields ? "translateY(0)" : "translateY(110%)",
         transition: `transform .4s ${E.spring}`,
         willChange: "transform",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20,
+        display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 20,
       }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: U.text }}>
-          {fields.length} 个字段
-        </div>
         <RippleBtn onClick={goToDesign} {...goBind} style={{
           display: "flex", alignItems: "center", gap: 9, padding: "12px 28px",
           borderRadius: 11, border: "none", cursor: "pointer",
