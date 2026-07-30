@@ -19,12 +19,12 @@ const sample = source.html
   .replaceAll(/{{\s*card\.[\w_]+\s*}}/g, "示例文本")
   .replaceAll(/{{\s*fields\.[\w_]+\s*}}/g, "示例信息");
 const document = `<!doctype html><html><head><meta charset="utf-8"><style>
+${source.css}
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0;width:${widthMm}mm;height:${heightMm}mm;overflow:hidden}
-body{background:#fff}
-main[data-badge-root]{position:relative;width:100%;height:100%;overflow:hidden}
-main[data-badge-root]>*:first-child{max-width:100%;max-height:100%;overflow:hidden}
-${source.css}
+body{width:${widthMm}mm !important;height:${heightMm}mm !important;background:#fff;overflow:hidden !important}
+main[data-badge-root]{position:relative;width:100% !important;height:100% !important;overflow:hidden !important;box-sizing:border-box !important}
+main[data-badge-root]>*:first-child{box-sizing:border-box !important;max-width:100% !important;max-height:100% !important;overflow:hidden !important}
 </style></head><body><main data-badge-root>${sample}</main></body></html>`;
 
 const browser = await chromium.launch({ headless: true });

@@ -123,8 +123,8 @@ class BadgeTemplateRenderer
             html,body{margin:0;padding:0;width:#{width}mm;height:#{height}mm;overflow:hidden}
             #{css}
             html,body{width:#{width}mm !important;height:#{height}mm !important;overflow:hidden !important}
-            main[data-badge-root]{position:relative;width:100%;height:100%;overflow:hidden;box-sizing:border-box}
-            main[data-badge-root]>*:first-child{box-sizing:border-box;max-width:100%;max-height:100%;overflow:hidden}
+            main[data-badge-root]{position:relative;width:100% !important;height:100% !important;overflow:hidden !important;box-sizing:border-box !important}
+            main[data-badge-root]>*:first-child{box-sizing:border-box !important;max-width:100% !important;max-height:100% !important;overflow:hidden !important}
           </style>
         </head>
         <body><main data-badge-root>#{html}</main></body>
