@@ -17,8 +17,9 @@ class Api::V1::CardsController < Api::BaseController
 
     progress_id = SecureRandom.hex(12)
     raw_input = params[:raw_input]
-    model_id = params[:model_id]
-    return if model_id.present? && !check_model_level!(model_id)
+    # 模型由后台设置决定，不再接受前端传入 —— 客户端不能自选模型，
+    # 否则等级限制形同虚设，也让「后台统一配置」失去意义。
+    model_id = configured_extract_model
 
     mineru_enabled = params[:mineru_enabled]
     portrait_detect = params[:portrait_detect]
@@ -94,15 +95,13 @@ class Api::V1::CardsController < Api::BaseController
     Rails.application.config.x.models || {}
   end
 
-  def check_model_level!(model_id)
-    return true unless model_id.present?
+  # 提取用的模型来自后台「文档内容提取」设置，没配就走 models.json 的默认模型。
+  # 返回 nil 让 LlmService 自己回退到默认，比在这里硬编码一个 id 更稳。
+  def configured_extract_model
+    id = Setting.get("extract_model").presence
+    return nil if id.blank?
     models = models_config["models"] || []
-    selected = models.find { |m| m["id"] == model_id }
-    if selected && selected["level"].to_i < Current.user.model_level.to_i && selected["level"].to_i >= 0
-      render json: { errors: [ "无权限使用该模型" ] }, status: :forbidden
-      return false
-    end
-    true
+    models.any? { |m| m["id"] == id } ? id : nil
   end
 
   def process_card(raw_input, model_id, file_data, file_name,
@@ -219,7 +218,7 @@ class Api::V1::CardsController < Api::BaseController
   end
 
   def create_sync
-    return unless check_model_level!(params[:model_id])
+    model_id = configured_extract_model
     card = Current.user.cards.new
     card.raw_input = resolve_raw_input
     card.source_name = @source_name
@@ -231,9 +230,9 @@ class Api::V1::CardsController < Api::BaseController
     return render_validation_errors(card) unless card.valid?
 
     card.data = if Setting.bool("ai_fields_enabled")
-      parse_ai_fields(card.raw_input, params[:model_id])
+      parse_ai_fields(card.raw_input, model_id)
     else
-      CardExtractor.new(model_id: params[:model_id]).call(card.raw_input)
+      CardExtractor.new(model_id: model_id).call(card.raw_input)
     end
     card.save!
     render json: { card: serializer(card).as_detail }, status: :created

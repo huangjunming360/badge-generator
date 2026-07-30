@@ -57,11 +57,6 @@ export interface SchemaPayload {
     content_types: string[];
     max_bytes: number;
   };
-  // 可选模型清单。后端只暴露 id/label，凭据不外泄。
-  models: {
-    available: { id: string; label: string }[];
-    default: string | null;
-  };
   upload: {
     allowed_extensions: string[];
     max_bytes: number;

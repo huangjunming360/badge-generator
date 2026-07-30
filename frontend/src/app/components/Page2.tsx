@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Eye, Check, SlidersHorizontal, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Eye, SlidersHorizontal, Plus, Minus } from "lucide-react";
 import {
   Field, Template, AccentKey, FontSz, StyleKey, CustomCfg, NavState,
   E, U, ACCENTS,
-  BadgeCard, PreviewSheet, OptionsSidebar, FIcon, RippleBtn, fzHeightFactor,
+  BadgeCard, PreviewSheet, OptionsSidebar, RippleBtn, fzHeightFactor,
 } from "./shared";
 import { BadgeCanvas, templateContentSize, canvasSizeMm } from "./BadgeCanvas";
 import { PreviewViewport, usePreviewViewport, MIN_ZOOM, MAX_ZOOM } from "./PreviewViewport";
@@ -40,8 +40,9 @@ export default function Page2() {
   const [fields, setFields]     = useState<Field[]>(saved?.fields ?? []);
   const [template, setTemplate] = useState<Template>("visitor");
   const [accent, setAccent]     = useState<AccentKey>("rose");
-  const [fontSize, setFontSize] = useState<FontSz>("md");
-  const [styleK, setStyleK]     = useState<StyleKey>("minimal");
+  // 字号与边框风格不再开放给用户调，固定用标准值。
+  const fontSize: FontSz = "md";
+  const styleK: StyleKey = "minimal";
   const [custom, setCustom]     = useState<CustomCfg>({
     orientation:"portrait", showPhoto:true, showQR:true,
     showBarcode:false, showDots:false, headerLabel:"", subLabel:"",
@@ -114,8 +115,6 @@ export default function Page2() {
     }
   };
 
-  const toggleField   = (key: string) => setFields(p => p.map(f => f.key===key ? {...f,selected:!f.selected} : f));
-  const selectedCount = fields.filter(f => f.selected).length;
 
   const goBack = () => {
     navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null } satisfies NavState });
@@ -305,8 +304,6 @@ export default function Page2() {
               <OptionsSidebar
                 template={template}   setTemplate={setTemplate}
                 accent={accent}       setAccent={setAccent}
-                fontSize={fontSize}   setFontSize={setFontSize}
-                styleK={styleK}       setStyleK={setStyleK}
                 custom={custom}       setCustom={setCustom}
                 onExport={handleExport}
                 exporting={exporting}
@@ -315,46 +312,6 @@ export default function Page2() {
           </div>
         </div>
       </div>
-
-      {/* ── 底部字段芯片栏 ───────────────────
-          跑在主区域外面、不跑在预览区里：预览区是可滚动容器，
-          芯片栏放里面就会随内容滚走。这里靠 flex 布局占住底部，
-          比 position:fixed 好在不会盖住内容，也不需要给滚动区预留 padding。 */}
-      {fields.length > 0 && (
-        <div style={{
-          flexShrink:0, background:U.surface, borderTop:`1px solid ${U.border}`,
-          boxShadow:"0 -6px 24px rgba(20,35,55,.06)",
-          padding:"12px 24px 14px",
-          display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-        }}>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:7, justifyContent:"center", maxWidth:640 }}>
-            {fields.map(f => {
-              const on = f.selected;
-              return (
-                <button key={f.key} onClick={() => toggleField(f.key)} style={{
-                  display:"flex", alignItems:"center", gap:5,
-                  padding:"5px 12px 5px 9px", borderRadius:99, cursor:"pointer",
-                  border:`1px solid ${on ? U.blue+"66" : U.border}`,
-                  background:on ? U.blueXLight : U.surface,
-                  color:on ? U.blue : U.textMid, fontSize:11,
-                  transform:`scale(${on ? 1 : 0.98})`,
-                  boxShadow:on ? "0 2px 8px rgba(58,118,196,.15)" : "none",
-                  transition:`all .16s ${E.smooth}`,
-                }}>
-                  <span style={{ color:on ? U.blue : U.textFaint, lineHeight:0 }}>
-                    <FIcon k={f.key} size={10}/>
-                  </span>
-                  <span>{f.label}</span>
-                  {on && <Check size={9} color={U.blue} strokeWidth={2.5}/>}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ fontSize:10.5, color:U.textFaint }}>
-            点击字段芯片可切换在工牌上的显示 · 已显示 {selectedCount} 个字段
-          </div>
-        </div>
-      )}
 
       {/* Preview sheet */}
       <PreviewSheet open={sheetOpen} onClose={() => setSheetOpen(false)} {...badgeProps}

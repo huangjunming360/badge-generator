@@ -3,25 +3,6 @@ import type { CardPayload, CardFields, SchemaPayload, ProgressStatus } from "./t
 
 export const fetchSchema = () => getJson<SchemaPayload>("/schema");
 
-// 同步建卡（sync=1）：等 LLM 返回后才响应，适合建卡后立刻编辑
-export const createCardFromText = (rawInput: string, modelId: string | null) =>
-  sendJson<{ card: CardPayload }>("/cards", "POST", {
-    raw_input: rawInput, model_id: modelId, sync: "1",
-  }).then(r => ({ fields: r.card.fields as unknown as Record<string, string | null>, id: r.card.id }));
-
-export const createCardFromDocument = (file: File, portrait: File | null, modelId: string | null) => {
-  const form = new FormData();
-  form.append("document", file);
-  if (portrait) form.append("portrait", portrait);
-  if (modelId) form.append("model_id", modelId);
-  form.append("sync", "1");
-  return sendForm<{ card: CardPayload }>("/cards", "POST", form)
-    .then(r => ({ fields: r.card.fields as unknown as Record<string, string | null>, id: r.card.id }));
-};
-
-export const fetchCards = () =>
-  getJson<{ cards: CardPayload[] }>("/cards").then((r) => r.cards);
-
 export const fetchCard = (id: number) =>
   getJson<{ card: CardPayload }>(`/cards/${id}`).then((r) => r.card);
 
@@ -39,7 +20,7 @@ function startCreateForm(form: FormData): Promise<{ task_id: string }> {
 
 // 轮询进度直到完成，返回 card_id
 export function pollCard(params: {
-  rawInput?: string; file?: File; portrait?: File | null; modelId?: string | null;
+  rawInput?: string; file?: File; portrait?: File | null;
   mineru_enabled?: boolean; portrait_detect?: boolean;
 }, onProgress: (p: ProgressStatus) => void): Promise<number> {
   // 有文件或手动上传了照片 → 走 FormData，否则走 JSON
@@ -49,7 +30,6 @@ export function pollCard(params: {
         const form = new FormData();
         if (params.file) form.append("document", params.file);
         if (params.portrait) form.append("portrait", params.portrait);
-        if (params.modelId) form.append("model_id", params.modelId);
         if (params.rawInput) form.append("raw_input", params.rawInput);
         form.append("mineru_enabled", params.mineru_enabled !== false ? "1" : "0");
         form.append("portrait_detect", params.portrait_detect !== false ? "1" : "0");
@@ -57,7 +37,6 @@ export function pollCard(params: {
       })()
     : startCreate({
         raw_input: params.rawInput,
-        ...(params.modelId ? { model_id: params.modelId } : {}),
         mineru_enabled: params.mineru_enabled !== false ? "1" : "0",
         portrait_detect: params.portrait_detect !== false ? "1" : "0",
       });
@@ -89,25 +68,6 @@ export const updateCardSize = (id: number, widthMm: number, heightMm: number) =>
   sendJson<{ card: CardPayload }>(`/cards/${id}`, "PATCH", {
     card: { width_mm: widthMm, height_mm: heightMm },
   }).then((r) => r.card);
-
-export const deleteCard = (id: number) =>
-  fetch(`/api/v1/cards/${id}`, { method: "DELETE", headers: { Accept: "application/json" } }).then(async r => {
-    if (!r.ok) {
-      const body = await r.json().catch(() => ({}));
-      throw new Error((body as any).errors?.[0] || "删除失败");
-    }
-  });
-
-export const batchDeleteCards = (ids: number[]) =>
-  fetch("/api/v1/cards/batch", {
-    method: "DELETE", headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ ids }),
-  }).then(async r => {
-    if (!r.ok) {
-      const body = await r.json().catch(() => ({}));
-      throw new Error((body as any).errors?.[0] || "批量删除失败");
-    }
-  });
 
 export const uploadPortrait = (id: number, portrait: File) => {
   const form = new FormData();

@@ -3,7 +3,7 @@ import { useNavigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "./useAuth";
 import { getJson } from "../../api/client";
 
-const PROTECTED = ["/design", "/history", "/change-password"];
+const PROTECTED = ["/design", "/change-password"];
 const PUBLIC = ["/login", "/register", "/setup", "/inactive"];
 
 export default function RootLayout() {

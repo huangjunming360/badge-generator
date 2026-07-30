@@ -21,6 +21,11 @@ Rails.application.routes.draw do
         patch :reset_password
       end
     end
+    resources :cards, only: %i[index destroy] do
+      collection do
+        delete :batch, to: "cards#batch_destroy"
+      end
+    end
     resource :settings, only: %i[edit update], controller: "settings"
     resource :general_settings, only: %i[show update], controller: "general_settings", path: "site-settings"
     resource :models, only: %i[show update], controller: "models"

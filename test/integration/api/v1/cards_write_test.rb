@@ -72,12 +72,24 @@ class Api::V1::CardsWriteTest < ActionDispatch::IntegrationTest
     assert_match(/AI 服务响应异常/, body["errors"].first)
   end
 
-  test "未知 model_id 返回 422 而非 502" do
-    # 模型 id 传错是客户端问题，不该和上游故障混为一谈
+  test "忽略前端传来的 model_id" do
+    # 模型由后台设置决定。客户端还传 model_id 就直接不理它 ——
+    # 认这个参数等于让任何人绕过后台配置自选模型。
+    Setting.set("extract_model", "")
+
     post api_v1_cards_path, params: { sync: "1", raw_input: "林思远", model_id: "no_such_model" }
 
-    assert_response :unprocessable_content
-    assert_match(/未知的模型/, body["errors"].first)
+    # 走默认模型建卡成功，而不是因为那个假 id 报「未知的模型」
+    assert_response :created
+    assert_no_match(/未知的模型/, @response.body)
+  end
+
+  test "后台配了不存在的模型时回退默认而不报错" do
+    Setting.set("extract_model", "no_such_model")
+
+    post api_v1_cards_path, params: { sync: "1", raw_input: "林思远" }
+
+    assert_response :created
   end
 
   test "update 合并字段而不整体覆盖" do

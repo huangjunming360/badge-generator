@@ -34,16 +34,13 @@ class Api::V1::SchemaTest < ActionDispatch::IntegrationTest
     assert_equal Card::PORTRAIT_MAX_BYTES, @body.dig("portrait", "max_bytes")
   end
 
-  test "模型清单只暴露 id 与展示名，绝不含凭据" do
-    available = @body.dig("models", "available")
-    assert available.is_a?(Array)
+  # 模型改由后台设置决定，schema 不再下发模型清单。
+  # 少一个字段就是少一条泄露凭据的路径，这里把「不存在」也钉死。
+  test "不再下发模型清单" do
+    assert_nil @body["models"]
+  end
 
-    available.each do |model|
-      assert_equal %w[id label].sort, model.keys.sort,
-        "模型条目只应有 id/label，实际有 #{model.keys}"
-    end
-
-    # 兜底：整个响应体里不能出现任何凭据字样
+  test "响应体绝不含凭据" do
     raw = @response.body
     assert_no_match(/api_key/, raw)
     assert_no_match(/api_base/, raw)

@@ -35,14 +35,6 @@ class Api::V1::SchemaController < Api::BaseController
         extensions: DocumentTextExtractor::EXTENSIONS.keys,
         max_bytes: DocumentTextExtractor::MAX_BYTES
       },
-      # 可选模型清单。只暴露 id 与展示名 —— api_key / api_base 是凭据，
-      # 绝不能出现在响应里。按用户权限等级过滤。
-      models: {
-        available: models_config["models"].to_a
-          .select { |m| lvl = m["level"].to_i; lvl >= (Current.user&.model_level || User.model_levels.keys.max).to_i || lvl < 0 }
-          .map { |m| m.slice("id", "label") },
-        default: models_config["default"]
-      },
       upload: {
         allowed_extensions: DocumentTextExtractor.accepted_extensions,
         max_bytes: DocumentTextExtractor::MAX_BYTES
@@ -52,11 +44,5 @@ class Api::V1::SchemaController < Api::BaseController
         portrait_detect: Setting.bool("portrait_detect", default: true)
       }
     }
-  end
-
-  private
-
-  def models_config
-    Rails.application.config.x.models || {}
   end
 end

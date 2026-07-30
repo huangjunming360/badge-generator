@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import {
   User, Phone, Mail, Building2, Hash, Calendar, MapPin,
   Shield, Check, Download, Layers, AlignLeft, Eye, X,
-  Type, Palette, Layout, SlidersHorizontal, Sliders,
-  Minimize2, Maximize2, Image as ImageIcon, QrCode, BarChart2, Columns,
+  Palette, Layout, SlidersHorizontal, Sliders,
+  Minimize2, Maximize2, Image as ImageIcon, QrCode, BarChart2,
   BookOpen, Users, Bookmark,
 } from "lucide-react";
 
@@ -554,13 +554,10 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
 /* ── Options sidebar (shared between Page2 layouts) ──────────── */
 export function OptionsSidebar({
   template, setTemplate, accent, setAccent,
-  fontSize, setFontSize, styleK, setStyleK,
   custom, setCustom, onExport, exporting,
 }: {
   template:Template;   setTemplate:(t:Template)=>void;
   accent:AccentKey;    setAccent:(a:AccentKey)=>void;
-  fontSize:FontSz;     setFontSize:(f:FontSz)=>void;
-  styleK:StyleKey;     setStyleK:(s:StyleKey)=>void;
   custom:CustomCfg;    setCustom:(c:CustomCfg)=>void;
   onExport?:()=>void;
   exporting?:boolean;
@@ -626,51 +623,6 @@ export function OptionsSidebar({
                 </div>
                 <div style={{ width:9, height:9, borderRadius:"50%",
                   background:active?U.blue:U.border, transition:`background .2s ${E.spring}` }}/>
-              </OptionTile>
-            );
-          })}
-        </div>
-      </div>
-
-      <Divider/>
-
-      {/* Font size */}
-      <div>
-        <SLabel icon={<Type size={11}/>} text="字号大小"/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7 }}>
-          {(["sm","md","lg"] as FontSz[]).map((s, i) => (
-            <OptionTile key={s} active={fontSize===s} onClick={()=>setFontSize(s)}>
-              <span style={{ fontSize:[14,18,22][i], lineHeight:1,
-                color:fontSize===s?U.blue:U.textMid, fontFamily:"'Playfair Display',serif" }}>文</span>
-              <span style={{ fontSize:9.5, color:fontSize===s?U.blue:U.textLight, fontWeight:fontSize===s?600:400 }}>
-                {["偏小","标准","偏大"][i]}
-              </span>
-            </OptionTile>
-          ))}
-        </div>
-      </div>
-
-      <Divider/>
-
-      {/* Style */}
-      <div>
-        <SLabel icon={<Columns size={11}/>} text="边框风格"/>
-        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-          {(["minimal","formal"] as StyleKey[]).map(s => {
-            const active = styleK===s;
-            const meta = { minimal:{n:"圆润简约",d:"圆角边框"}, formal:{n:"方正正式",d:"直角边框"} }[s];
-            return (
-              <OptionTile key={s} active={active} onClick={()=>setStyleK(s)} row>
-                <div style={{ width:30, height:30, flexShrink:0,
-                  borderRadius:s==="minimal"?15:4,
-                  background:active?U.blueLight:U.border,
-                  border:`1px solid ${active?U.blue+"44":U.borderLight}`,
-                  transition:`border-radius .25s ${E.spring}, background .15s` }}/>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, color:active?U.blue:U.text, fontWeight:active?600:500 }}>{meta.n}</div>
-                  <div style={{ fontSize:10, color:U.textFaint }}>{meta.d}</div>
-                </div>
-                {active && <Check size={13} color={U.blue}/>}
               </OptionTile>
             );
           })}

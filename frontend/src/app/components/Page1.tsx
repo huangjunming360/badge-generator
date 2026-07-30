@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
-  Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X, FileText,
-  Sparkles, Layers, Settings, GripVertical,
+  Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, FileText,
+  Sparkles, Layers, GripVertical, Plus,
 } from "lucide-react";
 import {
   Field, NavState,
@@ -10,7 +10,6 @@ import {
   usePress, RippleBtn, FIcon,
 } from "./shared";
 import { fetchSchema, pollCard, fetchCard, uploadPortrait } from "../../api/cards";
-import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import CropModal from "./CropModal";
 import { toFields, toAiFields } from "../../api/fields";
@@ -75,26 +74,25 @@ function EditableFieldRow({ field, onToggle, onChange, index }: {
   );
 }
 
-/* ── Ghost import button ─────────────────────────────────────── */
-function ImportBtn({ icon, label, onClick }: {
+/* ── 加号菜单里的一项 ───────────────────────────────────────── */
+function ImportMenuItem({ icon, label, onClick }: {
   icon: React.ReactNode; label: string; onClick: () => void;
 }) {
   return (
     <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
-      borderRadius: 9, border: `1px solid ${U.border}`, background: U.surface,
-      cursor: "pointer", fontSize: 12, color: U.textMid,
-      transition: `all .16s ${E.smooth}`,
+      display: "flex", alignItems: "center", gap: 8, width: "100%",
+      padding: "8px 10px", borderRadius: 7, border: "none",
+      background: "transparent", cursor: "pointer", fontSize: 12,
+      color: U.textMid, textAlign: "left",
+      transition: `background .14s ${E.smooth}, color .14s ${E.smooth}`,
     }}
       onMouseEnter={e => {
-        e.currentTarget.style.borderColor = U.blue + "66";
-        e.currentTarget.style.color = U.blue;
         e.currentTarget.style.background = U.surfaceBlue;
+        e.currentTarget.style.color = U.blue;
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.borderColor = U.border;
+        e.currentTarget.style.background = "transparent";
         e.currentTarget.style.color = U.textMid;
-        e.currentTarget.style.background = U.surface;
       }}>
       {icon}{label}
     </button>
@@ -143,13 +141,25 @@ export default function Page1() {
   const [cardId, setCardId] = useState<number | null>(saved?.cardId ?? null);
   // 证件照留在本页，随建卡请求一起上传。
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
-  // 模型选择：分离架构下随请求参数发给后端，不走 cookie session。
-  const [models, setModels] = useState<{ id: string; label: string }[]>([]);
-  const [modelId, setModelId] = useState<string | null>(null);
+  // 导入菜单：文件与图片两个入口收在输入框内的加号里。
+  const [showImportMenu, setShowImportMenu] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef     = useRef<HTMLInputElement>(null);
   const imgRef      = useRef<HTMLInputElement>(null);
+  const importMenuRef = useRef<HTMLDivElement>(null);
+
+  /* 点外面关掉导入菜单 */
+  useEffect(() => {
+    if (!showImportMenu) return;
+    function onDown(e: MouseEvent) {
+      if (importMenuRef.current && !importMenuRef.current.contains(e.target as Node)) {
+        setShowImportMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showImportMenu]);
 
   /* Auto-resize textarea — single line → expands with content */
   useEffect(() => {
@@ -166,9 +176,6 @@ export default function Page1() {
       .then(s => {
         if (!alive) return;
         setSchema(s.fields);
-        setModels(s.models.available);
-        const def = s.models.default;
-        setModelId(s.models.available.some(m => m.id === def) ? def : s.models.available[0]?.id ?? null);
         if (s.upload) setUploadCfg(s.upload);
         if (s.mineru) { setMineruCfg(s.mineru); setMineruEnabled(s.mineru.available); }
       })
@@ -189,7 +196,7 @@ export default function Page1() {
   /* 提取统一走后端 LLM。此前的本地正则解析已删除 ——
      两套逻辑会对同一份资料给出不同结果。 */
   const runExtraction = useCallback(async (params: {
-    rawInput?: string; file?: File; portrait?: File | null; modelId?: string | null;
+    rawInput?: string; file?: File; portrait?: File | null;
   }) => {
     setPhase("active");
     setParsing(true);
@@ -251,11 +258,11 @@ export default function Page1() {
     if (parsing) return;
     const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect, portrait: portraitFile };
     if (pendingFile) {
-      runExtraction({ file: pendingFile, modelId, ...opts });
+      runExtraction({ file: pendingFile, ...opts });
     } else if (rawText.trim()) {
-      runExtraction({ rawInput: rawText, modelId, ...opts });
+      runExtraction({ rawInput: rawText, ...opts });
     }
-  }, [rawText, parsing, runExtraction, modelId, pendingFile, portraitFile, mineruEnabled, portraitDetect]);
+  }, [rawText, parsing, runExtraction, pendingFile, portraitFile, mineruEnabled, portraitDetect]);
 
   // 上传文件仅暂存，用户点击「提取」后再发送给后端
   const handleFile = useCallback((file: File) => {
@@ -331,32 +338,11 @@ export default function Page1() {
             fontFamily: "'Playfair Display',serif", fontSize: 21, fontWeight: 700,
             color: "#fff", letterSpacing: ".05em",
           }}>
-            名牌生成器
+            卡片生成器
           </div>
         </div>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,.38)", letterSpacing: ".26em" }}>
-          BADGE GENERATOR
-        </div>
-
-        {/* 模型选择与历史入口 */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          gap: 16, marginTop: 12,
-        }}>
-          <ModelPicker
-            models={models}
-            value={modelId}
-            onChange={setModelId}
-            disabled={parsing}
-          />
-          <button onClick={() => navigate("/history")} style={{
-            border: "1px solid rgba(255,255,255,.22)", background: "rgba(255,255,255,.12)",
-            color: "#fff", fontSize: 11, padding: "4px 11px", borderRadius: 7,
-            cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-            transition: `all .16s ${E.smooth}`,
-          }}>
-            历史记录
-          </button>
+          CARD GENERATOR
         </div>
       </div>
 
@@ -428,22 +414,13 @@ export default function Page1() {
                 <Upload size={16} /> 松开以上传文件
               </div>
             )}
-            {/* Card header bar */}
-            <div style={{
-              padding: "11px 16px 10px", borderBottom: `1px solid ${U.borderLight}`,
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
+            {/* 已选照片的小标签。原先在标题栏里，标题栏去掉后挪到顶部。 */}
+            {imgName && (
               <div style={{
-                width: 6, height: 6, borderRadius: "50%",
-                background: rawText.trim() ? U.blue : U.textFaint,
-                transition: `background .3s ${E.smooth}`,
-              }} />
-              <span style={{ fontSize: 11.5, color: U.textMid, fontWeight: 500 }}>
-                参加者资料
-              </span>
-              {imgName && (
+                padding: "10px 14px 0", display: "flex", justifyContent: "flex-end",
+              }}>
                 <div style={{
-                  marginLeft: "auto", display: "flex", alignItems: "center", gap: 5,
+                  display: "inline-flex", alignItems: "center", gap: 5,
                   padding: "3px 9px", borderRadius: 99,
                   background: U.greenLight, border: `1px solid ${U.green}44`,
                   animation: `fadeSlideIn .2s ${E.smooth} both`,
@@ -459,8 +436,8 @@ export default function Page1() {
                     style={{ background: "none", border: "none", cursor: "pointer",
                       color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Textarea — starts single-line, expands with content */}
             <textarea
@@ -470,7 +447,7 @@ export default function Page1() {
               placeholder="姓名 · 机构 · 项目主题…"
               style={{
                 width: "100%", border: "none", outline: "none",
-                padding: "14px 16px", resize: "none", overflow: "hidden",
+                padding: "14px 16px 6px", resize: "none", overflow: "hidden",
                 minHeight: "52px",
                 boxSizing: "border-box",
                 fontFamily: "'Outfit',sans-serif",
@@ -479,24 +456,67 @@ export default function Page1() {
                 transition: `min-height .2s ${E.smooth}`,
               }}
             />
-          </div>
 
-          {/* ── 已上传文件 ──────────────────────────────── */}
-          {pendingFile && (
+            {/* 输入框内的加号：文件与图片导入都收在这里 */}
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "8px 4px 0",
-              fontSize: 12, color: U.textMid,
+              padding: "0 12px 10px", display: "flex", alignItems: "center", gap: 8,
             }}>
-              <FileText size={13} />
-              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {pendingFile.name}
-              </span>
-              <button onClick={() => setPendingFile(null)} style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: U.textFaint, padding: 2, fontSize: 14, lineHeight: 1,
-              }}>×</button>
+              <div ref={importMenuRef} style={{ position: "relative" }}>
+                <button onClick={() => setShowImportMenu(v => !v)}
+                  title="添加文件或图片" aria-label="添加文件或图片"
+                  style={{
+                    width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                    border: `1px solid ${showImportMenu ? U.blue + "66" : U.border}`,
+                    background: showImportMenu ? U.surfaceBlue : U.surface,
+                    color: showImportMenu ? U.blue : U.textMid,
+                    cursor: "pointer", display: "flex", alignItems: "center",
+                    justifyContent: "center",
+                    transform: `rotate(${showImportMenu ? 45 : 0}deg)`,
+                    transition: `all .18s ${E.smooth}`,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = U.blue + "66"; e.currentTarget.style.color = U.blue; }}
+                  onMouseLeave={e => {
+                    if (showImportMenu) return;
+                    e.currentTarget.style.borderColor = U.border;
+                    e.currentTarget.style.color = U.textMid;
+                  }}>
+                  <Plus size={15} />
+                </button>
+                {showImportMenu && (
+                  <div style={{
+                    position: "absolute", left: 0, bottom: "100%", marginBottom: 6,
+                    zIndex: 60, width: 152, background: U.surface, borderRadius: 10,
+                    border: `1px solid ${U.border}`,
+                    boxShadow: "0 6px 22px rgba(30,50,80,.12)",
+                    padding: 4, animation: `fadeSlideIn .16s ${E.smooth} both`,
+                  }}>
+                    <ImportMenuItem icon={<Upload size={13} />} label="导入文件"
+                      onClick={() => { setShowImportMenu(false); fileRef.current?.click(); }} />
+                    <ImportMenuItem icon={<ImageIcon size={13} />} label="导入图片"
+                      onClick={() => { setShowImportMenu(false); imgRef.current?.click(); }} />
+                  </div>
+                )}
+              </div>
+              {pendingFile && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 8px", borderRadius: 99, maxWidth: 280,
+                  background: U.surfaceBlue, border: `1px solid ${U.border}`,
+                  fontSize: 11, color: U.textMid,
+                  animation: `fadeSlideIn .18s ${E.smooth} both`,
+                }}>
+                  <FileText size={11} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {pendingFile.name}
+                  </span>
+                  <button onClick={() => setPendingFile(null)} title="移除文件" style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: U.textFaint, padding: 0, fontSize: 13, lineHeight: 1,
+                  }}>×</button>
+                </span>
+              )}
             </div>
-          )}
+          </div>
 
           {/* ── 解析进度 ───────────────────────────────── */}
           {parsing && (
@@ -529,10 +549,6 @@ export default function Page1() {
 
           {/* ── Action bar ─────────────────────────────── */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ImportBtn icon={<Upload size={13} />} label="导入文件"
-              onClick={() => fileRef.current?.click()} />
-            <ImportBtn icon={<ImageIcon size={13} />} label="导入图片"
-              onClick={() => imgRef.current?.click()} />
             <input ref={fileRef} type="file" accept={uploadCfg?.allowed_extensions?.join(",") || ".txt,.csv,.vcf"} style={{ display: "none" }}
               onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
             <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}

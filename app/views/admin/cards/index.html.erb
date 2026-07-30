@@ -1,0 +1,102 @@
+<div class="mx-auto max-w-7xl px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <%= link_to "← 后台首页", admin_root_path, class: "text-sm text-stone-500 hover:text-stone-800" %>
+      <h1 class="text-2xl font-bold">历史记录</h1>
+      <span class="text-sm text-stone-500">共 <%= @total %> 条</span>
+    </div>
+    <%= form_with url: admin_cards_path, method: :get, class: "flex items-center gap-2" do |f| %>
+      <%= f.select :user_id,
+            options_for_select(@users, params[:user_id]),
+            { include_blank: "全部用户" },
+            class: "rounded-lg border border-stone-300 px-3 py-2 text-sm",
+            onchange: "this.form.requestSubmit()" %>
+    <% end %>
+  </div>
+
+  <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">
+    <div style="padding:10px 14px;border-bottom:1px solid #e7e5e4;display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:#78716c">批量：</span>
+      <button onclick="doBatchDelete()" class="text-xs px-2 py-1 rounded bg-red-50 text-red-700 border border-red-200 cursor-pointer hover:bg-red-100">删除</button>
+      <span id="batch-count" style="font-size:11px;color:#78716c;margin-left:8px"></span>
+    </div>
+    <script>
+      function doBatchDelete() {
+        var ids = [];
+        document.querySelectorAll(".card-checkbox:checked").forEach(function(cb) { ids.push(cb.value); });
+        if (ids.length === 0) { alert("请至少选择一条记录"); return; }
+        if (!confirm("确定删除选中的 " + ids.length + " 条记录？此操作不可恢复。")) return;
+        var f = document.createElement("form");
+        f.method = "POST";
+        f.action = "<%= batch_admin_cards_path %>";
+        var i0 = document.createElement("input"); i0.type = "hidden"; i0.name = "_method"; i0.value = "delete"; f.appendChild(i0);
+        var i1 = document.createElement("input"); i1.type = "hidden"; i1.name = "authenticity_token"; i1.value = document.querySelector("meta[name=csrf-token]").content; f.appendChild(i1);
+        ids.forEach(function(id) {
+          var i = document.createElement("input"); i.type = "hidden"; i.name = "ids[]"; i.value = id; f.appendChild(i);
+        });
+        f.style.display = "none";
+        document.body.appendChild(f); f.submit();
+      }
+    </script>
+    <table class="w-full text-sm">
+      <thead class="bg-stone-50 border-b border-stone-200">
+        <tr>
+          <th class="text-center px-2 py-3 font-medium text-stone-600" style="width:30px"><input type="checkbox" onchange="document.querySelectorAll('.card-checkbox').forEach(c=>c.checked=this.checked)" /></th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">姓名</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">单位</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">所属用户</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">来源文件</th>
+          <th class="text-center px-4 py-3 font-medium text-stone-600">字段</th>
+          <th class="text-center px-4 py-3 font-medium text-stone-600">尺寸</th>
+          <th class="text-left px-4 py-3 font-medium text-stone-600">创建时间</th>
+          <th class="text-right px-4 py-3 font-medium text-stone-600">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-stone-100">
+        <% if @cards.empty? %>
+          <tr><td colspan="9" class="px-4 py-10 text-center text-stone-400">暂无记录</td></tr>
+        <% end %>
+        <% @cards.each do |card| %>
+          <% d = card.normalized_data %>
+          <tr class="hover:bg-stone-50">
+            <td class="text-center px-2 py-3"><input type="checkbox" class="card-checkbox" value="<%= card.id %>" /></td>
+            <td class="px-4 py-3 font-medium">
+              <%= d["name"].presence || "（无姓名）" %>
+              <% if card.used_ocr %>
+                <span class="ml-1 px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-700">OCR</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 text-stone-600"><%= d["organization"].presence || "—" %></td>
+            <td class="px-4 py-3 text-stone-600"><%= card.user&.email_address || "—" %></td>
+            <td class="px-4 py-3 text-stone-500 text-xs" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              <%= card.source_name.presence || "手动输入" %>
+            </td>
+            <td class="text-center px-4 py-3 text-stone-600"><%= card.filled_count %></td>
+            <td class="text-center px-4 py-3 text-stone-500 text-xs"><%= card.width %>×<%= card.height %>mm</td>
+            <td class="px-4 py-3 text-stone-500 text-xs"><%= card.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="text-right px-4 py-3">
+              <%= button_to "删除", admin_card_path(card), method: :delete,
+                    form: { style: "display:inline" },
+                    data: { turbo_confirm: "确定删除此记录？" },
+                    class: "text-xs px-2 py-1 rounded bg-red-50 text-red-700 border border-red-200 cursor-pointer hover:bg-red-100" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @pages > 1 %>
+    <div class="mt-4 flex items-center justify-center gap-2 text-sm">
+      <% if @page > 1 %>
+        <%= link_to "← 上一页", admin_cards_path(page: @page - 1, user_id: params[:user_id]),
+              class: "px-3 py-1.5 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-100" %>
+      <% end %>
+      <span class="text-stone-500"><%= @page %> / <%= @pages %></span>
+      <% if @page < @pages %>
+        <%= link_to "下一页 →", admin_cards_path(page: @page + 1, user_id: params[:user_id]),
+              class: "px-3 py-1.5 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-100" %>
+      <% end %>
+    </div>
+  <% end %>
+</div>
