@@ -47,6 +47,8 @@ class DocumentTextExtractorTest < ActiveSupport::TestCase
   end
 
   test "图片走 OCR 并标记 used_ocr" do
+    skip "测试环境未安装 chi_sim tesseract 语言包" unless OcrExtractor.available?
+
     extractor = DocumentTextExtractor.new
     text = extractor.call(upload("scan_card.png"))
     assert_includes text, "孙丽华"
@@ -54,6 +56,8 @@ class DocumentTextExtractorTest < ActiveSupport::TestCase
   end
 
   test "扫描版 PDF 自动降级到 OCR" do
+    skip "测试环境未安装 chi_sim tesseract 语言包" unless OcrExtractor.available?
+
     extractor = DocumentTextExtractor.new
     text = extractor.call(upload("scanned.pdf"))
     assert_includes text, "孙丽华"

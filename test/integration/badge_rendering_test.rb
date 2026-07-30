@@ -1,8 +1,18 @@
 require "test_helper"
 
 class BadgeRenderingTest < ActionDispatch::IntegrationTest
+  setup do
+    @user = User.create!(
+      email_address: "badge-rendering@test.com",
+      password: "test123",
+      password_confirmation: "test123"
+    )
+    post session_url, params: { email_address: @user.email_address, password: "test123" }
+    follow_redirect!
+  end
+
   def create_card(data:, portrait: false)
-    card = Card.create!(raw_input: "测试资料", data: data)
+    card = @user.cards.create!(raw_input: "测试资料", data: data)
     if portrait
       card.portrait.attach(
         Rack::Test::UploadedFile.new(
