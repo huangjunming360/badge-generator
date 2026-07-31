@@ -282,27 +282,21 @@ export default function AdminGpuNodes() {
                       </small>
                     </td>
                     <td data-label="操作">
-                      <div style={{ display: "flex", gap: 5 }}>
+                      <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
                         <button
-                          style={iconButton}
+                          style={resetKeyButton}
                           disabled={!node.active || busyId === node.id}
-                          title="轮换节点密钥"
-                          onClick={() =>
+                          title="重置节点密钥"
+                          onClick={() => {
+                            if (!window.confirm(`重置 ${node.name} 的节点密钥？旧配置会立即失效，随后只显示一次新的安装配置。`)) return;
                             void run(node.id, async () => {
-                              const response = await rotateGpuNodeToken(
-                                node.id,
-                                serverUrl.trim(),
-                              );
+                              const response = await rotateGpuNodeToken(node.id, serverUrl.trim());
                               setCredentials(response.credentials);
-                              setNodes((current) =>
-                                current.map((item) =>
-                                  item.id === node.id ? response.node : item,
-                                ),
-                              );
-                            })
-                          }
+                              setNodes((current) => current.map((item) => item.id === node.id ? response.node : item));
+                            });
+                          }}
                         >
-                          <KeyRound size={15} />
+                          <KeyRound size={14} /> 重置密钥
                         </button>
                         <button
                           style={{ ...iconButton, color: "#a9473c" }}
@@ -511,6 +505,19 @@ const iconButton: React.CSSProperties = {
   display: "grid",
   placeItems: "center",
   cursor: "pointer",
+};
+const resetKeyButton: React.CSSProperties = {
+  border: `1px solid ${U.border}`,
+  borderRadius: 7,
+  padding: "7px 9px",
+  background: "#fff",
+  color: U.textMid,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  cursor: "pointer",
+  font: "inherit",
+  fontSize: 11,
 };
 const emptyStyle: React.CSSProperties = {
   minHeight: 170,
