@@ -43,6 +43,8 @@ class TemplateGenerationOrchestratorTest < ActiveSupport::TestCase
     assert_equal "waiting_for_visual_review", job.status
     assert_equal "visual_review", job.stage
     visual_job = @user.template_generation_jobs.where(job_type: "visual_repair").sole
+    assert_equal "visual_review", visual_job.stage
+    assert_equal "等待 GPU 视觉节点就绪后进行隔离检查", visual_job.stage_message
     assert_equal job.id, visual_job.payload["parent_generation_job_id"]
     assert_equal "<article><h1>{{ card.name }}</h1></article>", visual_job.payload["source_html"]
     assert_equal "fast", generator.received[:model_id]

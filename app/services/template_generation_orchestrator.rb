@@ -70,6 +70,8 @@ class TemplateGenerationOrchestrator
       template_design_session: @job.template_design_session,
       job_type: "visual_repair",
       complexity: @job.complexity,
+      stage: "visual_review",
+      stage_message: "等待 GPU 视觉节点就绪后进行隔离检查",
       payload: {
         "source_html" => proposal.fetch("html"),
         "source_css" => proposal.fetch("css"),

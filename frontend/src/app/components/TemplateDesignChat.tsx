@@ -231,6 +231,9 @@ export default function TemplateDesignChat({
         <style>{styles}</style>
         <style>{responsiveHistoryStyles}</style>
         <aside className="design-sidebar">
+          <button className="history-close" onClick={() => setHistoryOpen(false)} title="关闭历史记录">
+            <X size={15} /> 收起
+          </button>
           <button className="back-control" onClick={() => nav("/")}>
             <ArrowLeft size={15} /> 返回主页
           </button>
@@ -357,6 +360,9 @@ export default function TemplateDesignChat({
       <style>{styles}</style>
       <style>{responsiveHistoryStyles}</style>
       <aside className="design-sidebar">
+        <button className="history-close" onClick={() => setHistoryOpen(false)} title="关闭历史记录">
+          <X size={15} /> 收起
+        </button>
         <button className="back-control" onClick={() => nav("/")}>
           <ArrowLeft size={15} /> 返回主页
         </button>
@@ -446,13 +452,11 @@ export default function TemplateDesignChat({
             </label>
             {assets.length > 0 && <small>{assets.length} 个素材待发送</small>}
             <span />
-            <button
-              className="pause-button"
-              onClick={interrupt}
-              disabled={!session.active_job || busy}
-            >
-              <Pause size={15} /> {draft.trim() ? "暂停并发送" : "停止"}
-            </button>
+            {session.active_job && (
+              <button className="pause-button" onClick={interrupt} disabled={busy}>
+                <Pause size={15} /> {draft.trim() ? "暂停并发送" : "停止"}
+              </button>
+            )}
             <button
               className="send-button"
               onClick={send}
@@ -581,9 +585,11 @@ const styles = `.design-sidebar{padding:20px 14px;border-right:1px solid #e7e9ee
 
 const responsiveHistoryStyles = `
   .history-toggle { display: none; }
+  .history-close { display: none; }
   .model-link { display: inline-flex; margin-top: 8px; color: #1968c9; font-size: 12px; text-decoration: none; }
   @media (max-width: 900px) {
-    .history-toggle { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #dfe4ea; border-radius: 7px; background: #fff; color: #52606d; padding: 7px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+    .history-toggle { display: inline-flex; position: fixed; z-index: 25; top: 14px; right: 14px; align-items: center; gap: 5px; border: 1px solid #dfe4ea; border-radius: 7px; background: #fff; color: #52606d; padding: 7px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+    .history-close { display: inline-flex; align-items: center; gap: 5px; align-self: flex-end; border: 0; background: transparent; color: #687587; padding: 6px; font: inherit; font-size: 12px; cursor: pointer; }
     .design-sidebar { display: flex; position: fixed; inset: 0 auto 0 0; width: 236px; box-sizing: border-box; z-index: 30; box-shadow: 8px 0 30px #24344b26; transform: translateX(-105%); transition: transform .2s ease; }
     .history-open .design-sidebar { transform: translateX(0); }
   }
