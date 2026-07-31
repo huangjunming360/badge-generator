@@ -36,6 +36,11 @@ class TemplateGenerationOrchestratorTest < ActiveSupport::TestCase
       }
     )
     generator = FakeGenerator.new
+    job.reference_assets.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait.png")),
+      filename: "portrait.png",
+      content_type: "image/png"
+    )
 
     TemplateGenerationOrchestrator.new(job, generator: generator).run
 
@@ -47,6 +52,7 @@ class TemplateGenerationOrchestratorTest < ActiveSupport::TestCase
     assert_equal "等待 GPU 视觉节点就绪后进行隔离检查", visual_job.stage_message
     assert_equal job.id, visual_job.payload["parent_generation_job_id"]
     assert_equal "<article><h1>{{ card.name }}</h1></article>", visual_job.payload["source_html"]
+    assert_equal [ "portrait.png" ], visual_job.reference_assets.map { |asset| asset.filename.to_s }
     assert_equal "fast", generator.received[:model_id]
     assert_equal "科技感夏令营名牌", job.stage_results.dig("understanding", "requirement")
     assert_equal true, job.stage_results.dig("validating", "valid")

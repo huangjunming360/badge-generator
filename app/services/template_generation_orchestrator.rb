@@ -66,7 +66,7 @@ class TemplateGenerationOrchestrator
   end
 
   def enqueue_visual_review!(proposal, payload)
-    @job.requested_by.template_generation_jobs.create!(
+    visual_job = @job.requested_by.template_generation_jobs.create!(
       template_design_session: @job.template_design_session,
       job_type: "visual_repair",
       complexity: @job.complexity,
@@ -83,6 +83,8 @@ class TemplateGenerationOrchestrator
         "parent_generation_job_id" => @job.id
       }
     )
+    visual_job.reference_assets.attach(@job.reference_assets.blobs) if @job.reference_assets.attached?
+    visual_job
   end
 
   def understanding_result(payload)
