@@ -41,6 +41,7 @@ class TemplateAgent:
                     self._run_job(
                         response.job,
                         max_iterations=response.desired_config.max_iterations,
+                        max_model_calls=response.desired_config.max_model_calls,
                         claude_model=response.desired_config.claude_model,
                         claude_base_url=response.desired_config.claude_base_url,
                     )
@@ -87,7 +88,7 @@ class TemplateAgent:
                 self._probe_retry_at = now + 300
         return model_id, self._probe_ready, self._probe_error
 
-    def _run_job(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None) -> None:
+    def _run_job(self, job: TemplateJob, max_iterations: int, max_model_calls: int, claude_model: str | None, claude_base_url: str | None) -> None:
         stop_heartbeat = threading.Event()
         cancelled = threading.Event()
         lease_thread = threading.Thread(
@@ -97,7 +98,7 @@ class TemplateAgent:
         )
         lease_thread.start()
         try:
-            result = self._run_visual_repair(job, max_iterations, claude_model, claude_base_url, cancelled)
+            result = self._run_visual_repair(job, max_iterations, max_model_calls, claude_model, claude_base_url, cancelled)
         except JobCancelled:
             LOGGER.info("job %s cancelled by control plane", job.id)
             return
@@ -126,7 +127,7 @@ class TemplateAgent:
             except Exception:
                 LOGGER.exception("job %s lease heartbeat crashed", job_id)
 
-    def _run_visual_repair(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None, cancelled: threading.Event) -> JobResult:
+    def _run_visual_repair(self, job: TemplateJob, max_iterations: int, max_model_calls: int, claude_model: str | None, claude_base_url: str | None, cancelled: threading.Event) -> JobResult:
         if job.job_type != "visual_repair":
             return JobResult(status="failed", error="不支持的节点任务类型")
         raise_if_cancelled(cancelled)
@@ -134,6 +135,7 @@ class TemplateAgent:
         iterations: list[dict[str, object]] = []
         previous_score: int | None = None
         stop_reason = "max_iterations_reached"
+        model_calls = 0
         started = time.monotonic()
         for iteration in range(max_iterations):
             raise_if_cancelled(cancelled)
@@ -145,9 +147,14 @@ class TemplateAgent:
             if previous_score is not None and score >= previous_score:
                 stop_reason = "no_visual_improvement"
                 break
+            if model_calls + 2 > max_model_calls:
+                stop_reason = "model_call_budget_exhausted"
+                break
             diagnosis = self._repairer.diagnose(job.model_copy(update={"source_html": html, "source_css": css}), rendered, cancel_event=cancelled)
+            model_calls += 1
             edit_job = job.model_copy(update={"source_html": html, "source_css": css, "diagnostics": json.dumps({"renderer": rendered.diagnostics, "mai": diagnosis}, ensure_ascii=False)})
             edited = self._editor.edit(edit_job, model=claude_model, base_url=claude_base_url, cancel_event=cancelled)
+            model_calls += 1
             iterations.append({"iteration": iteration + 1, "diagnosis": diagnosis, "input_sha256": self._repairer._source_hash(html, css), "output_sha256": self._repairer._source_hash(edited.source_html, edited.source_css), "diagnostic_score": score, "elapsed_ms": round((time.monotonic() - started) * 1000), "agent": edited.report})
             html, css = edited.source_html, edited.source_css
             previous_score = score
@@ -158,7 +165,7 @@ class TemplateAgent:
             status="succeeded",
             source_html=html,
             source_css=css,
-            report={"stop_reason": stop_reason, "iterations": iterations, "final_diagnostics": final_render.diagnostics, "elapsed_ms": round((time.monotonic() - started) * 1000)},
+            report={"stop_reason": stop_reason, "model_calls": model_calls, "iterations": iterations, "final_diagnostics": final_render.diagnostics, "elapsed_ms": round((time.monotonic() - started) * 1000)},
         )
 
 

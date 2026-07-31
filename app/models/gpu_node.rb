@@ -4,6 +4,7 @@ class GpuNode < ApplicationRecord
     # 200 is a hard ceiling, not an instruction to keep repairing. The node
     # stops earlier on a clean render, no improvement, cancellation, or budget.
     "max_iterations" => 200,
+    "max_model_calls" => 400,
     "max_concurrency" => 1,
     # The selected model and its public-compatible endpoint are control-plane
     # settings. Credentials never enter this record or leave the GPU host.
@@ -26,6 +27,7 @@ class GpuNode < ApplicationRecord
         configured.fetch("paused", DEFAULT_DESIRED_CONFIG.fetch("paused"))
       ),
       "max_iterations" => configured.fetch("max_iterations", DEFAULT_DESIRED_CONFIG.fetch("max_iterations")).to_i.clamp(1, 200),
+      "max_model_calls" => configured.fetch("max_model_calls", DEFAULT_DESIRED_CONFIG.fetch("max_model_calls")).to_i.clamp(1, 400),
       # The current worker is deliberately single-process. Do not advertise
       # concurrency that the Python node cannot honor.
       "max_concurrency" => 1,

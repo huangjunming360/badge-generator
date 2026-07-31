@@ -73,7 +73,7 @@ class TemplateAgentCancellationTest(unittest.TestCase):
         )
 
         with self.assertRaises(JobCancelled):
-            agent._run_visual_repair(job, 200, None, None, cancelled)
+            agent._run_visual_repair(job, 200, 400, None, None, cancelled)
 
         agent._editor.edit.assert_not_called()
         agent._repairer.repair.assert_not_called()

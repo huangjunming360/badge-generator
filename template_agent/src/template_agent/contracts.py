@@ -18,6 +18,7 @@ class NodeCapabilities(BaseModel):
 class DesiredConfig(BaseModel):
     paused: bool = False
     max_iterations: int = Field(default=200, ge=1, le=200)
+    max_model_calls: int = Field(default=400, ge=1, le=400)
     max_concurrency: int = Field(default=1, ge=1, le=1)
     claude_model_id: str | None = None
     claude_model: str | None = None
