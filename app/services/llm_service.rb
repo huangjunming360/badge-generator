@@ -14,9 +14,11 @@ class LlmService
   # 模型 id 传错是客户端的问题，与上游服务故障要分开处理，
   # 所以单独一个类型 —— 靠匹配错误消息文字来区分太脆弱。
   class UnknownModel < Error; end
+  class UnknownFunction < Error; end
 
-  # 全局并发控制：默认最多 3 个 LLM 请求同时运行
-  MAX_CONCURRENCY = [ ENV.fetch("LLM_MAX_CONCURRENCY", 3).to_i, 1 ].max
+  # 全局并发控制：默认最多 8 个 LLM 请求同时运行。Puma 默认保留两倍
+  # Web 线程，避免长时间等待上游时把登录和普通 API 一起堵死。
+  MAX_CONCURRENCY = [ ENV.fetch("LLM_MAX_CONCURRENCY", 8).to_i, 1 ].max
   SEMAPHORE = Mutex.new
   @@active_requests = 0
 
@@ -44,13 +46,30 @@ class LlmService
 
   # model_id 供无状态的 JSON API 使用：分离架构下前端不共享 cookie session，
   # 选中的模型随请求参数传入。session 仍供 ERB 页面使用。
-  def initialize(session: nil, model_id: nil)
+  def initialize(session: nil, model_id: nil, function: nil)
     @session = session
-    @model_id = model_id
+    @function = function&.to_s
+    @function_config = resolve_function_config
+    @model_id = model_id || @function_config["model"]
     @config = resolve_config
   end
 
-  def complete(messages, system: nil, max_tokens: 4096)
+  def function_prompt
+    @function_config["prompt"].to_s
+  end
+
+  def function_max_tokens
+    value = @function_config["max_tokens"]
+    value.present? ? value.to_i : nil
+  end
+
+  def function_temperature
+    @function_config.fetch("temperature", 0)
+  end
+
+  def complete(messages, system: nil, max_tokens: nil, schema: nil)
+    system ||= function_prompt.presence
+    max_tokens = function_max_tokens || 4096 if max_tokens.nil?
     # 等待并发槽位
     acquired = false
     self.class.await_slot
@@ -65,7 +84,8 @@ class LlmService
       assume_model_exists: true
     )
     chat.with_instructions(system) if system.present?
-    chat.with_temperature(0.0)
+    chat.with_temperature(function_temperature)
+    chat.with_schema(schema) if schema.present?
     if @config["no_thinking"] && @config["api"] == "openai"
       # Doubao 等 OpenAI 协议模型：主动发 thinking:disabled 关闭深度推理
       params = { thinking: { type: "disabled" } }
@@ -78,11 +98,14 @@ class LlmService
     messages.each do |msg|
       role = (msg[:role] || msg["role"]).to_s
       next if role == "system"
-      chat.add_message(role: role.to_sym, content: msg[:content] || msg["content"])
+      content = msg[:content] || msg["content"]
+      attachments = msg[:attachments] || msg["attachments"]
+      content = RubyLLM::Content.new(content, attachments) if attachments.present?
+      chat.add_message(role: role.to_sym, content: content)
     end
 
     response = chat.complete
-    response.content.to_s
+    schema.present? ? response.content : response.content.to_s
   rescue RubyLLM::Error => e
     raise Error, "AI 服务响应异常: #{e.message}"
   rescue => e
@@ -118,6 +141,16 @@ class LlmService
     # 否则用默认模型
     default_id = models_config["default"]
     models.find { |m| m["id"] == default_id } || models.first || {}
+  end
+
+  def resolve_function_config
+    return {} if @function.blank?
+
+    functions = Rails.application.config.x.llm_functions || {}
+    config = functions[@function] || functions[@function.to_sym]
+    raise UnknownFunction, "未知的 LLM 函数：#{@function}" unless config.is_a?(Hash)
+
+    config.stringify_keys
   end
 
   def all_models

@@ -19,6 +19,100 @@ export class ExportError extends Error {
   }
 }
 
+async function renderElementToCanvas(
+  element: ReactElement,
+  scale: number,
+): Promise<HTMLCanvasElement> {
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff;";
+  document.body.appendChild(host);
+
+  const root = createRoot(host);
+  try {
+    root.render(element);
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await document.fonts?.ready;
+    await waitForImages(host);
+    await inlineImages(host);
+
+    const target = host.firstElementChild as HTMLElement | null;
+    if (!target) throw new ExportError("工牌渲染失败");
+
+    const templateFrame = target.querySelector<HTMLIFrameElement>(
+      "iframe[data-html-template-frame]",
+    );
+    const captureTarget = templateFrame
+      ? await iframeBadgeRoot(templateFrame)
+      : target;
+
+    await captureTarget.ownerDocument.fonts?.ready;
+    await waitForImages(captureTarget);
+    await inlineImages(captureTarget);
+
+    return await html2canvas(captureTarget, {
+      scale,
+      backgroundColor: "#fff",
+      useCORS: true,
+      logging: false,
+    });
+  } finally {
+    root.unmount();
+    host.remove();
+  }
+}
+
+async function iframeBadgeRoot(frame: HTMLIFrameElement): Promise<HTMLElement> {
+  // iframe 挂载后的初始 about:blank 也会报告 readyState=complete，不能只看
+  // readyState，否则 srcDoc 尚未提交时会偶发取得空文档。直接等可信根节点出现。
+  const root = await new Promise<HTMLElement>((resolve, reject) => {
+    const startedAt = performance.now();
+    const check = () => {
+      try {
+        const candidate =
+          frame.contentDocument?.querySelector<HTMLElement>(
+            "[data-badge-root]",
+          );
+        if (
+          candidate &&
+          frame.contentDocument?.readyState === "complete"
+        ) {
+          resolve(candidate);
+          return;
+        }
+      } catch {
+        reject(new ExportError("HTML 模板沙箱不可访问"));
+        return;
+      }
+
+      if (performance.now() - startedAt >= 5_000) {
+        reject(new ExportError("HTML 模板加载超时"));
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+    frame.addEventListener(
+      "error",
+      () => reject(new ExportError("HTML 模板加载失败")),
+      { once: true },
+    );
+    check();
+  });
+
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+  return root;
+}
+
+/** 供 AI 视觉复审使用：渲染真实 BadgeCard，但不触发下载。 */
+export async function renderElementToDataUrl(
+  element: ReactElement,
+  scale: number = DEFAULT_SCALE,
+): Promise<string> {
+  const canvas = await renderElementToCanvas(element, scale);
+  return canvas.toDataURL("image/jpeg", 0.88);
+}
+
 /** 文件名里不能出现的字符，统一换成下划线。 */
 function safeFileName(raw: string): string {
   const cleaned = raw.trim().replace(/[\\/:*?"<>|]/g, "_");
@@ -102,36 +196,6 @@ export async function exportElementToPng(
   name: string,
   scale: number = DEFAULT_SCALE,
 ): Promise<void> {
-  // 放在视口外而不是 display:none —— 隐藏元素量不到尺寸，截出来是 0×0。
-  const host = document.createElement("div");
-  host.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff;";
-  document.body.appendChild(host);
-
-  const root = createRoot(host);
-  try {
-    root.render(element);
-    // 等 React 提交 DOM，并给字体和证件照留一帧加载时间。
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    await document.fonts?.ready;
-    // 还要等证件照真正解码完。只等帧和字体的话，html2canvas 截图时
-    // <img> 还在下载，头像位置就是一圈空的。
-    await waitForImages(host);
-    // html2canvas 会克隆 DOM 并重新请求图片。同源代理 URL 可能带认证，
-    // 第二次请求会失败。改成先转 data URI 内联到 DOM，后续就不用再请求。
-    await inlineImages(host);
-
-    const target = host.firstElementChild as HTMLElement | null;
-    if (!target) throw new ExportError("工牌渲染失败");
-
-    const canvas = await html2canvas(target, {
-      scale,
-      backgroundColor: "#fff",
-      useCORS: true,
-      logging: false,
-    });
-    triggerDownload(await canvasToBlob(canvas), name);
-  } finally {
-    root.unmount();
-    host.remove();
-  }
+  const canvas = await renderElementToCanvas(element, scale);
+  triggerDownload(await canvasToBlob(canvas), name);
 }

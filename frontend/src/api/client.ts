@@ -48,11 +48,17 @@ export function getJson<T>(path: string): Promise<T> {
   }).then(parse<T>);
 }
 
-export function sendJson<T>(path: string, method: "POST" | "PATCH", body: unknown): Promise<T> {
+export function sendJson<T>(
+  path: string,
+  method: "POST" | "PATCH",
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   return fetch(`${BASE}${path}`, {
     method,
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   }).then(parse<T>);
 }
 
