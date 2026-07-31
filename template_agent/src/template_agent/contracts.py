@@ -9,6 +9,9 @@ class NodeCapabilities(BaseModel):
     vram_mb: int | None = Field(default=None, ge=0)
     mai_ready: bool = False
     renderer_ready: bool = False
+    agent_model_id: str | None = None
+    agent_model_ready: bool = False
+    agent_model_error: str | None = Field(default=None, max_length=300)
     agent_version: str
 
 

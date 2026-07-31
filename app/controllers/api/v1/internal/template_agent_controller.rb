@@ -56,7 +56,8 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
 
   def heartbeat_params
     params.permit(:current_job_id, :sent_at,
-                  capabilities: [ :gpu_name, :vram_mb, :mai_ready, :renderer_ready, :agent_version ])
+                  capabilities: [ :gpu_name, :vram_mb, :mai_ready, :renderer_ready,
+                                  :agent_model_id, :agent_model_ready, :agent_model_error, :agent_version ])
   end
 
   def completion_params
@@ -82,10 +83,12 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
 
   def normalized_capabilities
     capabilities = heartbeat_params.fetch(:capabilities, {}).to_h
-    %w[mai_ready renderer_ready].each do |key|
+    %w[mai_ready renderer_ready agent_model_ready].each do |key|
       capabilities[key] = ActiveModel::Type::Boolean.new.cast(capabilities[key]) if capabilities.key?(key)
     end
     capabilities["vram_mb"] = capabilities["vram_mb"].to_i if capabilities["vram_mb"].present?
+    capabilities["agent_model_id"] = capabilities["agent_model_id"].to_s.truncate(120).presence
+    capabilities["agent_model_error"] = capabilities["agent_model_error"].to_s.truncate(300).presence
     capabilities
   end
 

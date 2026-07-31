@@ -9,7 +9,7 @@ from .client import RailsControlPlane
 from .claude import AgentEditError, ClaudeTemplateEditor
 from .cancellation import JobCancelled, raise_if_cancelled
 from .config import Settings
-from .contracts import HeartbeatRequest, JobResult, NodeCapabilities, TemplateJob
+from .contracts import DesiredConfig, HeartbeatRequest, JobResult, NodeCapabilities, TemplateJob
 from .mai import MaiVisualRepairer, VisualRepairError
 from .rendering import IsolatedRenderer, RenderError
 
@@ -25,11 +25,17 @@ class TemplateAgent:
         self._renderer = IsolatedRenderer(settings.renderer_image, settings.renderer_timeout_seconds)
         self._repairer = MaiVisualRepairer(settings, self._renderer)
         self._editor = ClaudeTemplateEditor(settings)
+        self._desired_config = DesiredConfig()
+        self._probe_signature: tuple[str, str | None] | None = None
+        self._probe_ready = False
+        self._probe_error: str | None = None
+        self._probe_retry_at = 0.0
 
     def run_forever(self) -> None:
         while True:
             try:
                 response = self._control_plane.heartbeat(self._heartbeat())
+                self._desired_config = response.desired_config
                 if response.job and not response.desired_config.paused:
                     self._run_job(
                         response.job,
@@ -44,15 +50,41 @@ class TemplateAgent:
             time.sleep(self._settings.poll_interval_seconds)
 
     def _heartbeat(self, current_job_id: str | None = None) -> HeartbeatRequest:
+        agent_model_id, agent_model_ready, agent_model_error = self._probe_agent_model()
         return HeartbeatRequest(
             capabilities=NodeCapabilities(
                 agent_version="0.2.0",
                 mai_ready=self._repairer.ready(),
                 renderer_ready=self._renderer.ready(),
+                agent_model_id=agent_model_id,
+                agent_model_ready=agent_model_ready,
+                agent_model_error=agent_model_error,
             ),
             current_job_id=current_job_id,
             sent_at=datetime.now(UTC),
         )
+
+    def _probe_agent_model(self) -> tuple[str, bool, str | None]:
+        config = self._desired_config
+        local_model = getattr(self._settings, "claude_model", None)
+        local_base_url = getattr(self._settings, "claude_base_url", None)
+        model = config.claude_model or local_model
+        base_url = config.claude_base_url or (str(local_base_url) if local_base_url else None)
+        model_id = config.claude_model_id or "node-local-default"
+        signature = (model or "", base_url)
+        now = time.monotonic()
+        if signature != self._probe_signature or now >= self._probe_retry_at:
+            self._probe_signature = signature
+            try:
+                self._editor.probe(model=model, base_url=base_url)
+                self._probe_ready = True
+                self._probe_error = None
+                self._probe_retry_at = now + 3600
+            except AgentEditError as error:
+                self._probe_ready = False
+                self._probe_error = str(error)[:300]
+                self._probe_retry_at = now + 300
+        return model_id, self._probe_ready, self._probe_error
 
     def _run_job(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None) -> None:
         stop_heartbeat = threading.Event()

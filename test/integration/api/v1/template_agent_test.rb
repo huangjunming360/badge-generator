@@ -34,7 +34,7 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     job = queued_job
 
     post "/api/v1/internal/template-agent/heartbeat", params: {
-      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
     }, headers: node_headers
 
     assert_response :success
@@ -52,7 +52,7 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     another_job = queued_job
     post "/api/v1/internal/template-agent/heartbeat", params: {
       current_job_id: job.id,
-      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
     }, headers: node_headers
     assert_response :success
     assert_operator job.reload.lease_expires_at, :>, before_renewal
@@ -112,10 +112,28 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     assert_equal false, @node.reload.capabilities["mai_ready"]
   end
 
+  test "模型探测失败的节点会保留诊断但不会领取视觉任务" do
+    job = queued_job
+
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: {
+        agent_version: "0.2.0", mai_ready: true, renderer_ready: true,
+        agent_model_id: "agent-proxy", agent_model_ready: false,
+        agent_model_error: "Claude Agent 模型探测失败：认证、模型名或协议不可用"
+      }
+    }, headers: node_headers
+
+    assert_response :success
+    assert_nil body["job"]
+    assert_equal "queued", job.reload.status
+    assert_equal "agent-proxy", @node.reload.capabilities["agent_model_id"]
+    assert_includes @node.capabilities["agent_model_error"], "协议不可用"
+  end
+
   test "其他节点不能完成已租出的任务" do
     job = queued_job
     post "/api/v1/internal/template-agent/heartbeat", params: {
-      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
     }, headers: node_headers
     lease = body.dig("job", "lease_token")
     GpuNode.create!(node_key: "other-node", name: "Other", token: "other-secret")
@@ -131,13 +149,13 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
   test "已取消的节点任务会通过下一次心跳下发停止命令并保留审计记录" do
     job = queued_job
     post "/api/v1/internal/template-agent/heartbeat", params: {
-      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
     }, headers: node_headers
 
     job.cancel!(reason: "用户主动停止")
     post "/api/v1/internal/template-agent/heartbeat", params: {
       current_job_id: job.id,
-      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
     }, headers: node_headers
 
     assert_response :success
@@ -168,7 +186,7 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     )
 
     post "/api/v1/internal/template-agent/heartbeat", params: {
-      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
     }, headers: node_headers
     lease = body.dig("job", "lease_token")
     post "/api/v1/internal/template-agent/jobs/#{job.id}/complete", params: {

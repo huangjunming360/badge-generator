@@ -47,6 +47,33 @@ class ClaudeTemplateEditor:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
+    def probe(self, *, model: str | None = None, base_url: str | None = None) -> None:
+        """Verify the selected protocol with node-local credentials only."""
+        with tempfile.TemporaryDirectory(prefix="badge-template-probe-") as directory:
+            workspace = Path(directory).resolve()
+            try:
+                from claude_agent_sdk import ClaudeAgentOptions, query
+            except ImportError as error:
+                raise AgentEditError("未安装 Claude Agent SDK") from error
+
+            options = ClaudeAgentOptions(**self._agent_options(
+                workspace,
+                model=model,
+                base_url=base_url,
+                max_turns=1,
+                tools=[],
+                allowed_tools=[],
+            ))
+            try:
+                asyncio.run(self._consume(query(
+                    prompt="回复 OK。不要调用任何工具。",
+                    options=options,
+                )))
+            except AgentEditError:
+                raise
+            except Exception as error:
+                raise AgentEditError("Claude Agent 模型探测失败：认证、模型名或协议不可用") from error
+
     def edit(self, job: TemplateJob, *, model: str | None = None, base_url: str | None = None, cancel_event: threading.Event | None = None) -> AgentEditResult:
         raise_if_cancelled(cancel_event)
         with tempfile.TemporaryDirectory(prefix="badge-template-agent-") as directory:
@@ -92,7 +119,8 @@ class ClaudeTemplateEditor:
                 }
             }
 
-        options_kwargs: dict[str, Any] = {
+        options_kwargs = self._agent_options(workspace, model=model, base_url=base_url)
+        options_kwargs.update({
             "cwd": str(workspace),
             # `tools` removes every other built-in tool from the agent's
             # available toolset. `allowed_tools` then auto-approves these
@@ -111,22 +139,10 @@ class ClaudeTemplateEditor:
                     HookMatcher(matcher="Write|Edit", hooks=[only_template_outputs]),
                 ],
             },
-        }
+        })
         selected_model = model or getattr(self._settings, "claude_model", None)
         if selected_model:
             options_kwargs["model"] = selected_model
-
-        # The API key remains in this node's environment. Rails can select a
-        # configured model/endpoint, but never sees or transports the secret.
-        agent_env = os.environ.copy()
-        local_base_url = getattr(self._settings, "claude_base_url", None)
-        configured_base_url = base_url or (str(local_base_url) if local_base_url else None)
-        if configured_base_url:
-            agent_env["ANTHROPIC_BASE_URL"] = configured_base_url
-        local_api_key = getattr(self._settings, "claude_api_key", None)
-        if local_api_key:
-            agent_env["ANTHROPIC_API_KEY"] = local_api_key.get_secret_value()
-        options_kwargs["env"] = agent_env
 
         prompt = self._prompt(job)
         try:
@@ -137,6 +153,37 @@ class ClaudeTemplateEditor:
             raise
         except Exception as error:
             raise AgentEditError("Claude Agent 模板编辑失败") from error
+
+    def _agent_options(
+        self,
+        workspace: Path,
+        *,
+        model: str | None,
+        base_url: str | None,
+        max_turns: int | None = None,
+        tools: list[str] | None = None,
+        allowed_tools: list[str] | None = None,
+    ) -> dict[str, Any]:
+        agent_env = os.environ.copy()
+        local_base_url = getattr(self._settings, "claude_base_url", None)
+        configured_base_url = base_url or (str(local_base_url) if local_base_url else None)
+        if configured_base_url:
+            agent_env["ANTHROPIC_BASE_URL"] = configured_base_url
+        local_api_key = getattr(self._settings, "claude_api_key", None)
+        if local_api_key:
+            agent_env["ANTHROPIC_API_KEY"] = local_api_key.get_secret_value()
+
+        result: dict[str, Any] = { "cwd": str(workspace), "env": agent_env }
+        selected_model = model or getattr(self._settings, "claude_model", None)
+        if selected_model:
+            result["model"] = selected_model
+        if max_turns is not None:
+            result["max_turns"] = max_turns
+        if tools is not None:
+            result["tools"] = tools
+        if allowed_tools is not None:
+            result["allowed_tools"] = allowed_tools
+        return result
 
     @staticmethod
     async def _consume(messages: Any, cancel_event: threading.Event | None = None) -> None:

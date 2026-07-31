@@ -279,6 +279,23 @@ export default function AdminGpuNodes() {
                           : node.desired_config.claude_model ||
                             "不覆盖本地设置"}
                       </small>
+                      <small
+                        style={{
+                          ...subtleStyle,
+                          color:
+                            node.capabilities.agent_model_ready === true
+                              ? "#197b4c"
+                              : node.capabilities.agent_model_error
+                                ? "#a9473c"
+                                : undefined,
+                        }}
+                      >
+                        {node.capabilities.agent_model_ready === true
+                          ? "节点已验证模型可用"
+                          : node.capabilities.agent_model_error
+                            ? String(node.capabilities.agent_model_error)
+                            : "等待节点验证模型"}
+                      </small>
                     </td>
                     <td data-label="操作">
                       <div style={{ display: "flex", gap: 7, alignItems: "center" }}>

@@ -39,7 +39,8 @@ class GpuNode < ApplicationRecord
 
   def ready_for_visual_repair?
     online? && active? && effective_desired_config.fetch("paused") == false &&
-      capabilities.to_h["mai_ready"] == true && capabilities.to_h["renderer_ready"] == true
+      capabilities.to_h["mai_ready"] == true && capabilities.to_h["renderer_ready"] == true &&
+      capabilities.to_h["agent_model_ready"] == true
   end
 
   private

@@ -3,12 +3,60 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from template_agent.claude import AgentEditError
 from template_agent.cancellation import JobCancelled
 from template_agent.contracts import TemplateJob
 from template_agent.worker import TemplateAgent
 
 
 class TemplateAgentCancellationTest(unittest.TestCase):
+    def test_probe_reports_selected_model_status_without_returning_a_key(self) -> None:
+        agent = TemplateAgent.__new__(TemplateAgent)
+        agent._settings = SimpleNamespace(claude_model=None, claude_base_url=None)
+        agent._desired_config = SimpleNamespace(
+            claude_model_id="agent-sonnet",
+            claude_model="claude-sonnet-test",
+            claude_base_url="https://anthropic.example.test",
+        )
+        agent._probe_signature = None
+        agent._probe_ready = False
+        agent._probe_error = None
+        agent._probe_retry_at = 0.0
+        agent._editor = Mock()
+
+        model_id, ready, error = agent._probe_agent_model()
+
+        self.assertEqual("agent-sonnet", model_id)
+        self.assertTrue(ready)
+        self.assertIsNone(error)
+        agent._editor.probe.assert_called_once_with(
+            model="claude-sonnet-test", base_url="https://anthropic.example.test",
+        )
+
+    def test_probe_failure_prevents_job_claiming_and_is_rate_limited(self) -> None:
+        agent = TemplateAgent.__new__(TemplateAgent)
+        agent._settings = SimpleNamespace(claude_model=None, claude_base_url=None)
+        agent._desired_config = SimpleNamespace(
+            claude_model_id="agent-fail",
+            claude_model="claude-invalid",
+            claude_base_url=None,
+        )
+        agent._probe_signature = None
+        agent._probe_ready = False
+        agent._probe_error = None
+        agent._probe_retry_at = 0.0
+        agent._editor = Mock()
+        agent._editor.probe.side_effect = AgentEditError("Claude Agent 模型探测失败：认证、模型名或协议不可用")
+
+        first = agent._probe_agent_model()
+        second = agent._probe_agent_model()
+
+        self.assertEqual("agent-fail", first[0])
+        self.assertFalse(first[1])
+        self.assertIn("协议不可用", first[2] or "")
+        self.assertEqual(first, second)
+        agent._editor.probe.assert_called_once()
+
     def test_cancelled_job_does_not_start_claude_or_mai(self) -> None:
         agent = TemplateAgent.__new__(TemplateAgent)
         agent._editor = Mock()
