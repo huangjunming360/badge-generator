@@ -6,7 +6,7 @@ import {
   E, U, ACCENTS,
   BadgeCard, PreviewSheet, OptionsSidebar, RippleBtn, fzHeightFactor,
 } from "./shared";
-import { BadgeCanvas, templateContentSize } from "./BadgeCanvas";
+import { BadgeCanvas, canvasSizeMm, templateContentSize } from "./BadgeCanvas";
 import { PreviewViewport, usePreviewViewport, MIN_ZOOM, MAX_ZOOM } from "./PreviewViewport";
 import { fetchCard, fetchSchema } from "../../api/cards";
 import { toFields } from "../../api/fields";
@@ -96,11 +96,11 @@ export default function Page2() {
     setExporting(true);
     try {
       const who = fields.find(f => f.key === "name")?.value?.trim();
-      // 55mm 转换为 px（96 DPI）：55 * (96/25.4) ≈ 207px
-      const MM_TO_PX = 96 / 25.4;
-      const baseWidthPx = 55 * MM_TO_PX; // ≈ 207px
-      // 计算 scale：目标宽度 / 基准宽度
-      const scale = exportSize / baseWidthPx;
+      // BadgeCard 使用模板的像素尺寸，按实际内容宽度计算倍率。
+      const contentWidth = templateContentSize(
+        template, custom.orientation, fzHeightFactor(fontSize),
+      ).width;
+      const scale = exportSize / contentWidth;
 
       await exportElementToPng(
         <BadgeCard {...badgeProps} scale={1}/>,
@@ -210,8 +210,7 @@ export default function Page2() {
               {/* 外层是 mm 实物画布，内容等比缩放居中。设计稿模板是像素比例
                   （竖版 2:3），与 55:85 不等，包一层才不会拉伸变形。 */}
               <BadgeCanvas
-                widthMm={55}
-                heightMm={85}
+                {...canvasSizeMm(55, 85, template, custom.orientation)}
                 contentWidth={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).width}
                 contentHeight={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).height}
                 previewScale={previewScale}
