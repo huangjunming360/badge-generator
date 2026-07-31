@@ -101,6 +101,20 @@ class MaiVisualRepairerTest(unittest.TestCase):
         self.assertIn("参考蓝色夏令营挂牌", text)
         self.assertIn('"semantic_fields"', text)
 
+    def test_diagnosis_contract_contains_observations_without_source_code(self) -> None:
+        with patch("template_agent.mai.OpenAI") as openai:
+            client = openai.return_value
+            client.chat.completions.create.return_value = Mock(
+                choices=[Mock(message=Mock(content='{"issues":["标题溢出"],"recommendations":["增加文字空间"],"summary":"需要调整"}'))]
+            )
+            repairer = MaiVisualRepairer(self.settings, Mock())
+            diagnosis = repairer.diagnose(self.job, RenderResult("data:image/png;base64,x", {"overflow_y": True}))
+
+        self.assertEqual(["标题溢出"], diagnosis["issues"])
+        self.assertNotIn("html", diagnosis)
+        request = client.chat.completions.create.call_args.kwargs["messages"][1]["content"][0]["text"]
+        self.assertIn("只返回 JSON 诊断", request)
+
     def test_rejects_oversized_model_output(self) -> None:
         with patch("template_agent.mai.OpenAI"):
             repairer = MaiVisualRepairer(self.settings, Mock())

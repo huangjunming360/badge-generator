@@ -134,6 +134,76 @@ class MaiVisualRepairer:
             return False
         return True
 
+    def render(self, html: str, css: str, *, job: TemplateJob, cancel_event: threading.Event | None = None) -> RenderResult:
+        return self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm, cancel_event=cancel_event)
+
+    @classmethod
+    def diagnostic_score(cls, rendered: RenderResult) -> int:
+        return cls._diagnostic_score(rendered)
+
+    def diagnose(self, job: TemplateJob, rendered: RenderResult, *, cancel_event: threading.Event | None = None) -> dict[str, object]:
+        """Ask MAI for observations only; it never receives write authority."""
+        instruction = {
+            "task": "检查固定尺寸名牌截图并提出结构化视觉诊断",
+            "requirement": job.requirement,
+            "reference_notes": job.reference_notes,
+            "semantic_fields": job.semantic_fields,
+            "renderer_diagnostics": rendered.diagnostics,
+            "response_schema": {"issues": ["string"], "recommendations": ["string"], "summary": "string"},
+            "constraints": [
+                "只返回 JSON 诊断，不返回 HTML 或 CSS",
+                "检查溢出、重叠、对比度、低分辨率图片、长文本空间和固定画布尺寸",
+            ],
+        }
+        response_queue: queue.Queue[object] = queue.Queue(maxsize=1)
+
+        def request() -> None:
+            try:
+                response_queue.put(self._active_client().chat.completions.create(
+                    model=self._settings.mai_model,
+                    temperature=0,
+                    max_tokens=2048,
+                    messages=[
+                        {"role": "system", "content": "你是只读视觉诊断器，不得生成或修改模板源码。"},
+                        {"role": "user", "content": [
+                            {"type": "text", "text": json.dumps(instruction, ensure_ascii=False)},
+                            {"type": "image_url", "image_url": {"url": rendered.screenshot_data_url}},
+                        ]},
+                    ],
+                ))
+            except Exception as error:
+                response_queue.put(error)
+
+        thread = threading.Thread(target=request, daemon=True)
+        thread.start()
+        while thread.is_alive():
+            thread.join(timeout=0.2)
+            if cancel_event and cancel_event.is_set():
+                self._client.close()
+                self._client_closed = True
+                raise_if_cancelled(cancel_event)
+        response = response_queue.get()
+        if isinstance(response, Exception):
+            raise VisualRepairError("MAI 视觉诊断请求失败") from response
+        content = response.choices[0].message.content or ""
+        return self._parse_diagnosis(content)
+
+    @staticmethod
+    def _parse_diagnosis(content: str) -> dict[str, object]:
+        text = content.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        try:
+            data = json.loads(text)
+            issues = data.get("issues", [])
+            recommendations = data.get("recommendations", [])
+            summary = data.get("summary", "")
+        except (TypeError, AttributeError, json.JSONDecodeError) as error:
+            raise VisualRepairError("MAI 未返回有效视觉诊断 JSON") from error
+        if not isinstance(issues, list) or not isinstance(recommendations, list) or not isinstance(summary, str):
+            raise VisualRepairError("MAI 视觉诊断结构无效")
+        if len(issues) > 50 or len(recommendations) > 50:
+            raise VisualRepairError("MAI 视觉诊断过大")
+        return {"issues": [str(item)[:500] for item in issues], "recommendations": [str(item)[:500] for item in recommendations], "summary": summary[:2000]}
+
     def _ask_mai(self, job: TemplateJob, html: str, css: str, rendered: RenderResult, *, cancel_event: threading.Event | None = None) -> tuple[str, str, str]:
         instruction = {
             "task": "修复固定尺寸名牌模板的视觉问题",

@@ -1,4 +1,5 @@
 import logging
+import json
 import threading
 import time
 from datetime import UTC, datetime
@@ -129,17 +130,35 @@ class TemplateAgent:
         if job.job_type != "visual_repair":
             return JobResult(status="failed", error="不支持的节点任务类型")
         raise_if_cancelled(cancelled)
-        edited = self._editor.edit(job, model=claude_model, base_url=claude_base_url, cancel_event=cancelled)
-        review_job = job.model_copy(update={
-            "source_html": edited.source_html,
-            "source_css": edited.source_css,
-        })
-        repaired = self._repairer.repair(review_job, max_iterations=max_iterations, cancel_event=cancelled)
+        html, css = job.source_html, job.source_css
+        iterations: list[dict[str, object]] = []
+        previous_score: int | None = None
+        stop_reason = "max_iterations_reached"
+        started = time.monotonic()
+        for iteration in range(max_iterations):
+            raise_if_cancelled(cancelled)
+            rendered = self._repairer.render(html, css, job=job, cancel_event=cancelled)
+            score = self._repairer.diagnostic_score(rendered)
+            if score == 0:
+                stop_reason = "visual_check_passed"
+                break
+            if previous_score is not None and score >= previous_score:
+                stop_reason = "no_visual_improvement"
+                break
+            diagnosis = self._repairer.diagnose(job.model_copy(update={"source_html": html, "source_css": css}), rendered, cancel_event=cancelled)
+            edit_job = job.model_copy(update={"source_html": html, "source_css": css, "diagnostics": json.dumps({"renderer": rendered.diagnostics, "mai": diagnosis}, ensure_ascii=False)})
+            edited = self._editor.edit(edit_job, model=claude_model, base_url=claude_base_url, cancel_event=cancelled)
+            iterations.append({"iteration": iteration + 1, "diagnosis": diagnosis, "input_sha256": self._repairer._source_hash(html, css), "output_sha256": self._repairer._source_hash(edited.source_html, edited.source_css), "diagnostic_score": score, "elapsed_ms": round((time.monotonic() - started) * 1000), "agent": edited.report})
+            html, css = edited.source_html, edited.source_css
+            previous_score = score
+        final_render = self._repairer.render(html, css, job=job, cancel_event=cancelled)
+        if self._repairer.diagnostic_score(final_render) == 0:
+            stop_reason = "visual_check_passed"
         return JobResult(
             status="succeeded",
-            source_html=repaired.source_html,
-            source_css=repaired.source_css,
-            report={**edited.report, **repaired.report},
+            source_html=html,
+            source_css=css,
+            report={"stop_reason": stop_reason, "iterations": iterations, "final_diagnostics": final_render.diagnostics, "elapsed_ms": round((time.monotonic() - started) * 1000)},
         )
 
 
