@@ -23,7 +23,7 @@ class GpuNode < ApplicationRecord
       "paused" => ActiveModel::Type::Boolean.new.cast(
         configured.fetch("paused", DEFAULT_DESIRED_CONFIG.fetch("paused"))
       ),
-      "max_iterations" => configured.fetch("max_iterations", DEFAULT_DESIRED_CONFIG.fetch("max_iterations")).to_i.clamp(1, 3),
+      "max_iterations" => configured.fetch("max_iterations", DEFAULT_DESIRED_CONFIG.fetch("max_iterations")).to_i.clamp(1, 200),
       # The current worker is deliberately single-process. Do not advertise
       # concurrency that the Python node cannot honor.
       "max_concurrency" => 1,

@@ -72,7 +72,7 @@ class Api::V1::GpuNodesTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal true, body.dig("node", "desired_config", "paused")
-    assert_equal 3, body.dig("node", "desired_config", "max_iterations")
+    assert_equal 99, body.dig("node", "desired_config", "max_iterations")
     assert_equal 1, body.dig("node", "desired_config", "max_concurrency")
     assert_equal "agent-haiku", body.dig("node", "desired_config", "claude_model_id")
     assert_equal "claude-haiku-test", body.dig("node", "desired_config", "claude_model")

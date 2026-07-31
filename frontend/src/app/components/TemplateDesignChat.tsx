@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clock3,
   ImagePlus,
+  History,
   LoaderCircle,
   Pause,
   Plus,
@@ -68,6 +69,7 @@ export default function TemplateDesignChat({
     null,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const refreshList = () =>
     fetchDesignSessions()
@@ -225,8 +227,9 @@ export default function TemplateDesignChat({
 
   if (!session)
     return (
-      <div style={shell}>
+      <div style={shell} className={historyOpen ? "history-open" : ""}>
         <style>{styles}</style>
+        <style>{responsiveHistoryStyles}</style>
         <aside className="design-sidebar">
           <button className="back-control" onClick={() => nav("/")}>
             <ArrowLeft size={15} /> 返回主页
@@ -246,8 +249,11 @@ export default function TemplateDesignChat({
             </button>
           ))}
       </aside>
-      <main className="design-start">
-        <div className="start-inner">
+        <main className="design-start">
+          <div className="start-inner">
+          <button className="history-toggle" onClick={() => setHistoryOpen((open) => !open)}>
+            <History size={15} /> 历史记录
+          </button>
           <button className="start-back" onClick={() => nav("/")}>
             <ArrowLeft size={15} /> 返回主页
           </button>
@@ -263,7 +269,7 @@ export default function TemplateDesignChat({
               placeholder="设计名称"
             />
             <div className="config-grid">
-              <label>
+                <label>
                 宽度 mm
                 <input
                   type="number"
@@ -309,8 +315,9 @@ export default function TemplateDesignChat({
                     </option>
                   ))}
                 </select>
-              </label>
-            </div>
+                </label>
+              </div>
+              {models.length === 0 && <a className="model-link" href="/admin/models">配置生成模型</a>}
             <textarea
               className="brief"
               value={draft}
@@ -346,8 +353,9 @@ export default function TemplateDesignChat({
     );
 
   return (
-    <div style={shell}>
+    <div style={shell} className={historyOpen ? "history-open" : ""}>
       <style>{styles}</style>
+      <style>{responsiveHistoryStyles}</style>
       <aside className="design-sidebar">
         <button className="back-control" onClick={() => nav("/")}>
           <ArrowLeft size={15} /> 返回主页
@@ -375,13 +383,10 @@ export default function TemplateDesignChat({
             </span>
             <h2>{session.name}</h2>
           </div>
-          <button
-            className="icon-control"
-            title="修改设计参数"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <SlidersHorizontal size={17} />
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="history-toggle" onClick={() => setHistoryOpen((open) => !open)}><History size={15} /> 历史</button>
+            <button className="icon-control" title="修改设计参数" onClick={() => setSettingsOpen(true)}><SlidersHorizontal size={17} /></button>
+          </div>
         </header>
         <section className="message-list">
           {messages.map((message) => (
@@ -507,7 +512,7 @@ export default function TemplateDesignChat({
               <X size={16} />
             </button>
             <strong>设计参数</strong>
-            <div className="config-grid">
+              <div className="config-grid">
               <label>
                 宽度 mm
                 <input
@@ -555,7 +560,8 @@ export default function TemplateDesignChat({
                   ))}
                 </select>
               </label>
-            </div>
+              </div>
+              {models.length === 0 && <a className="model-link" href="/admin/models">配置生成模型</a>}
           </section>
         </div>
       )}
@@ -572,3 +578,13 @@ const shell: React.CSSProperties = {
   fontFamily: "'Outfit', sans-serif",
 };
 const styles = `.design-sidebar{padding:20px 14px;border-right:1px solid #e7e9ee;background:#fff;display:flex;flex-direction:column;gap:6px}.design-sidebar strong{padding:7px 10px;font-size:15px}.back-control,.new-session,.session-item{border:0;background:transparent;text-align:left;border-radius:8px;padding:10px;color:#52606d;cursor:pointer;font:inherit}.back-control{display:flex;align-items:center;gap:6px;color:#687587;font-size:12px}.new-session{display:flex;gap:7px;align-items:center;background:#eef5ff;color:#1968c9;font-weight:600;margin:8px 0}.session-item{display:grid;gap:3px}.session-item:hover,.session-item.active{background:#f1f3f6;color:#1d2a39}.session-item small{font-size:11px;color:#8b96a4}.design-start{display:grid;place-items:center;padding:42px}.start-inner{width:min(620px,100%)}.start-back{display:none;border:0;background:transparent;padding:0;color:#687587;font:inherit;font-size:12px;align-items:center;gap:6px;cursor:pointer;margin-bottom:15px}.eyebrow{display:flex;align-items:center;gap:7px;color:#2676ce;font-size:12px;font-weight:650}.start-inner h1{font-size:32px;margin:12px 0 8px}.start-inner>p{color:#748091;line-height:1.6}.title-input,.brief,.config-grid input,.config-grid select,.composer textarea{box-sizing:border-box;border:1px solid #dfe4ea;background:#fff;border-radius:8px;font:inherit;color:#263342}.title-input{width:100%;padding:12px;margin:18px 0 10px}.config-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.config-grid label{font-size:12px;color:#687587;display:grid;gap:6px}.config-grid input,.config-grid select{padding:9px}.brief{width:100%;height:126px;margin:18px 0;padding:13px;resize:vertical;line-height:1.55}.upload,.attach{cursor:pointer;display:inline-flex;align-items:center;gap:7px;color:#506071;font-size:13px}.upload input,.attach input{display:none}.start-button{margin-top:18px;width:100%;border:0;border-radius:8px;padding:13px;background:#1968c9;color:#fff;font:inherit;font-weight:650;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}.chat-main{min-width:0;display:flex;flex-direction:column;height:100vh}.chat-main header{padding:18px 28px;border-bottom:1px solid #e5e8ed;background:#fff;display:flex;justify-content:space-between;align-items:center}.chat-main h2{font-size:17px;margin:4px 0 0}.icon-control,.send-button{border:0;background:#eaf3ff;color:#1970cf;border-radius:8px;width:34px;height:34px;display:grid;place-items:center;cursor:pointer}.message-list{padding:28px max(30px,7vw);overflow:auto;flex:1;display:flex;flex-direction:column;gap:20px}.message{display:grid;gap:6px;max-width:760px}.message.user{align-self:flex-end}.message-label{font-size:11px;color:#8390a0}.user .message-label{text-align:right}.bubble{background:#fff;border:1px solid #e6e9ed;border-radius:9px;padding:13px 15px;line-height:1.6;font-size:14px;box-shadow:0 2px 8px #24344b08}.user .bubble{background:#eaf3ff;border-color:#d3e7ff}.bubble small{margin-top:8px;display:flex;gap:6px;align-items:center;color:#788799}.task-line{display:flex;gap:8px;align-items:center;align-self:center;color:#2871c9;font-size:12px}.task-line small{color:#7f8c9a}.composer{padding:12px max(22px,7vw) 22px;background:#fff;border-top:1px solid #e5e8ed}.config-strip{font-size:11px;color:#778496;margin:0 0 8px}.config-strip span{display:inline-block;width:1px;height:11px;background:#d8dde4;margin:0 8px;vertical-align:middle}.composer textarea{width:100%;min-height:72px;padding:12px;resize:none}.compose-actions{display:flex;align-items:center;gap:10px;margin-top:9px}.compose-actions>span{flex:1}.pause-button{border:1px solid #d7dde5;background:#fff;color:#566474;border-radius:7px;padding:7px 10px;display:flex;gap:6px;align-items:center;cursor:pointer;font:inherit;font-size:12px}.preview-panel{width:min(34vw,410px);padding:18px;background:#fff;border-left:1px solid #e5e8ed;display:flex;flex-direction:column;gap:14px}.preview-panel>div:first-child{display:flex;justify-content:space-between;color:#54708b;font-size:13px}.preview-stage{width:100%;background:#eef1f5;display:grid;place-items:center;overflow:hidden;box-shadow:0 12px 30px #22334a18}.preview-panel iframe{width:100%;height:100%;border:0;background:#fff}.preview-panel small{color:#788799;line-height:1.5}.notice{color:#bd3b3b;font-size:12px}.settings-overlay{position:fixed;inset:0;z-index:20;background:#1d2a3940;display:grid;place-items:center;padding:18px}.settings-dialog{position:relative;width:min(440px,100%);background:#fff;border:1px solid #dfe4ea;border-radius:8px;padding:22px;box-shadow:0 16px 45px #24344b26}.settings-dialog .config-grid{margin-top:18px}.settings-close{position:absolute;right:12px;top:12px}@keyframes spin{to{transform:rotate(360deg)}}.spin{animation:spin 1s linear infinite}@media(max-width:900px){.design-sidebar{display:none}.start-back{display:inline-flex}.design-start{grid-column:1/-1}.preview-panel{position:fixed;inset:auto 12px 12px;width:auto;max-height:50vh;box-shadow:0 8px 30px #24344b26}.message-list{padding:20px}.config-grid{grid-template-columns:1fr}.chat-main{grid-column:1/-1}}`;
+
+const responsiveHistoryStyles = `
+  .history-toggle { display: none; }
+  .model-link { display: inline-flex; margin-top: 8px; color: #1968c9; font-size: 12px; text-decoration: none; }
+  @media (max-width: 900px) {
+    .history-toggle { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #dfe4ea; border-radius: 7px; background: #fff; color: #52606d; padding: 7px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+    .design-sidebar { display: flex; position: fixed; inset: 0 auto 0 0; width: 236px; box-sizing: border-box; z-index: 30; box-shadow: 8px 0 30px #24344b26; transform: translateX(-105%); transition: transform .2s ease; }
+    .history-open .design-sidebar { transform: translateX(0); }
+  }
+`;

@@ -37,7 +37,7 @@ class Api::V1::Admin::GpuNodesController < Api::BaseController
     current_config = @node.effective_desired_config
     configuration = @node.effective_desired_config.merge(
       "paused" => config_params.key?(:paused) ? ActiveModel::Type::Boolean.new.cast(config_params[:paused]) : current_config.fetch("paused"),
-      "max_iterations" => config_params.fetch(:max_iterations, current_config.fetch("max_iterations")).to_i.clamp(1, 3),
+      "max_iterations" => config_params.fetch(:max_iterations, current_config.fetch("max_iterations")).to_i.clamp(1, 200),
       "max_concurrency" => 1
     )
     configuration.merge!(agent_model_configuration(config_params[:claude_model_id])) if config_params.key?(:claude_model_id)

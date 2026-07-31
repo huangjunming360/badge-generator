@@ -227,7 +227,10 @@ export default function AdminGpuNodes() {
                       </label>
                       <label style={compactLabel}>
                         轮数
-                        <select
+                        <input
+                          type="number"
+                          min={1}
+                          max={200}
                           value={node.desired_config.max_iterations}
                           disabled={!node.active || busyId === node.id}
                           onChange={(event) =>
@@ -235,7 +238,7 @@ export default function AdminGpuNodes() {
                               const updated = await updateGpuNodeConfig(
                                 node.id,
                                 node.desired_config.paused,
-                                Number(event.target.value),
+                              Number(event.target.value),
                               );
                               setNodes((current) =>
                                 current.map((item) =>
@@ -244,11 +247,7 @@ export default function AdminGpuNodes() {
                               );
                             })
                           }
-                        >
-                          <option value={1}>1</option>
-                          <option value={2}>2</option>
-                          <option value={3}>3</option>
-                        </select>
+                        />
                       </label>
                       <button
                         style={
