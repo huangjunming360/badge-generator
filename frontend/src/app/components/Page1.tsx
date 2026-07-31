@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
-  Upload, Image as ImageIcon, ChevronRight, RefreshCw, Check, X, FileText,
-  Sparkles, Layers, Settings, GripVertical,
+  Upload, Image as ImageIcon, ChevronRight, RefreshCw, FileText,
+  Sparkles, Layers, Plus,
 } from "lucide-react";
 import {
   Field, NavState,
@@ -10,93 +10,152 @@ import {
   usePress, RippleBtn, FIcon,
 } from "./shared";
 import { fetchSchema, pollCard, fetchCard, uploadPortrait } from "../../api/cards";
-import { ModelPicker } from "./ModelPicker";
 import UserMenu from "./UserMenu";
 import CropModal from "./CropModal";
 import { toFields, toAiFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
 
+/* 标签列宽。「项目主题英文」是最长的标签，窄了会和输入框挨在一起，
+   所以按它撑宽，所有行统一，输入框左边缘才对齐。 */
+const LABEL_W = 88;
+
 /* ── Editable field row ──────────────────────────────────────── */
-function EditableFieldRow({ field, onToggle, onChange, index }: {
-  field: Field; onToggle: () => void;
+function EditableFieldRow({ field, onChange, index }: {
+  field: Field;
   onChange: (v: string) => void; index: number;
 }) {
   const { hovered, bind } = usePress();
+  const [focused, setFocused] = useState(false);
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 10,
+      display: "flex", alignItems: "center", gap: 16,
       padding: "10px 14px", borderRadius: 10,
-      border: `1px solid ${field.selected ? U.blue + "55" : hovered ? U.border : U.borderLight}`,
-      background: field.selected ? U.blueXLight : U.surface,
+      border: `1px solid ${hovered ? U.border : U.borderLight}`,
+      background: U.surface,
       animation: `fadeSlideIn .28s ${E.smooth} ${index * 70}ms both`,
-      transition: `border .18s ${E.smooth}, background .18s ${E.smooth}, box-shadow .2s ${E.smooth}`,
-      boxShadow: field.selected ? "0 2px 12px rgba(58,118,196,.12)" : "none",
+      transition: `border .18s ${E.smooth}, background .18s ${E.smooth}`,
     }} {...bind}>
-      <button onClick={onToggle} style={{
-        width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-        border: field.selected ? "none" : `1.5px solid ${U.textFaint}`,
-        background: field.selected ? U.blue : "transparent",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        cursor: "pointer", transition: `all .16s ${E.spring}`,
-      }}>
-        {field.selected && <Check size={10} color="#fff" strokeWidth={3} />}
-      </button>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, width: 72, flexShrink: 0 }}>
-        <span style={{ color: field.selected ? U.blue : U.textLight, flexShrink: 0, fontSize: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, width: LABEL_W, flexShrink: 0 }}>
+        <span style={{ color: U.textLight, flexShrink: 0, fontSize: 12 }}>
           {field.icon ? <i className={`${["fa-linkedin", "fa-github", "fa-twitter"].includes(field.icon) ? "fa-brands" : "fas"} ${field.icon}`} /> : <FIcon k={field.key} size={12} />}
         </span>
-        <span style={{ fontSize: 11, color: field.selected ? U.blue : U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 11, color: U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
           {field.label}
         </span>
       </div>
+      {/* 下划线常显，让用户看出这里能改；聚焦时变蓝加粗。 */}
       <input value={field.value} onChange={e => onChange(e.target.value)}
+        placeholder="点击填写"
         style={{
           flex: 1, border: "none", background: "transparent",
           fontSize: 12.5, color: U.text, fontFamily: "'Outfit',sans-serif",
           outline: "none", fontWeight: 500,
-          borderBottom: "1.5px solid transparent", paddingBottom: 1,
-          transition: `border-color .16s`,
+          borderBottom: `1.5px ${focused ? "solid" : "dashed"} ${focused ? U.blue : U.border}`,
+          paddingBottom: 2,
+          transition: `border-color .16s ${E.smooth}`,
+          cursor: "text",
         }}
-        onFocus={e => { e.target.style.borderBottomColor = U.blue; }}
-        onBlur={e =>  { e.target.style.borderBottomColor = "transparent"; }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
-      <button title="拖拽排序" style={{
-        width: 22, height: 22, borderRadius: 6, border: "none",
-        background: "transparent", display: "flex", alignItems: "center",
-        justifyContent: "center", cursor: "grab", color: U.textFaint,
-        flexShrink: 0, transition: `color .14s`,
-      }}
-        onMouseEnter={e => { e.currentTarget.style.color = "#C05060"; }}
-        onMouseLeave={e => { e.currentTarget.style.color = U.textFaint; }}>
-        <GripVertical size={12} />
-      </button>
     </div>
   );
 }
 
-/* ── Ghost import button ─────────────────────────────────────── */
-function ImportBtn({ icon, label, onClick }: {
-  icon: React.ReactNode; label: string; onClick: () => void;
+/* ── 证件照方框 ─────────────────────────────────────────────
+   点整块换图。有图时鼠标悬停浮出「裁切 / 移除」。 */
+function PortraitSlot({ url, onPick, onCrop, onClear }: {
+  url: string | null;
+  onPick: () => void;
+  onCrop: () => void;
+  onClear: () => void;
 }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ position: "relative", flexShrink: 0 }}
+    >
+      <button
+        onClick={onPick}
+        title={url ? "点击更换照片" : "点击上传证件照"}
+        style={{
+          width: 54, height: 68, borderRadius: 8, padding: 0, overflow: "hidden",
+          border: url ? `1.5px solid ${U.border}` : `1.5px dashed ${hov ? U.blue : U.border}`,
+          background: url ? U.surface : hov ? U.surfaceBlue : U.bg,
+          cursor: "pointer", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 3,
+          transition: `all .16s ${E.smooth}`,
+        }}
+      >
+        {url ? (
+          <img src={url} alt="证件照"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        ) : (
+          <>
+            <ImageIcon size={15} color={hov ? U.blue : U.textFaint} />
+            <span style={{ fontSize: 9, color: hov ? U.blue : U.textFaint, lineHeight: 1.3 }}>
+              上传照片
+            </span>
+          </>
+        )}
+      </button>
+      {url && hov && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0,
+          display: "flex", background: "rgba(20,35,55,.72)",
+          animation: `fadeSlideIn .14s ${E.smooth} both`,
+        }}>
+          <SlotAction label="裁切" onClick={onCrop} />
+          <SlotAction label="移除" onClick={onClear} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── 证件照行 ───────────────────────────────────────────────
+   跟 EditableFieldRow 用同一套白框、同样的标签列宽，
+   排在字段列表里才不会看着像另一个区块。 */
+function PortraitRow({ index, url, onPick, onCrop, onClear }: {
+  index: number;
+  url: string | null;
+  onPick: () => void;
+  onCrop: () => void;
+  onClear: () => void;
+}) {
+  const { hovered, bind } = usePress();
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 16,
+      padding: "10px 14px", borderRadius: 10,
+      border: `1px solid ${hovered ? U.border : U.borderLight}`,
+      background: U.surface,
+      animation: `fadeSlideIn .28s ${E.smooth} ${index * 70}ms both`,
+      transition: `border .18s ${E.smooth}, background .18s ${E.smooth}`,
+    }} {...bind}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, width: LABEL_W, flexShrink: 0 }}>
+        <span style={{ color: U.textLight, flexShrink: 0, fontSize: 12 }}>
+          <ImageIcon size={12} />
+        </span>
+        <span style={{ fontSize: 11, color: U.textMid, fontWeight: 500, whiteSpace: "nowrap" }}>
+          证件照
+        </span>
+      </div>
+      <PortraitSlot url={url} onPick={onPick} onCrop={onCrop} onClear={onClear} />
+    </div>
+  );
+}
+
+function SlotAction({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
-      borderRadius: 9, border: `1px solid ${U.border}`, background: U.surface,
-      cursor: "pointer", fontSize: 12, color: U.textMid,
-      transition: `all .16s ${E.smooth}`,
-    }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = U.blue + "66";
-        e.currentTarget.style.color = U.blue;
-        e.currentTarget.style.background = U.surfaceBlue;
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = U.border;
-        e.currentTarget.style.color = U.textMid;
-        e.currentTarget.style.background = U.surface;
-      }}>
-      {icon}{label}
+      flex: 1, border: "none", background: "transparent", cursor: "pointer",
+      color: "#fff", fontSize: 9, padding: "3px 0", lineHeight: 1.4,
+    }}>
+      {label}
     </button>
   );
 }
@@ -126,7 +185,9 @@ export default function Page1() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const originalFileRef = useRef<File | null>(null);
   const croppedRef = useRef(false);
+  const [portraitRemoved, setPortraitRemoved] = useState(saved?.portraitRemoved ?? false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [sourceName, setSourceName] = useState<string | null>(saved?.sourceName ?? null);
   // "idle" = centered on screen; "active" = pushed to top (parsing or done)
   const [phase, setPhase]       = useState<"idle" | "active">(
     saved?.fields?.length ? "active" : "idle"
@@ -134,18 +195,13 @@ export default function Page1() {
   // 后端 schema：字段清单与中文标签的唯一来源，不在前端写死。
   const [schema, setSchema] = useState<SchemaFieldDef[]>([]);
   const [uploadCfg, setUploadCfg] = useState<{ allowed_extensions: string[]; max_bytes: number } | null>(null);
-  const [mineruCfg, setMineruCfg] = useState<{ available: boolean; portrait_detect: boolean } | null>(null);
   const [mineruEnabled, setMineruEnabled] = useState(true);
   const [portraitDetect, setPortraitDetect] = useState(true);
-  const [showMineruOpts, setShowMineruOpts] = useState(false);
   const [error, setError]   = useState<string | null>(null);
   // 建卡后的 id，供第二页读取与后续更新。
   const [cardId, setCardId] = useState<number | null>(saved?.cardId ?? null);
   // 证件照留在本页，随建卡请求一起上传。
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
-  // 模型选择：分离架构下随请求参数发给后端，不走 cookie session。
-  const [models, setModels] = useState<{ id: string; label: string }[]>([]);
-  const [modelId, setModelId] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef     = useRef<HTMLInputElement>(null);
@@ -166,11 +222,9 @@ export default function Page1() {
       .then(s => {
         if (!alive) return;
         setSchema(s.fields);
-        setModels(s.models.available);
-        const def = s.models.default;
-        setModelId(s.models.available.some(m => m.id === def) ? def : s.models.available[0]?.id ?? null);
         if (s.upload) setUploadCfg(s.upload);
-        if (s.mineru) { setMineruCfg(s.mineru); setMineruEnabled(s.mineru.available); }
+        // MinerU 有 Key 才启用。用户侧没有开关了，跟着后端配置走。
+        if (s.mineru) { setMineruEnabled(s.mineru.available); setPortraitDetect(s.mineru.portrait_detect); }
       })
       .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "无法读取字段配置"); });
     return () => { alive = false; };
@@ -188,8 +242,10 @@ export default function Page1() {
 
   /* 提取统一走后端 LLM。此前的本地正则解析已删除 ——
      两套逻辑会对同一份资料给出不同结果。 */
+  const getModelId = () => localStorage.getItem("selected_model");
+
   const runExtraction = useCallback(async (params: {
-    rawInput?: string; file?: File; portrait?: File | null; modelId?: string | null;
+    rawInput?: string; file?: File; portrait?: File | null;
   }) => {
     setPhase("active");
     setParsing(true);
@@ -205,7 +261,7 @@ export default function Page1() {
     setProgressStage("uploading");
 
     try {
-      const cardId = await pollCard(params, (p) => {
+      const cardId = await pollCard({ ...params, modelId: getModelId() }, (p) => {
         setProgressMsg(p.message);
         setProgressStage(p.stage);
       });
@@ -251,14 +307,15 @@ export default function Page1() {
     if (parsing) return;
     const opts = { mineru_enabled: mineruEnabled, portrait_detect: portraitDetect, portrait: portraitFile };
     if (pendingFile) {
-      runExtraction({ file: pendingFile, modelId, ...opts });
+      runExtraction({ file: pendingFile, ...opts });
     } else if (rawText.trim()) {
-      runExtraction({ rawInput: rawText, modelId, ...opts });
+      runExtraction({ rawInput: rawText, ...opts });
     }
-  }, [rawText, parsing, runExtraction, modelId, pendingFile, portraitFile, mineruEnabled, portraitDetect]);
+  }, [rawText, parsing, runExtraction, pendingFile, portraitFile, mineruEnabled, portraitDetect]);
 
   // 上传文件仅暂存，用户点击「提取」后再发送给后端
   const handleFile = useCallback((file: File) => {
+    setSourceName(file.name);
     if (parsing) return;
     setPendingFile(file);
     setPhase("active");
@@ -268,7 +325,10 @@ export default function Page1() {
   const handleImg = useCallback((file: File) => {
     setImgName("📷 已上传照片");
     setPortraitFile(file);
+    setPortraitRemoved(false);
     croppedRef.current = false;
+    // 保存原始文件到 ref，裁切后可恢复
+    originalFileRef.current = file;
     // 原始照片（文档识别那张）不清，留在 originalFileRef 里供切换用
     // 已有 card → 立即上传替换
     if (cardId) {
@@ -282,22 +342,15 @@ export default function Page1() {
     }
   }, [cardId]);
 
-  const toggleField  = (key: string) => setFields(p => p.map(f => f.key === key ? { ...f, selected: !f.selected } : f));
-  const changeValue  = (key: string, v: string) => setFields(p => p.map(f => f.key === key ? { ...f, value: v } : f));
-  // 后端是固定 schema，字段删不掉。这里的语义是清空值并取消勾选，
-  // 字段留在列表里但不出现在挂牌上。
-  const deleteField  = (key: string) =>
-    setFields(p => p.map(f => f.key === key ? { ...f, value: "", selected: false } : f));
+  const changeValue  = (key: string, v: string) => setFields(p => p.map(f => f.key === key ? { ...f, value: v, selected: v.trim() !== "" } : f));
 
   const hasFields     = fields.length > 0;
-  const hasSelected   = fields.some(f => f.selected);
-  const selectedCount = fields.filter(f => f.selected).length;
   const isStreaming   = hasFields && streamIdx < fields.length - 1;
 
   const { hovered: goHov, pressed: goPre, bind: goBind } = usePress();
 
   const goToDesign = () => {
-    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName } as NavState });
+    navigate("/design", { state: { rawText, fields, cardId, portraitUrl, imgName, sourceName, portraitRemoved } as NavState });
   };
 
   /* Padding-top drives the centering ↔ top animation */
@@ -315,7 +368,12 @@ export default function Page1() {
         background: U.blueDark, padding: "18px 0 16px",
         textAlign: "center", flexShrink: 0, position: "relative",
       }}>
-        <div style={{ position: "absolute", top: 12, right: 16, zIndex: 1 }}>
+        <div style={{ position: "absolute", top: 12, right: 16, zIndex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => navigate("/history")} style={{
+            padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,.22)",
+            background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.75)",
+            cursor: "pointer", fontSize: 11, fontFamily: "'Outfit',sans-serif",
+          }}>历史记录</button>
           <UserMenu dark />
         </div>
 
@@ -331,32 +389,11 @@ export default function Page1() {
             fontFamily: "'Playfair Display',serif", fontSize: 21, fontWeight: 700,
             color: "#fff", letterSpacing: ".05em",
           }}>
-            名牌生成器
+            卡片生成器
           </div>
         </div>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,.38)", letterSpacing: ".26em" }}>
-          BADGE GENERATOR
-        </div>
-
-        {/* 模型选择与历史入口 */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          gap: 16, marginTop: 12,
-        }}>
-          <ModelPicker
-            models={models}
-            value={modelId}
-            onChange={setModelId}
-            disabled={parsing}
-          />
-          <button onClick={() => navigate("/history")} style={{
-            border: "1px solid rgba(255,255,255,.22)", background: "rgba(255,255,255,.12)",
-            color: "#fff", fontSize: 11, padding: "4px 11px", borderRadius: 7,
-            cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-            transition: `all .16s ${E.smooth}`,
-          }}>
-            历史记录
-          </button>
+          CARD GENERATOR
         </div>
       </div>
 
@@ -386,21 +423,6 @@ export default function Page1() {
           display: "flex", flexDirection: "column", gap: 14,
         }}>
 
-          {/* Welcome hint — fades out once active */}
-          <div style={{
-            textAlign: "center",
-            maxHeight: phase === "idle" ? "48px" : "0px",
-            opacity: phase === "idle" ? 1 : 0,
-            overflow: "hidden",
-            transition: `opacity .35s ${E.smooth}, max-height .5s ${E.smooth}`,
-            pointerEvents: "none",
-            marginBottom: phase === "idle" ? 6 : 0,
-          }}>
-            <div style={{ fontSize: 12, color: U.textLight, letterSpacing: ".04em" }}>
-              粘贴参加者信息或 JSON 数据
-            </div>
-          </div>
-
           {/* ── Input card ─────────────────────────────── */}
           <div style={{
             background: U.surface, borderRadius: 14,
@@ -428,49 +450,16 @@ export default function Page1() {
                 <Upload size={16} /> 松开以上传文件
               </div>
             )}
-            {/* Card header bar */}
-            <div style={{
-              padding: "11px 16px 10px", borderBottom: `1px solid ${U.borderLight}`,
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
-              <div style={{
-                width: 6, height: 6, borderRadius: "50%",
-                background: rawText.trim() ? U.blue : U.textFaint,
-                transition: `background .3s ${E.smooth}`,
-              }} />
-              <span style={{ fontSize: 11.5, color: U.textMid, fontWeight: 500 }}>
-                参加者资料
-              </span>
-              {imgName && (
-                <div style={{
-                  marginLeft: "auto", display: "flex", alignItems: "center", gap: 5,
-                  padding: "3px 9px", borderRadius: 99,
-                  background: U.greenLight, border: `1px solid ${U.green}44`,
-                  animation: `fadeSlideIn .2s ${E.smooth} both`,
-                }}>
-                  <ImageIcon size={10} color={U.green} />
-                  <span style={{ fontSize: 10, color: U.green, fontWeight: 500 }}>{imgName?.replace("📷 ", "")}</span>
-                  <button onClick={() => {
-                    if (portraitUrl) setCropSrc(portraitUrl);
-                    else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
-                  }} style={{ background: "none", border: "none", cursor: "pointer",
-                    color: U.blue, padding: 0, fontSize: 10, lineHeight: 1 }} title="裁切">✂</button>
-                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); }}
-                    style={{ background: "none", border: "none", cursor: "pointer",
-                      color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
-                </div>
-              )}
-            </div>
 
             {/* Textarea — starts single-line, expands with content */}
             <textarea
               ref={textareaRef}
               value={rawText}
               onChange={e => setRawText(e.target.value)}
-              placeholder="姓名 · 机构 · 项目主题…"
+              placeholder="请输入用户信息或者上传送用户信息文件（支持docx、pdf和图片）："
               style={{
                 width: "100%", border: "none", outline: "none",
-                padding: "14px 16px", resize: "none", overflow: "hidden",
+                padding: "14px 16px 6px", resize: "none", overflow: "hidden",
                 minHeight: "52px",
                 boxSizing: "border-box",
                 fontFamily: "'Outfit',sans-serif",
@@ -479,24 +468,91 @@ export default function Page1() {
                 transition: `min-height .2s ${E.smooth}`,
               }}
             />
-          </div>
 
-          {/* ── 已上传文件 ──────────────────────────────── */}
-          {pendingFile && (
+            {/* 输入框内的加号：直接导入文件 */}
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "8px 4px 0",
-              fontSize: 12, color: U.textMid,
+              padding: "0 12px 10px", display: "flex", alignItems: "center", gap: 8,
             }}>
-              <FileText size={13} />
-              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {pendingFile.name}
-              </span>
-              <button onClick={() => setPendingFile(null)} style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: U.textFaint, padding: 2, fontSize: 14, lineHeight: 1,
-              }}>×</button>
+              <button onClick={() => fileRef.current?.click()}
+                title="导入文件" aria-label="导入文件"
+                style={{
+                  width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                  border: `1px solid ${U.border}`,
+                  background: U.surface,
+                  color: U.textMid,
+                  cursor: "pointer", display: "flex", alignItems: "center",
+                  justifyContent: "center",
+                  transition: `all .18s ${E.smooth}`,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = U.blue + "66"; e.currentTarget.style.color = U.blue; }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = U.border;
+                  e.currentTarget.style.color = U.textMid;
+                }}>
+                <Plus size={15} />
+              </button>
+              {/* 文件名标签 */}
+              {(pendingFile || sourceName) && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 8px", borderRadius: 99, maxWidth: 280,
+                  background: U.surfaceBlue, border: `1px solid ${U.border}`,
+                  fontSize: 11, color: U.textMid,
+                  animation: `fadeSlideIn .18s ${E.smooth} both`,
+                }}>
+                  <FileText size={11} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {pendingFile?.name || sourceName}
+                  </span>
+                  <button onClick={() => setPendingFile(null)} title="移除文件" style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: U.textFaint, padding: 0, fontSize: 13, lineHeight: 1,
+                  }}>×</button>
+                </span>
+              )}
+              {/* 照片标签 - 与文件标签并排 */}
+              {imgName && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 9px", borderRadius: 99,
+                  background: U.greenLight, border: `1px solid ${U.green}44`,
+                  fontSize: 10, color: U.green, fontWeight: 500,
+                  animation: `fadeSlideIn .2s ${E.smooth} both`,
+                }}>
+                  <ImageIcon size={10} color={U.green} />
+                  <span>{imgName?.replace("📷 ", "")}</span>
+                  <button onClick={() => {
+                    if (portraitUrl) setCropSrc(portraitUrl);
+                    else if (portraitFile) setCropSrc(URL.createObjectURL(portraitFile));
+                  }} style={{ background: "none", border: "none", cursor: "pointer",
+                    color: U.blue, padding: 0, fontSize: 10, lineHeight: 1 }} title="裁切">✂</button>
+                  <button onClick={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); setPortraitRemoved(true); }}
+                    style={{ background: "none", border: "none", cursor: "pointer",
+                      color: U.green, padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
+                </span>
+              )}
+
+              {/* 右侧：开始解析，贴在框内右下角。
+                  MinerU 的「识别」下拉已去掉 —— 两个开关（文档解析 / 人像识别）
+                  仍按后端配置的默认值提交，用户不再需要自己勾。 */}
+              <div style={{ flex: 1 }} />
+
+              <RippleBtn onClick={handleParse} disabled={(!rawText.trim() && !pendingFile) || parsing} style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "7px 16px",
+                borderRadius: 8, border: "none", flexShrink: 0,
+                cursor: (!rawText.trim() && !pendingFile) || parsing ? "default" : "pointer",
+                background: (!rawText.trim() && !pendingFile) || parsing ? U.border : U.blue,
+                color: "#fff", fontSize: 12, fontWeight: 600, letterSpacing: ".03em",
+                boxShadow: (!rawText.trim() && !pendingFile) || parsing
+                  ? "none" : "0 3px 12px rgba(58,118,196,.34)",
+                transition: `all .2s ${E.smooth}`,
+              }}>
+                {parsing
+                  ? <><RefreshCw size={12} style={{ animation: "spin .8s linear infinite" }} /> 解析中…</>
+                  : <><Sparkles size={12} /> 开始解析</>}
+              </RippleBtn>
             </div>
-          )}
+          </div>
 
           {/* ── 解析进度 ───────────────────────────────── */}
           {parsing && (
@@ -527,177 +583,71 @@ export default function Page1() {
             </div>
           )}
 
-          {/* ── Action bar ─────────────────────────────── */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ImportBtn icon={<Upload size={13} />} label="导入文件"
-              onClick={() => fileRef.current?.click()} />
-            <ImportBtn icon={<ImageIcon size={13} />} label="导入图片"
-              onClick={() => imgRef.current?.click()} />
-            <input ref={fileRef} type="file" accept={uploadCfg?.allowed_extensions?.join(",") || ".txt,.csv,.vcf"} style={{ display: "none" }}
-              onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-            <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
-              onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
+          {/* 隐藏的文件选择器，由框内加号和证件照方框触发 */}
+          <input ref={fileRef} type="file" accept={uploadCfg?.allowed_extensions?.join(",") || ".txt,.csv,.vcf"} style={{ display: "none" }}
+            onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+          <input ref={imgRef} type="file" accept={uploadCfg?.allowed_extensions?.filter(e => [".png",".jpg",".jpeg",".bmp",".tiff",".webp"].includes(e)).join(",") || "image/*"} style={{ display: "none" }}
+            onChange={e => e.target.files?.[0] && handleImg(e.target.files[0])} />
 
-            {mineruCfg?.available && !!pendingFile && (
-              <div style={{ position: "relative" }}>
-                <button onClick={() => setShowMineruOpts(v => !v)} style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  padding: "5px 10px", borderRadius: 8, border: `1px solid ${U.border}`,
-                  background: showMineruOpts ? U.surfaceBlue : "transparent",
-                  cursor: "pointer", fontSize: 11, color: U.textMid,
-                  transition: `all .15s ${E.smooth}`,
-                }}>
-                  <Layers size={12} /> 识别
-                </button>
-                {showMineruOpts && (
-                  <div style={{
-                    position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 100,
-                    width: 140, background: "#fff", borderRadius: 8,
-                    border: `1px solid ${U.border}`, boxShadow: "0 4px 16px rgba(0,0,0,.08)",
-                    padding: "4px 6px", fontSize: 10.5,
-                  }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
-                      <input type="checkbox" checked={mineruEnabled} onChange={e => setMineruEnabled(e.target.checked)}
-                             style={{ width: 14, height: 14, cursor: "pointer" }} />
-                      <span style={{ color: U.textMid }}>文档解析</span>
-                    </label>
-                    {mineruEnabled && (
-                      <label style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 0", cursor: "pointer" }}>
-                        <input type="checkbox" checked={portraitDetect} onChange={e => setPortraitDetect(e.target.checked)}
-                               style={{ width: 14, height: 14, cursor: "pointer" }} />
-                        <span style={{ color: U.textMid }}>人像识别</span>
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div style={{ flex: 1 }} />
-
-            <RippleBtn onClick={handleParse} disabled={(!rawText.trim() && !pendingFile) || parsing} style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "9px 22px",
-              borderRadius: 9, border: "none",
-              cursor: (!rawText.trim() && !pendingFile) || parsing ? "default" : "pointer",
-              background: (!rawText.trim() && !pendingFile) || parsing ? U.border : U.blue,
-              color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: ".04em",
-              boxShadow: (!rawText.trim() && !pendingFile) || parsing
-                ? "none" : "0 4px 16px rgba(58,118,196,.38)",
-              transition: `all .2s ${E.smooth}`,
-            }}>
-              {parsing
-                ? <><RefreshCw size={13} style={{ animation: "spin .8s linear infinite" }} /> 解析中…</>
-                : <><Sparkles size={13} /> 开始解析</>}
-            </RippleBtn>
-          </div>
-
-          {/* ── 证件照预览 ──────────────────────────────── */}
-          {portraitUrl && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "12px 0 0",
-              animation: `fadeSlideIn .3s ${E.smooth} both`,
-            }}>
-              <img src={portraitUrl} alt="证件照"
-                style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover",
-                  border: `2px solid ${U.green}44`, boxShadow: "0 2px 8px rgba(0,0,0,.06)" }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: U.green }}>
-                  {portraitFile ? "已上传照片" : "已识别到证件照"}
-                </div>
-                <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>{imgName?.replace("📷 ", "")}</div>
-              </div>
-              <button onClick={async () => {
-                // 还没存原图就拉一次
-                if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
-                  try {
-                    const res = await fetch(portraitUrl);
-                    const blob = await res.blob();
-                    originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
-                  } catch {}
-                }
-                // 裁切总是从原始图片开始
-                const orig = originalFileRef.current;
-                setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
-              }} style={{
-                padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
-                background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
-              }}>裁切</button>
-              {originalFileRef.current && portraitFile && (
-                <button onClick={async () => {
-                  const orig = originalFileRef.current!;
-                  if (cardId) {
-                    const card = await uploadPortrait(cardId, orig).catch(() => null);
-                    setPortraitUrl(card?.portrait?.url ?? URL.createObjectURL(orig));
-                  } else {
-                    setPortraitUrl(URL.createObjectURL(orig));
-                  }
-                  setPortraitFile(null);
-                  setImgName("📷 原始照片");
-                  croppedRef.current = false;
-                }} style={{
-                  padding: "3px 8px", borderRadius: 6, border: `1px solid ${U.border}`,
-                  background: "transparent", cursor: "pointer", fontSize: 10, color: U.textMid,
-                }}>切换至文档</button>
-              )}
-            </div>
-          )}
 
           {/* ── AI result section ───────────────────────── */}
           {hasFields && (
             <div style={{ animation: `fadeSlideIn .3s ${E.smooth} both` }}>
+              {/* 标题区域 */}
               <div style={{
-                display: "flex", alignItems: "center",
-                justifyContent: "space-between", marginBottom: 13,
+                display: "flex", alignItems: "flex-start",
+                marginBottom: 13, gap: 9,
               }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <div style={{
-                    width: 26, height: 26, borderRadius: 8, background: U.blueLight,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <Sparkles size={13} color={U.blue} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: U.text, lineHeight: 1 }}>
-                      AI 解析结果
-                    </div>
-                    <div style={{ fontSize: 10, color: U.textFaint, marginTop: 3 }}>
-                      可直接编辑 · 点击勾选显示字段
-                    </div>
-                  </div>
-                  <div style={{
-                    padding: "3px 9px", borderRadius: 99,
-                    background: U.blueXLight, border: `1px solid ${U.blueLight}`,
-                    fontSize: 10.5, color: U.blue, fontWeight: 500,
-                  }}>
-                    {selectedCount}/{fields.length} 已选
-                  </div>
+                <div style={{
+                  width: 26, height: 26, borderRadius: 8, background: U.blueLight,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <Sparkles size={13} color={U.blue} />
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {[
-                    { label: "全选", fn: () => setFields(p => p.map(f => ({ ...f, selected: true }))) },
-                    { label: "清空", fn: () => setFields(p => p.map(f => ({ ...f, selected: false }))) },
-                  ].map(b => (
-                    <button key={b.label} onClick={b.fn} style={{
-                      fontSize: 11, color: U.textMid, background: "none",
-                      border: `1px solid ${U.border}`, padding: "4px 11px",
-                      borderRadius: 7, cursor: "pointer", transition: `all .14s ${E.smooth}`,
-                    }}
-                      onMouseEnter={e => { e.currentTarget.style.color = U.blue; e.currentTarget.style.borderColor = U.blue + "66"; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = U.textMid; e.currentTarget.style.borderColor = U.border; }}>
-                      {b.label}
-                    </button>
-                  ))}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: U.text, lineHeight: 1 }}>
+                    AI 解析结果
+                  </div>
+                  <div style={{ fontSize: 10, color: U.textFaint, marginTop: 3 }}>
+                    点击下方字段可直接编辑
+                  </div>
                 </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                {fields.map((f, i) =>
-                  i <= streamIdx ? (
-                    <EditableFieldRow key={f.key} field={f} index={i}
-                      onToggle={() => toggleField(f.key)}
-                      onChange={v => changeValue(f.key, v)} />
-                  ) : null
-                )}
+                {fields.map((f, i) => {
+                  if (i > streamIdx) return null;
+                  return (
+                    <div key={f.key}>
+                      <EditableFieldRow field={f} index={i}
+                        onChange={v => changeValue(f.key, v)} />
+                      {/* 证件照排在英文名后面，跟字段共用同一种白色横框，
+                          视觉上属于同一份资料，不再是标题区的附属物。 */}
+                      {f.key === "name_en" && (
+                        <div style={{ marginTop: 7 }}>
+                          <PortraitRow
+                            index={i}
+                            url={portraitUrl}
+                            onPick={() => imgRef.current?.click()}
+                            onCrop={async () => {
+                              if (!originalFileRef.current && portraitUrl && !portraitUrl.startsWith("blob:")) {
+                                try {
+                                  const res = await fetch(portraitUrl);
+                                  const blob = await res.blob();
+                                  originalFileRef.current = new File([blob], "portrait-original.jpg", { type: blob.type });
+                                } catch { /* 拉不到原图就退回用当前图裁 */ }
+                              }
+                              const orig = originalFileRef.current;
+                              setCropSrc(orig ? URL.createObjectURL(orig) : portraitUrl);
+                            }}
+                            onClear={() => { setImgName(null); setPortraitFile(null); setPortraitUrl(null); setPortraitRemoved(true); }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Streaming indicator */}
@@ -739,19 +689,11 @@ export default function Page1() {
         background: U.surface, borderTop: `1px solid ${U.border}`,
         padding: "14px 32px 20px",
         boxShadow: "0 -8px 32px rgba(20,35,55,.09)",
-        transform: hasSelected ? "translateY(0)" : "translateY(110%)",
+        transform: hasFields ? "translateY(0)" : "translateY(110%)",
         transition: `transform .4s ${E.spring}`,
         willChange: "transform",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20,
+        display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 20,
       }}>
-        <div>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: U.text }}>
-            已选 {selectedCount} 个字段
-          </div>
-          <div style={{ fontSize: 11, color: U.textLight, marginTop: 2 }}>
-            确认字段后进入名牌设计
-          </div>
-        </div>
         <RippleBtn onClick={goToDesign} {...goBind} style={{
           display: "flex", alignItems: "center", gap: 9, padding: "12px 28px",
           borderRadius: 11, border: "none", cursor: "pointer",

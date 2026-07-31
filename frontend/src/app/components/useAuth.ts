@@ -1,27 +1,35 @@
 import { useState, useEffect } from "react";
 import { fetchCurrentUser, logout as apiLogout, type UserInfo } from "../../api/sessions";
 
-let cached: { user: UserInfo | null } | null = null;
+// 单次认证 Promise：多个组件同时首次调用时只发一个请求
+let fetchPromise: Promise<{ user: UserInfo | null }> | null = null;
 
 export function useAuth() {
-  const [state, setState] = useState<{ user: UserInfo | null; loading: boolean }>(() => ({
-    user: cached?.user ?? null,
-    loading: !cached,
-  }));
+  const [state, setState] = useState<{ user: UserInfo | null; loading: boolean }>({
+    user: null,
+    loading: true,
+  });
 
   useEffect(() => {
-    if (cached) return;
-    fetchCurrentUser().then(data => {
-      cached = data;
-      setState({ user: data.user, loading: false });
+    let alive = true;
+
+    if (!fetchPromise) {
+      fetchPromise = fetchCurrentUser();
+    }
+
+    fetchPromise.then(data => {
+      if (alive) setState({ user: data.user, loading: false });
     }).catch(() => {
-      setState({ user: null, loading: false });
+      fetchPromise = null;
+      if (alive) setState({ user: null, loading: false });
     });
+
+    return () => { alive = false; };
   }, []);
 
   const logout = async () => {
     await apiLogout();
-    cached = null;
+    fetchPromise = null;
     setState({ user: null, loading: false });
   };
 

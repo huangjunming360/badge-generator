@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Eye, Check, SlidersHorizontal, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Download, SlidersHorizontal, Plus, Minus } from "lucide-react";
 import {
   Field, Template, AccentKey, FontSz, StyleKey, CustomCfg, NavState,
   E, U, ACCENTS,
-  BadgeCard, PreviewSheet, OptionsSidebar, FIcon, RippleBtn, fzHeightFactor,
+  BadgeCard, PreviewSheet, OptionsSidebar, RippleBtn, fzHeightFactor,
 } from "./shared";
-import { BadgeCanvas, templateContentSize, canvasSizeMm } from "./BadgeCanvas";
+import { BadgeCanvas, canvasSizeMm, templateContentSize } from "./BadgeCanvas";
 import { PreviewViewport, usePreviewViewport, MIN_ZOOM, MAX_ZOOM } from "./PreviewViewport";
-import { SizeControls } from "./SizeControls";
-import { fetchCard, fetchSchema, updateCardSize } from "../../api/cards";
+import { fetchCard, fetchSchema } from "../../api/cards";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import { exportElementToPng, ExportError } from "../exportBadge";
@@ -40,8 +39,9 @@ export default function Page2() {
   const [fields, setFields]     = useState<Field[]>(saved?.fields ?? []);
   const [template, setTemplate] = useState<Template>("visitor");
   const [accent, setAccent]     = useState<AccentKey>("rose");
-  const [fontSize, setFontSize] = useState<FontSz>("md");
-  const [styleK, setStyleK]     = useState<StyleKey>("minimal");
+  // 字号与边框风格不再开放给用户调，固定用标准值。
+  const fontSize: FontSz = "md";
+  const styleK: StyleKey = "minimal";
   const [custom, setCustom]     = useState<CustomCfg>({
     orientation:"portrait", showPhoto:true, showQR:true,
     showBarcode:false, showDots:false, headerLabel:"", subLabel:"",
@@ -50,15 +50,10 @@ export default function Page2() {
   const [optPanelOpen, setOptPanelOpen] = useState(true);
 
   const [cardId] = useState<number | null>(saved?.cardId ?? null);
-  // 实物尺寸以后端为准（默认 55×85mm）。刷新丢了 state 时用后端默认值兜底。
-  const [sizeMm, setSizeMm] = useState({ widthMm: 55, heightMm: 85 });
-  const [previewScale, setPreviewScale] = useState(1);
-  // 尺寸边界与缩放档位来自后端 schema，不在前端写死。
-  const [limits, setLimits] = useState({
-    minMm: 20, maxMm: 200, defaultWidthMm: 55, defaultHeightMm: 85,
-    scales: [ 1, 1.5, 2, 3 ],
-  });
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // 导出尺寸（像素宽度，高度按 55:85 比例自动计算）
+  const [exportSize, setExportSize] = useState(1100); // 默认高清 1100×1700px
+  // 预览缩放档位选择器已下线，固定 1×。视口的滚轮/按钮缩放照旧可用。
+  const previewScale = 1;
   const [error, setError] = useState<string | null>(null);
   // 上传的证件照。没传就为 null，卡片上退回占位头像。
   // 从 Page1 传过来的裁切/上传照片优先，刷新后才回源拿
@@ -79,67 +74,45 @@ export default function Page2() {
     Promise.all([fetchCard(cardId), fetchSchema()])
       .then(([card, schema]) => {
         if (!alive) return;
-        setSizeMm({ widthMm: card.width_mm, heightMm: card.height_mm });
         // 如果 location.state 没传肖像才用服务器的
-        if (!saved?.portraitUrl) setPortraitUrl(card.portrait?.url ?? null);
-        setPreviewScale(schema.preview.default_scale);
-        setLimits({
-          minMm: schema.size.min_mm,
-          maxMm: schema.size.max_mm,
-          defaultWidthMm: schema.size.default_width_mm,
-          defaultHeightMm: schema.size.default_height_mm,
-          scales: schema.preview.scales,
-        });
+        if (!saved?.portraitUrl && !saved?.portraitRemoved) setPortraitUrl(card.portrait?.url ?? null);
         // 没有从上一页带过来字段时（直接刷新本页），用后端数据填充。
         if (!saved?.fields?.length) setFields(toFields(card.fields, schema.fields));
       })
       .catch(e => { if (alive) setError(e instanceof ApiError ? e.message : "读取失败"); });
 
     return () => { alive = false; };
-  }, [cardId, saved?.fields?.length]);
-
-  // 尺寸落库。勾选/配色/字号是纯展示配置不入库，
-  // 但 mm 尺寸决定印出来多大，必须持久化。
-  const persistSize = async (widthMm: number, heightMm: number) => {
-    setSizeMm({ widthMm, heightMm });
-    if (!cardId) return;
-    setSaveState("saving");
-    setError(null);
-    try {
-      await updateCardSize(cardId, widthMm, heightMm);
-      setSaveState("saved");
-    } catch (e) {
-      setSaveState("error");
-      setError(e instanceof ApiError ? e.message : "保存尺寸失败");
-    }
-  };
-
-  const toggleField   = (key: string) => setFields(p => p.map(f => f.key===key ? {...f,selected:!f.selected} : f));
-  const selectedCount = fields.filter(f => f.selected).length;
+  }, [cardId, saved?.fields?.length, saved?.portraitUrl]);
 
   const goBack = () => {
-    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null } satisfies NavState });
+    navigate("/", { state: { rawText: saved?.rawText ?? "", fields, cardId, portraitUrl, imgName: portraitUrl ? (saved?.imgName ?? "📷 证件照") : null, sourceName: saved?.sourceName ?? null, portraitRemoved: saved?.portraitRemoved } satisfies NavState });
   };
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom, portraitUrl };
 
-  // 导出走离屏重渲染：预览那份套在缩放视口里、还带滤镜和动画，
-  // html2canvas 截它会得到空白图。这里重新渲一份干净的。
+  // 导出：固定 55×85 比例，通过 exportSize（像素宽度）控制尺寸
   const handleExport = useCallback(async () => {
     if (exporting) return;
     setExporting(true);
     try {
       const who = fields.find(f => f.key === "name")?.value?.trim();
+      // BadgeCard 使用模板的像素尺寸，按实际内容宽度计算倍率。
+      const contentWidth = templateContentSize(
+        template, custom.orientation, fzHeightFactor(fontSize),
+      ).width;
+      const scale = exportSize / contentWidth;
+
       await exportElementToPng(
-        <BadgeCard {...badgeProps} scale={2}/>,
+        <BadgeCard {...badgeProps} scale={1}/>,
         who ? `工牌_${who}` : "工牌",
+        scale,
       );
     } catch (e) {
       setError(e instanceof ExportError ? e.message : "导出失败，请重试");
     } finally {
       setExporting(false);
     }
-  }, [exporting, fields, template, accent, fontSize, styleK, custom, portraitUrl]);
+  }, [exporting, fields, template, accent, fontSize, styleK, custom, portraitUrl, exportSize, badgeProps]);
 
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column",
@@ -168,7 +141,7 @@ export default function Page2() {
         </div>
         <div style={{ fontSize:11, color:U.textFaint }}>/</div>
         <div style={{ fontSize:11, color:U.textMid }}>
-          {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义" }[template]}
+          {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义", figma:"精美设计" }[template]}
           {" · "}{ACCENTS[accent].label}
         </div>
 
@@ -194,7 +167,7 @@ export default function Page2() {
         }}
           onMouseEnter={e => { e.currentTarget.style.background=U.blueLight; e.currentTarget.style.boxShadow="0 3px 12px rgba(58,118,196,.22)"; }}
           onMouseLeave={e => { e.currentTarget.style.background=U.blueXLight; e.currentTarget.style.boxShadow="none"; }}>
-          <Eye size={13}/> 预览成品
+          <Download size={13}/> 导出工牌
         </button>
       </div>
 
@@ -233,12 +206,11 @@ export default function Page2() {
           {/* 可缩放拖拽的视口。工牌尺寸一大就超出容器，
               让用户能自己缩小、拖看局部，比只给固定档位实用。 */}
           <PreviewViewport view={view} setView={setView}>
-            <div style={{ animation:`floatIn .5s ${E.spring} both`,
-              filter:"drop-shadow(0 16px 40px rgba(30,50,80,.13))" }}>
+            <div style={{ animation:`floatIn .5s ${E.spring} both` }}>
               {/* 外层是 mm 实物画布，内容等比缩放居中。设计稿模板是像素比例
                   （竖版 2:3），与 55:85 不等，包一层才不会拉伸变形。 */}
               <BadgeCanvas
-                {...canvasSizeMm(sizeMm.widthMm, sizeMm.heightMm, template, custom.orientation)}
+                {...canvasSizeMm(55, 85, template, custom.orientation)}
                 contentWidth={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).width}
                 contentHeight={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).height}
                 previewScale={previewScale}
@@ -273,21 +245,6 @@ export default function Page2() {
                 滚轮缩放 · 拖拽平移 · 点百分比复位
               </span>
             </div>
-
-            {/* 实物尺寸与预览缩放 */}
-            <SizeControls
-              widthMm={sizeMm.widthMm}
-              heightMm={sizeMm.heightMm}
-              minMm={limits.minMm}
-              maxMm={limits.maxMm}
-              defaultWidthMm={limits.defaultWidthMm}
-              defaultHeightMm={limits.defaultHeightMm}
-              previewScale={previewScale}
-              scales={limits.scales}
-              saveState={saveState}
-              onCommitSize={persistSize}
-              onPreviewScale={setPreviewScale}
-            />
           </div>
         </div>
 
@@ -305,60 +262,18 @@ export default function Page2() {
               <OptionsSidebar
                 template={template}   setTemplate={setTemplate}
                 accent={accent}       setAccent={setAccent}
-                fontSize={fontSize}   setFontSize={setFontSize}
-                styleK={styleK}       setStyleK={setStyleK}
                 custom={custom}       setCustom={setCustom}
-                onExport={handleExport}
-                exporting={exporting}
+                onExport={handleExport} exporting={exporting}
+                exportSize={exportSize} setExportSize={setExportSize}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── 底部字段芯片栏 ───────────────────
-          跑在主区域外面、不跑在预览区里：预览区是可滚动容器，
-          芯片栏放里面就会随内容滚走。这里靠 flex 布局占住底部，
-          比 position:fixed 好在不会盖住内容，也不需要给滚动区预留 padding。 */}
-      {fields.length > 0 && (
-        <div style={{
-          flexShrink:0, background:U.surface, borderTop:`1px solid ${U.border}`,
-          boxShadow:"0 -6px 24px rgba(20,35,55,.06)",
-          padding:"12px 24px 14px",
-          display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-        }}>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:7, justifyContent:"center", maxWidth:640 }}>
-            {fields.map(f => {
-              const on = f.selected;
-              return (
-                <button key={f.key} onClick={() => toggleField(f.key)} style={{
-                  display:"flex", alignItems:"center", gap:5,
-                  padding:"5px 12px 5px 9px", borderRadius:99, cursor:"pointer",
-                  border:`1px solid ${on ? U.blue+"66" : U.border}`,
-                  background:on ? U.blueXLight : U.surface,
-                  color:on ? U.blue : U.textMid, fontSize:11,
-                  transform:`scale(${on ? 1 : 0.98})`,
-                  boxShadow:on ? "0 2px 8px rgba(58,118,196,.15)" : "none",
-                  transition:`all .16s ${E.smooth}`,
-                }}>
-                  <span style={{ color:on ? U.blue : U.textFaint, lineHeight:0 }}>
-                    <FIcon k={f.key} size={10}/>
-                  </span>
-                  <span>{f.label}</span>
-                  {on && <Check size={9} color={U.blue} strokeWidth={2.5}/>}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ fontSize:10.5, color:U.textFaint }}>
-            点击字段芯片可切换在工牌上的显示 · 已显示 {selectedCount} 个字段
-          </div>
-        </div>
-      )}
-
       {/* Preview sheet */}
       <PreviewSheet open={sheetOpen} onClose={() => setSheetOpen(false)} {...badgeProps}
-        onExport={handleExport} exporting={exporting}/>
+        onExport={handleExport} exporting={exporting} />
     </div>
   );
 }

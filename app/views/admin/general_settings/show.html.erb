@@ -90,6 +90,17 @@
               class: "block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" %>
       </div>
 
+      <div class="p-5 flex items-center justify-between">
+        <div>
+          <label class="text-sm font-medium">人像识别</label>
+          <p class="text-xs text-stone-400 mt-0.5">从解析结果中自动识别人像并设为证件照</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <%= f.check_box :portrait_detect, checked: @settings[:portrait_detect], class: "sr-only peer" %>
+          <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+        </label>
+      </div>
+
       <div class="p-5">
         <label class="block text-sm font-medium mb-2">通过 MinerU 解析的文件类型</label>
         <div class="flex flex-wrap gap-2 mb-4" id="mineru-ext-tags">

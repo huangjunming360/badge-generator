@@ -127,7 +127,7 @@ class Api::V1::CardsController < Api::BaseController
         tempfile: tmpfile
       )
 
-      use_mineru = mineru_enabled != "0" && Setting.bool("mineru_enabled") && ENV["MINERU_API_KEY"].present?
+      use_mineru = mineru_enabled != "0" && Setting.bool("mineru_enabled") && (Setting.get("mineru_api_key").present? || ENV["MINERU_API_KEY"].present?)
       if use_mineru
         allowed = Setting.get("mineru_extensions").to_s.split
         allowed = %w[.pdf .docx .png .jpg .jpeg] if allowed.empty?
@@ -135,7 +135,7 @@ class Api::V1::CardsController < Api::BaseController
       end
       progress.set(:mineru, "文档解析中…") if use_mineru
 
-      extractor = DocumentTextExtractor.new
+      extractor = DocumentTextExtractor.new(use_mineru: use_mineru)
       text = extractor.call(uploaded)
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name

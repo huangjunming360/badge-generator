@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import {
   User, Phone, Mail, Building2, Hash, Calendar, MapPin,
   Shield, Check, Download, Layers, AlignLeft, Eye, X,
@@ -7,13 +7,16 @@ import {
   BookOpen, Users, Bookmark,
 } from "lucide-react";
 
+// Lazy load FigmaBadge at module scope to avoid recreating on every render
+const FigmaBadge = lazy(() => import("./FigmaBadge"));
+
 /* ── Types ─────────────────────────────────────────────────── */
 export interface Field {
   id: string; key: string; label: string; value: string;
   selected: boolean; category: "person" | "contact" | "access";
   icon?: string;
 }
-export type Template  = "visitor" | "access" | "business" | "custom";
+export type Template  = "visitor" | "access" | "business" | "custom" | "figma";
 export type AccentKey = "rose" | "blue" | "gold";
 export type FontSz    = "sm" | "md" | "lg";
 
@@ -45,6 +48,8 @@ export interface NavState {
   cardId: number | null;
   portraitUrl?: string | null;
   imgName?: string | null;
+  sourceName?: string | null;
+  portraitRemoved?: boolean;
 }
 
 /* ── Easing ─────────────────────────────────────────────────── */
@@ -174,6 +179,7 @@ export function FIcon({ k, size=11 }: { k:string; size?:number }) {
     host_organization: <Building2 size={size}/>,
     host_department:   <Users size={size}/>,
     event_topic:       <BookOpen size={size}/>,
+    event_topic_en:    <BookOpen size={size}/>,
   };
   return <>{m[k] ?? <Hash size={size}/>}</>;
 }
@@ -246,7 +252,9 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
   // 字号放大时卡片同步变高，内容才不会顶掉底部的二维码。
   const hf  = fzHeightFactor(fontSize);
   const rad = styleK==="minimal" ? 12 : 4;
-  const SH  = "0 8px 32px rgba(30,50,80,.13), 0 2px 8px rgba(30,50,80,.08)";
+  // 不加投影。卡片本身有 1px 边框，再叠阴影在浅底上会糊成一圈灰框，
+  // 导出 PNG 时那圈灰也会一起被截进去。
+  const SH  = "none";
   const bg="#FDFBF7", bgH="#F5F1E8", bdr="#E0D8C8";
 
   if (sel.length === 0) return (
@@ -257,6 +265,26 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
       <span style={{ fontSize:11*scale, color:U.textFaint, fontFamily:"'Outfit',sans-serif" }}>选择字段以预览</span>
     </div>
   );
+
+  // ═══ Figma 精美设计 ═══
+  if (template === "figma") {
+    return (
+      <Suspense fallback={<div style={{ width:440*scale, height:680*scale }}/>}>
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
+          <FigmaBadge data={{
+            organizationName:       get("host_organization"),
+            departmentName:         get("host_department"),
+            phaseTagEn:             get("event_topic_en") || "",
+            phaseTagZh:             get("event_topic"),
+            eventSubtitle:          get("organization"),
+            eventTitle:             get("event_topic"),
+            participantName:        get("name"),
+            participantEnglishName: get("name_en"),
+          }}/>
+        </div>
+      </Suspense>
+    );
+  }
 
   if (template === "custom") {
     const isL = custom.orientation === "landscape";
@@ -507,7 +535,7 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
           <div>
             <div style={{ fontSize:15, fontWeight:700, color:U.text }}>工牌预览</div>
             <div style={{ fontSize:10.5, color:U.textLight, marginTop:3 }}>
-              {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义" }[template]}
+              {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义", figma:"精美设计" }[template]}
               {" · "}{ACCENTS[accent].label}
             </div>
           </div>
@@ -554,30 +582,34 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
 /* ── Options sidebar (shared between Page2 layouts) ──────────── */
 export function OptionsSidebar({
   template, setTemplate, accent, setAccent,
-  fontSize, setFontSize, styleK, setStyleK,
-  custom, setCustom, onExport, exporting,
+  custom, setCustom, onExport, exporting, exportSize, setExportSize,
 }: {
   template:Template;   setTemplate:(t:Template)=>void;
   accent:AccentKey;    setAccent:(a:AccentKey)=>void;
-  fontSize:FontSz;     setFontSize:(f:FontSz)=>void;
-  styleK:StyleKey;     setStyleK:(s:StyleKey)=>void;
   custom:CustomCfg;    setCustom:(c:CustomCfg)=>void;
-  onExport?:()=>void;
-  exporting?:boolean;
+  onExport?:()=>void; exporting?:boolean;
+  exportSize?:number; setExportSize?:(size:number)=>void;
 }) {
+  const exportSizes = [
+    { label: "标准 (宽 550px)", value: 550 },
+    { label: "高清 (宽 1100px)", value: 1100 },
+    { label: "超清 (宽 2200px)", value: 2200 },
+  ];
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
       {/* Template */}
       <div>
         <SLabel icon={<Layout size={11}/>} text="模板"/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7, marginBottom:9 }}>
-          {(["visitor","access","business","custom"] as Template[]).map(t => {
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7, marginBottom:9 }}>
+          {(["visitor","access","business","custom","figma"] as Template[]).map(t => {
             const active = template===t;
             const meta: Record<Template,{label:string;icon:React.ReactNode}> = {
               visitor:  {label:"访客证", icon:<Shield size={13}/>},
               access:   {label:"通行证", icon:<Hash size={13}/>},
               business: {label:"名片",   icon:<AlignLeft size={13}/>},
               custom:   {label:"自定义", icon:<Sliders size={13}/>},
+              figma:    {label:"精美",   icon:<Layers size={13}/>},
             };
             return (
               <OptionTile key={t} active={active} onClick={()=>setTemplate(t)}>
@@ -593,7 +625,8 @@ export function OptionsSidebar({
         </div>
         <div style={{ fontSize:10, color:U.textFaint, lineHeight:1.65, marginBottom:8 }}>
           {{ visitor:"访客当日通行，附二维码验证", access:"员工长期凭证，含权限等级",
-             business:"横版名片，附完整联系方式", custom:"自由组合版式与元素" }[template]}
+             business:"横版名片，附完整联系方式", custom:"自由组合版式与元素",
+             figma:"Figma 精美设计，自定义文字+渐变背景" }[template]}
         </div>
         <div style={{ maxHeight:template==="custom"?600:0, overflow:"hidden",
           transition:`max-height .38s ${E.smooth}` }}>
@@ -634,52 +667,30 @@ export function OptionsSidebar({
 
       <Divider/>
 
-      {/* Font size */}
-      <div>
-        <SLabel icon={<Type size={11}/>} text="字号大小"/>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7 }}>
-          {(["sm","md","lg"] as FontSz[]).map((s, i) => (
-            <OptionTile key={s} active={fontSize===s} onClick={()=>setFontSize(s)}>
-              <span style={{ fontSize:[14,18,22][i], lineHeight:1,
-                color:fontSize===s?U.blue:U.textMid, fontFamily:"'Playfair Display',serif" }}>文</span>
-              <span style={{ fontSize:9.5, color:fontSize===s?U.blue:U.textLight, fontWeight:fontSize===s?600:400 }}>
-                {["偏小","标准","偏大"][i]}
-              </span>
-            </OptionTile>
-          ))}
+      {/* Export size */}
+      {exportSize !== undefined && setExportSize && (
+        <div>
+          <SLabel icon={<Download size={11}/>} text="导出尺寸"/>
+          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+            {exportSizes.map(s => {
+              const active = exportSize === s.value;
+              return (
+                <OptionTile key={s.value} active={active} onClick={() => setExportSize(s.value)} row>
+                  <div style={{ flex:1, fontSize:12, color:active?U.blue:U.text, fontWeight:active?600:500 }}>
+                    {s.label}
+                  </div>
+                  {active && <Check size={13} color={U.blue}/>}
+                </OptionTile>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <Divider/>
 
-      {/* Style */}
-      <div>
-        <SLabel icon={<Columns size={11}/>} text="边框风格"/>
-        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-          {(["minimal","formal"] as StyleKey[]).map(s => {
-            const active = styleK===s;
-            const meta = { minimal:{n:"圆润简约",d:"圆角边框"}, formal:{n:"方正正式",d:"直角边框"} }[s];
-            return (
-              <OptionTile key={s} active={active} onClick={()=>setStyleK(s)} row>
-                <div style={{ width:30, height:30, flexShrink:0,
-                  borderRadius:s==="minimal"?15:4,
-                  background:active?U.blueLight:U.border,
-                  border:`1px solid ${active?U.blue+"44":U.borderLight}`,
-                  transition:`border-radius .25s ${E.spring}, background .15s` }}/>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, color:active?U.blue:U.text, fontWeight:active?600:500 }}>{meta.n}</div>
-                  <div style={{ fontSize:10, color:U.textFaint }}>{meta.d}</div>
-                </div>
-                {active && <Check size={13} color={U.blue}/>}
-              </OptionTile>
-            );
-          })}
-        </div>
-      </div>
-
       {onExport && (
         <>
-          <Divider/>
           <RippleBtn onClick={onExport} disabled={exporting} style={{
             width:"100%", padding:"12px 0", borderRadius:10, border:"none",
             cursor:exporting ? "default" : "pointer", opacity:exporting ? .6 : 1,

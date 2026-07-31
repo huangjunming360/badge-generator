@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# 从 main 安全拉取最新代码，更新依赖和数据库，构建前端。
-# ⚠ 不自动发版到 nginx，不发版到 nginx，不发版到 nginx。
+# 从指定分支安全拉取最新代码，更新依赖和数据库，构建前端。
+# ⚠ 不自动发版到 nginx。
 #
-# 用法：cd /root/newapp && bash deploy/update.sh
+# 用法：
+#   bash deploy/update.sh              # 默认 main
+#   bash deploy/update.sh dev          # 指定分支
+#   bash deploy/update.sh beta         # 指定分支
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BRANCH="${1:-main}"
 
 echo "=========================================="
 echo "  Badge Generator 代码更新"
+echo "  分支: $BRANCH"
 echo "=========================================="
 echo ""
 
@@ -26,9 +31,28 @@ fi
 # ─── 2. 拉取 ─────────────────────────────────────
 
 echo ""
-echo "==> [2/6] git checkout main && git pull"
-git -C "$ROOT" checkout main
-if ! git -C "$ROOT" pull origin main; then
+echo "==> [2/6] git fetch && git checkout $BRANCH && git pull origin $BRANCH"
+
+# 先 fetch 确保远程分支信息最新
+git -C "$ROOT" fetch origin
+
+# 检查本地分支是否存在
+if ! git -C "$ROOT" rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+  # 本地分支不存在，尝试从远程创建
+  if git -C "$ROOT" rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
+    echo "  本地分支不存在，从 origin/$BRANCH 创建..."
+    git -C "$ROOT" checkout -b "$BRANCH" "origin/$BRANCH"
+  else
+    echo "  ✗ 分支 $BRANCH 在本地和远程都不存在"
+    exit 1
+  fi
+else
+  # 本地分支存在，正常 checkout
+  git -C "$ROOT" checkout "$BRANCH"
+fi
+
+# 拉取最新代码
+if ! git -C "$ROOT" pull origin "$BRANCH"; then
   echo ""
   echo "  ✗ git pull 失败，自动回滚。"
   git -C "$ROOT" reset --hard ORIG_HEAD
