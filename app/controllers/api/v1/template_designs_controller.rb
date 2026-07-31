@@ -22,7 +22,8 @@ class Api::V1::TemplateDesignsController < Api::BaseController
     prompt = params[:prompt].to_s.strip
     return render_error("请先描述你想要的工牌样式", status: :unprocessable_content) if prompt.blank?
     return render_error("设计要求不能超过 2000 个字符", status: :unprocessable_content) if prompt.length > 2_000
-    return unless model_available?(params[:model_id])
+    model_id = effective_model_id(params[:model_id])
+    return unless model_available?(model_id)
 
     preview = decode_image(params[:preview_image], kind: :preview)
     return if performed?
@@ -30,7 +31,7 @@ class Api::V1::TemplateDesignsController < Api::BaseController
     reference = decode_image(params[:reference_image], kind: :reference)
     return if performed?
 
-    result = CustomTemplateDesigner.new(model_id: params[:model_id]).call(
+    result = CustomTemplateDesigner.new(model_id: model_id).call(
       prompt: prompt,
       current_design: design_params.to_h,
       current_document: current_document_params,
@@ -54,9 +55,14 @@ class Api::V1::TemplateDesignsController < Api::BaseController
 
   private
 
-  def model_available?(model_id)
-    return true if model_id.blank?
+  def effective_model_id(model_id)
+    model_id.presence ||
+      Rails.application.config.x.llm_functions&.dig("custom_template_design", "model").presence ||
+      Rails.application.config.x.models&.dig("default").presence ||
+      configured_models.first&.dig("id")
+  end
 
+  def model_available?(model_id)
     model = configured_models.find { |entry| entry["id"] == model_id }
     unless model
       render_error("未知的模型", status: :unprocessable_content)
