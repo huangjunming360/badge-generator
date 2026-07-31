@@ -148,6 +148,21 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     assert_equal "leased", job.reload.status
   end
 
+  test "节点不能提交超大或未知停止原因的视觉审计报告" do
+    job = queued_job
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
+    }, headers: node_headers
+    lease = body.dig("job", "lease_token")
+
+    post "/api/v1/internal/template-agent/jobs/#{job.id}/complete", params: {
+      lease_token: lease, status: "failed", error: "bad", report: { stop_reason: "arbitrary" }
+    }, headers: node_headers
+
+    assert_response :unprocessable_content
+    assert_equal "leased", job.reload.status
+  end
+
   test "已取消的节点任务会通过下一次心跳下发停止命令并保留审计记录" do
     job = queued_job
     post "/api/v1/internal/template-agent/heartbeat", params: {

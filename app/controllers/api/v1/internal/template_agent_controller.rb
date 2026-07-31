@@ -24,6 +24,9 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
   def complete
     job = @node.template_generation_jobs.find(params[:id])
     result = completion_params[:report]&.to_h || {}
+    unless valid_node_report?(result)
+      return render json: { errors: [ "视觉审计报告格式无效或过大" ] }, status: :unprocessable_content
+    end
     if completion_params[:status] == "succeeded"
       source_html = completion_params[:source_html].to_s
       source_css = completion_params[:source_css].to_s
@@ -59,6 +62,22 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
 
   def completion_params
     params.permit(:lease_token, :status, :source_html, :source_css, :error, report: {})
+  end
+
+  def valid_node_report?(report)
+    report = report.to_h.deep_stringify_keys
+    return false unless report.is_a?(Hash)
+    return false if JSON.generate(report).bytesize > 256.kilobytes
+
+    stop_reason = report["stop_reason"]
+    return true if stop_reason.blank?
+
+    iterations = report["iterations"] || report[:iterations]
+    return false if iterations && (!iterations.is_a?(Array) || iterations.length > 200 || iterations.any? { |item| !item.is_a?(Hash) })
+
+    %w[visual_check_passed no_visual_improvement time_budget_exhausted max_iterations_reached model_call_budget_exhausted].include?(stop_reason.to_s)
+  rescue JSON::GeneratorError, TypeError
+    false
   end
 
   def job_payload(job, lease_token)
