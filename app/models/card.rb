@@ -13,7 +13,10 @@ class Card < ApplicationRecord
   FIELD_DEFAULTS = {
     "host_organization" => "上海交通大学",
     "host_department" => "自然科学研究院",
-    "event_topic" => "中法人工智能暑期学校",
+    "event_topic" => "中法人工智能暑期学校"
+  }.freeze
+
+  FIELD_DEFAULTS_EN = {
     "event_topic_en" => "Sino-French Summer School on Artificial Intelligence"
   }.freeze
 
@@ -64,7 +67,23 @@ class Card < ApplicationRecord
   # 注意 data 列里 schema 外的旧键（职位/电话等）会被静默忽略。
   def normalized_data
     stored = data.presence || {}
-    FIELDS.index_with { |f| stored[f].presence || FIELD_DEFAULTS[f] }
+    FIELDS.index_with do |f|
+      # event_topic_en 仅在 event_topic 也使用默认值时才应用英文默认值
+      if f == "event_topic_en"
+        stored_en = stored[f].presence
+        stored_zh = stored["event_topic"].presence
+        default_zh = FIELD_DEFAULTS["event_topic"]
+
+        # 只有当中文主题也是默认值时，才应用英文默认值
+        if stored_zh.nil? || stored_zh == default_zh
+          stored_en || FIELD_DEFAULTS_EN[f]
+        else
+          stored_en
+        end
+      else
+        stored[f].presence || FIELD_DEFAULTS[f]
+      end
+    end
   end
 
   def filled_count

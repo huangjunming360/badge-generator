@@ -20,7 +20,7 @@
 
 ### 第二遍：写的时候
 
-```
+```ruby
 Current.user.resources.find(params[:id])   // ✅ 正确
 Resource.find(params[:id])                  // ❌ 立即删除这行
 ```
@@ -96,7 +96,7 @@ rate_limit to: 20, within: 1.minute, only: :create,
 
 ### API 鉴权流程
 
-```
+```text
 Api::BaseController
   ├── skip_before_action :require_authentication  // 不用 redirect 方式
   ├── before_action :require_api_authentication   // 改为 JSON 401
@@ -107,7 +107,7 @@ Api::BaseController
 
 ### 管理员鉴权
 
-```
+```text
 Admin::BaseController
   ├── 检查 authenticated? → 否则弹 401
   ├── 检查 Current.user.admin? → 否则弹 alert 踢回首页
@@ -239,7 +239,7 @@ params.require(:user).permit(:email_address, :password, :role, :model_level)
 
 ## 项目功能地图
 
-```
+```text
 app/
 ├── controllers/
 │   ├── admin/           # 管理后台（ERB 页面）

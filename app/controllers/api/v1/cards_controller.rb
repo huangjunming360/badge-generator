@@ -135,7 +135,7 @@ class Api::V1::CardsController < Api::BaseController
       end
       progress.set(:mineru, "文档解析中…") if use_mineru
 
-      extractor = DocumentTextExtractor.new
+      extractor = DocumentTextExtractor.new(use_mineru: use_mineru)
       text = extractor.call(uploaded)
       card.used_ocr = extractor.used_ocr?
       card.source_name = file_name

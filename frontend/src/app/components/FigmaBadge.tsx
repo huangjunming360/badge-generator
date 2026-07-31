@@ -6,12 +6,19 @@ const AutoFitText = ({ text, defaultSize, className, align = 'center' }: { text:
   const [scale, setScale] = useState(1);
 
   useLayoutEffect(() => {
-    if (containerRef.current && textRef.current) {
-      const containerWidth = containerRef.current.clientWidth;
-      const textWidth = textRef.current.scrollWidth;
-      setScale(textWidth > containerWidth ? (containerWidth / textWidth) * 0.98 : 1);
-    }
-  }, [text]);
+    const updateScale = () => {
+      if (containerRef.current && textRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        const textWidth = textRef.current.scrollWidth;
+        setScale(textWidth > containerWidth ? (containerWidth / textWidth) * 0.98 : 1);
+      }
+    };
+
+    updateScale();
+
+    // 等待字体加载完成后重新计算
+    document.fonts.ready.then(updateScale);
+  }, [text, defaultSize]);
 
   const origin = align === 'left' ? 'left center' : 'center center';
 

@@ -26,6 +26,14 @@ export default function UserMenu({ dark }: { dark?: boolean }) {
         if (s.models) {
           setModels(s.models.available);
           setDefaultModel(s.models.default);
+
+          // 验证 localStorage 中的模型是否仍然可用
+          const stored = localStorage.getItem("selected_model");
+          if (stored && !s.models.available.some(m => m.id === stored)) {
+            // 存储的模型已不可用，清除并使用默认模型
+            localStorage.removeItem("selected_model");
+            setSelectedModel(null);
+          }
         }
       })
       .catch(() => {});

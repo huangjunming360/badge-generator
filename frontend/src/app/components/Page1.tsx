@@ -342,7 +342,7 @@ export default function Page1() {
     }
   }, [cardId]);
 
-  const changeValue  = (key: string, v: string) => setFields(p => p.map(f => f.key === key ? { ...f, value: v } : f));
+  const changeValue  = (key: string, v: string) => setFields(p => p.map(f => f.key === key ? { ...f, value: v, selected: v.trim() !== "" } : f));
 
   const hasFields     = fields.length > 0;
   const isStreaming   = hasFields && streamIdx < fields.length - 1;

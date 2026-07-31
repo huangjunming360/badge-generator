@@ -20,6 +20,7 @@ export function useAuth() {
     fetchPromise.then(data => {
       if (alive) setState({ user: data.user, loading: false });
     }).catch(() => {
+      fetchPromise = null;
       if (alive) setState({ user: null, loading: false });
     });
 

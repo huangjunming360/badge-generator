@@ -7,6 +7,9 @@ import {
   BookOpen, Users, Bookmark,
 } from "lucide-react";
 
+// Lazy load FigmaBadge at module scope to avoid recreating on every render
+const FigmaBadge = lazy(() => import("./FigmaBadge"));
+
 /* ── Types ─────────────────────────────────────────────────── */
 export interface Field {
   id: string; key: string; label: string; value: string;
@@ -265,16 +268,15 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
 
   // ═══ Figma 精美设计 ═══
   if (template === "figma") {
-    const FigmaBadge = lazy(() => import("./FigmaBadge"));
     return (
       <Suspense fallback={<div style={{ width:440*scale, height:680*scale }}/>}>
         <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
           <FigmaBadge data={{
-            organizationName:       get("organization") || get("host_organization"),
+            organizationName:       get("host_organization"),
             departmentName:         get("host_department"),
-            phaseTagEn:             "",
-            phaseTagZh:             get("event_phase"),
-            eventSubtitle:          get("event_subtitle"),
+            phaseTagEn:             get("event_topic_en") || "",
+            phaseTagZh:             get("event_topic"),
+            eventSubtitle:          get("organization"),
             eventTitle:             get("event_topic"),
             participantName:        get("name"),
             participantEnglishName: get("name_en"),
@@ -589,9 +591,9 @@ export function OptionsSidebar({
   exportSize?:number; setExportSize?:(size:number)=>void;
 }) {
   const exportSizes = [
-    { label: "标准 (550×850px)", value: 550 },
-    { label: "高清 (1100×1700px)", value: 1100 },
-    { label: "超清 (2200×3400px)", value: 2200 },
+    { label: "标准 (宽 550px)", value: 550 },
+    { label: "高清 (宽 1100px)", value: 1100 },
+    { label: "超清 (宽 2200px)", value: 2200 },
   ];
 
   return (

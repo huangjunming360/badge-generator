@@ -11,7 +11,7 @@ class CardExtractor
     1. 只输出 JSON 对象本身，不要加解释、不要加 markdown 代码围栏。
     2. 只使用下面列出的字段名，不要新增字段。
     3. 资料里没有提到的字段，值填 null。不要猜测、不要编造。
-       唯一例外是 name_en，规则见字段说明。
+       例外情况见 name_en 和 event_topic_en 的字段说明。
     4. 所有值都是字符串或 null，不要用数组或嵌套对象。
 
     字段说明：
@@ -28,11 +28,11 @@ class CardExtractor
     - host_organization: 组织项目的机构
     - host_department: 组织项目的机构部门
     - event_topic: 项目主题（活动/课程名称）
-    - event_topic_en: 项目主题的英文名。资料里明确写了就照抄；没写则由
-      event_topic 翻译生成，不要音译、不要留 null。用地道的英文活动名写法，
-      实词首字母大写，例如 中法人工智能暑期学校 →
+    - event_topic_en: 项目主题的英文名。资料里明确写了就照抄；资料里没写但
+      event_topic 有值时，由 event_topic 翻译生成（不要音译）。用地道的英文
+      活动名写法，实词首字母大写，例如 中法人工智能暑期学校 →
       Sino-French Summer School on Artificial Intelligence。
-      event_topic 本身为 null 时 event_topic_en 才填 null。
+      只有当 event_topic 本身为 null 时，event_topic_en 才填 null。
 
     输出示例（organization 为学校）：
     {"name":"林小明","name_en":"Xiaoming Lin","organization":"北京大学物理学院","host_organization":null,"host_department":null,"event_topic":null,"event_topic_en":null}
@@ -88,7 +88,13 @@ class CardExtractor
       next nil if value.nil? || value.is_a?(Hash) || value.is_a?(Array)
 
       cleaned = value.to_s.strip
-      cleaned.empty? || cleaned.casecmp("null").zero? ? nil : cleaned
+      # name_en 和 event_topic_en 可以是生成字段，不应被通用的 null 规则清空
+      # 只有当它们明确为空字符串或字面值 "null" 时才置为 nil
+      if %w[name_en event_topic_en].include?(field)
+        cleaned.empty? || cleaned.casecmp("null").zero? ? nil : cleaned
+      else
+        cleaned.empty? || cleaned.casecmp("null").zero? ? nil : cleaned
+      end
     end
   end
 end

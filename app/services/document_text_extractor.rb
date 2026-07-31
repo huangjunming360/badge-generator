@@ -44,6 +44,10 @@ class DocumentTextExtractor
 
   attr_reader :extracted_images
 
+  def initialize(use_mineru: nil)
+    @use_mineru_override = use_mineru
+  end
+
   def call(uploaded_file)
     raise ParseError, "没有选择文件" if uploaded_file.blank?
 
@@ -75,6 +79,7 @@ class DocumentTextExtractor
   private
 
   def mineru_enabled?
+    return @use_mineru_override unless @use_mineru_override.nil?
     Setting.bool("mineru_enabled", default: false) && (Setting.get("mineru_api_key").present? || ENV["MINERU_API_KEY"].present?)
   end
 
@@ -103,13 +108,19 @@ class DocumentTextExtractor
 
   def save_tempfile(uploaded_file, ext)
     tmp = Tempfile.new([ "mineru", ext ], binmode: true)
-    uploaded_file.rewind if uploaded_file.respond_to?(:rewind)
-    IO.copy_stream(uploaded_file.to_io, tmp)
-    tmp.flush
-    # 关掉自己这份句柄：MineruService 只按路径读，Windows 上留着句柄
-    # 会和它的 File.open 抢占。返回 Tempfile 对象本身防止 GC 删掉文件。
-    tmp.close
-    tmp
+    begin
+      uploaded_file.rewind if uploaded_file.respond_to?(:rewind)
+      IO.copy_stream(uploaded_file.to_io, tmp)
+      tmp.flush
+      # 关掉自己这份句柄：MineruService 只按路径读，Windows 上留着句柄
+      # 会和它的 File.open 抢占。返回 Tempfile 对象本身防止 GC 删掉文件。
+      tmp.close
+      tmp
+    rescue => e
+      # 失败时清理 tempfile 并重新抛出原始异常
+      cleanup_tempfile(tmp) if tmp
+      raise
+    end
   end
 
   def validate_size!(file)
