@@ -108,3 +108,4 @@ Rails.application.routes.draw do
         !req.path.start_with?("/admin", "/api", "/rails", "/up", "/assets")
       }
 end
+            post :create_draft

@@ -243,6 +243,92 @@ class Api::V1::BadgeTemplatesTest < ActionDispatch::IntegrationTest
     assert_equal "draft", template.status
   end
 
+  test "管理员可以将视觉审核完成的生成任务创建为可追溯的私有草稿" do
+    sign_in(@admin)
+    job = @admin.template_generation_jobs.create!(
+      job_type: "template_generation",
+      status: "succeeded",
+      stage: "review_ready",
+      complexity: 5,
+      payload: {
+        "requirement" => "上海夏令营胸牌",
+        "width_mm" => 85,
+        "height_mm" => 55,
+        "semantic_fields" => [ { "key" => "participant_role", "label" => "参与角色" } ]
+      },
+      result: {
+        "html" => "<h1>{{ fields.participant_role }}</h1>",
+        "css" => "h1 { color: #2468ac; }"
+      }
+    )
+    job.reference_assets.attach(fixture_file_upload("portrait.png", "image/png"))
+
+    post "/api/v1/admin/template_generation_jobs/#{job.id}/create_draft"
+
+    assert_response :created
+    template = @admin.owned_badge_templates.find(body.dig("template", "id"))
+    version = template.versions.sole
+    assert_equal "draft", template.status
+    assert_equal "private", template.visibility
+    assert_nil template.published_version
+    assert_equal "landscape", template.orientation
+    assert_equal 85, template.width_mm
+    assert_equal 55, template.height_mm
+    assert_equal "ai_generated", version.source_kind
+    assert_equal [ { "key" => "participant_role", "label" => "参与角色" } ], version.semantic_fields
+    assert_equal 1, template.design_assets.count
+    assert_equal template.id, job.reload.stage_results.dig("draft_template", "template_id")
+    assert_equal version.id, job.stage_results.dig("draft_template", "version_id")
+    assert_equal job.id, body["generation_job_id"]
+
+    post "/api/v1/admin/template_generation_jobs/#{job.id}/create_draft"
+
+    assert_response :success
+    assert_equal template.id, body.dig("template", "id")
+    assert_equal version.id, body.dig("version", "id")
+    assert_equal 1, @admin.owned_badge_templates.count
+    assert_equal 1, template.reload.versions.count
+  end
+
+  test "草稿创建要求生成任务已经完成视觉审核且隔离管理员数据" do
+    sign_in(@admin)
+    job = @admin.template_generation_jobs.create!(
+      job_type: "template_generation",
+      status: "succeeded",
+      stage: "validating",
+      complexity: 5,
+      payload: { "requirement" => "尚未审核" },
+      result: { "html" => "<h1>{{ card.name }}</h1>", "css" => "" }
+    )
+
+    post "/api/v1/admin/template_generation_jobs/#{job.id}/create_draft"
+
+    assert_response :unprocessable_content
+    assert_equal [ "仅视觉审核完成的生成任务可以创建草稿" ], body["errors"]
+
+    sign_in(@other_admin)
+    post "/api/v1/admin/template_generation_jobs/#{job.id}/create_draft"
+
+    assert_response :not_found
+  end
+
+  test "普通用户不能从生成任务创建草稿" do
+    job = @user.template_generation_jobs.create!(
+      job_type: "template_generation",
+      status: "succeeded",
+      stage: "review_ready",
+      complexity: 5,
+      payload: { "requirement" => "用户草稿" },
+      result: { "html" => "<h1>{{ card.name }}</h1>", "css" => "" }
+    )
+    sign_in(@user)
+
+    post "/api/v1/admin/template_generation_jobs/#{job.id}/create_draft"
+
+    assert_response :forbidden
+    assert_equal [ "需要管理员权限" ], body["errors"]
+  end
+
   test "管理员可以对比版本，并从历史版本创建新的草稿回滚" do
     sign_in(@admin)
     template = create_template
