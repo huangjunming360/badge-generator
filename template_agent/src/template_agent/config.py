@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     renderer_image: str = "badge-template-renderer:local"
     renderer_timeout_seconds: int = 60
     mai_request_timeout_seconds: int = 30
+    visual_repair_timeout_seconds: int = 600
     lease_heartbeat_seconds: int = 30
 
     # Authentication is owned by Claude Agent SDK on the GPU node. This is

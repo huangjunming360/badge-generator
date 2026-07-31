@@ -39,6 +39,42 @@ class MaiVisualRepairerTest(unittest.TestCase):
         self.assertEqual(1, len(result.report["iterations"]))
         repairer._ask_mai.assert_called_once()
         self.assertEqual(3, renderer.render.call_count)
+        self.assertEqual("visual_check_passed", result.report["stop_reason"])
+        self.assertIn("input_sha256", result.report["iterations"][0])
+        self.assertIn("output_sha256", result.report["iterations"][0])
+
+    def test_clean_initial_render_skips_mai_and_stops_immediately(self) -> None:
+        renderer = Mock()
+        renderer.render.side_effect = [
+            RenderResult("data:image/png;base64,one", {}),
+            RenderResult("data:image/png;base64,two", {}),
+        ]
+        with patch("template_agent.mai.OpenAI"):
+            repairer = MaiVisualRepairer(self.settings, renderer)
+        repairer._ask_mai = Mock()
+
+        result = repairer.repair(self.job, max_iterations=200)
+
+        self.assertEqual("visual_check_passed", result.report["stop_reason"])
+        self.assertEqual([], result.report["iterations"])
+        repairer._ask_mai.assert_not_called()
+
+    def test_stops_when_a_repair_does_not_reduce_visual_diagnostics(self) -> None:
+        renderer = Mock()
+        renderer.render.side_effect = [
+            RenderResult("data:image/png;base64,one", {"overflow_y": True}),
+            RenderResult("data:image/png;base64,two", {"overflow_y": True}),
+            RenderResult("data:image/png;base64,three", {"overflow_y": True}),
+        ]
+        with patch("template_agent.mai.OpenAI"):
+            repairer = MaiVisualRepairer(self.settings, renderer)
+        repairer._ask_mai = Mock(return_value=("<article>unchanged</article>", ".badge{}", "no change"))
+
+        result = repairer.repair(self.job, max_iterations=200)
+
+        self.assertEqual("no_visual_improvement", result.report["stop_reason"])
+        self.assertEqual(1, len(result.report["iterations"]))
+        repairer._ask_mai.assert_called_once()
 
     def test_rejects_malformed_model_json(self) -> None:
         with patch("template_agent.mai.OpenAI"):

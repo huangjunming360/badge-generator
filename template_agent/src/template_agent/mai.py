@@ -3,6 +3,8 @@
 import json
 import queue
 import threading
+import time
+from hashlib import sha256
 from dataclasses import dataclass
 
 from openai import OpenAI
@@ -47,22 +49,54 @@ class MaiVisualRepairer:
     def repair(self, job: TemplateJob, max_iterations: int, cancel_event: threading.Event | None = None) -> RepairResult:
         html, css = job.source_html, job.source_css
         iterations: list[dict[str, object]] = []
+        started_at = time.monotonic()
+        timeout_seconds = getattr(self._settings, "visual_repair_timeout_seconds", 600)
+        previous_score: int | None = None
+        stop_reason = "max_iterations_reached"
+        final_render: RenderResult | None = None
         for iteration in range(max_iterations):
             raise_if_cancelled(cancel_event)
-            rendered = self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm, cancel_event=cancel_event)
-            if iteration > 0 and not self._needs_another_pass(rendered):
+            if time.monotonic() - started_at >= timeout_seconds:
+                stop_reason = "time_budget_exhausted"
                 break
-            iterations.append({"iteration": iteration + 1, "diagnostics": rendered.diagnostics})
+            rendered = self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm, cancel_event=cancel_event)
+            final_render = rendered
+            score = self._diagnostic_score(rendered)
+            audit = {
+                "iteration": iteration + 1,
+                "input_sha256": self._source_hash(html, css),
+                "diagnostics": rendered.diagnostics,
+                "diagnostic_score": score,
+            }
+            if score == 0:
+                stop_reason = "visual_check_passed"
+                break
+            if previous_score is not None and score >= previous_score:
+                stop_reason = "no_visual_improvement"
+                break
+            iterations.append(audit)
             raise_if_cancelled(cancel_event)
             html, css, notes = self._ask_mai(job, html, css, rendered, cancel_event=cancel_event)
             raise_if_cancelled(cancel_event)
-            iterations[-1]["notes"] = notes
+            audit["notes"] = notes
+            audit["output_sha256"] = self._source_hash(html, css)
+            audit["elapsed_ms"] = round((time.monotonic() - started_at) * 1000)
+            previous_score = score
 
+        # Never trust a model's claim of success. Render the final candidate
+        # once more even after a clean pass and record that measured result.
         final_render = self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm, cancel_event=cancel_event)
+        if self._diagnostic_score(final_render) == 0:
+            stop_reason = "visual_check_passed"
         return RepairResult(
             source_html=html,
             source_css=css,
-            report={"iterations": iterations, "final_diagnostics": final_render.diagnostics},
+            report={
+                "stop_reason": stop_reason,
+                "iterations": iterations,
+                "final_diagnostics": final_render.diagnostics,
+                "elapsed_ms": round((time.monotonic() - started_at) * 1000),
+            },
         )
 
     @staticmethod
@@ -76,6 +110,22 @@ class MaiVisualRepairer:
             or diagnostics.get("low_contrast_text")
             or diagnostics.get("low_resolution_images")
         )
+
+    @classmethod
+    def _diagnostic_score(cls, rendered: RenderResult) -> int:
+        diagnostics = rendered.diagnostics
+        return sum(
+            len(value) if isinstance(value, list) else int(bool(value))
+            for value in (
+                diagnostics.get("overflow_x"), diagnostics.get("overflow_y"),
+                diagnostics.get("console_errors"), diagnostics.get("overlaps"),
+                diagnostics.get("low_contrast_text"), diagnostics.get("low_resolution_images"),
+            )
+        )
+
+    @staticmethod
+    def _source_hash(html: str, css: str) -> str:
+        return sha256(f"{html}\0{css}".encode("utf-8")).hexdigest()
 
     def ready(self) -> bool:
         try:
