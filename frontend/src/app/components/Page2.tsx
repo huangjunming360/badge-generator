@@ -3,15 +3,27 @@ import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, Download, SlidersHorizontal, Plus, Minus } from "lucide-react";
 import {
   Field, Template, AccentKey, FontSz, StyleKey, CustomCfg, NavState,
-  E, U, ACCENTS,
+  E, U, ACCENTS, AI_DESIGN_WATERMARK,
   BadgeCard, PreviewSheet, OptionsSidebar, RippleBtn, fzHeightFactor,
 } from "./shared";
+import AiTemplateDesigner from "./AiTemplateDesigner";
+import { HtmlBadge } from "./HtmlBadge";
 import { BadgeCanvas, canvasSizeMm, templateContentSize } from "./BadgeCanvas";
 import { PreviewViewport, usePreviewViewport, MIN_ZOOM, MAX_ZOOM } from "./PreviewViewport";
 import { fetchCard, fetchSchema } from "../../api/cards";
 import { toFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
-import { exportElementToPng, ExportError } from "../exportBadge";
+import {
+  exportElementToPng,
+  ExportError,
+  renderElementToDataUrl,
+} from "../exportBadge";
+import {
+  DEFAULT_CUSTOM_TEMPLATE,
+  resolveCustomTemplateSize,
+  type CustomTemplateDesign,
+} from "../customTemplate";
+import type { HtmlTemplateDocument } from "../htmlTemplate";
 
 /* 视口缩放的小圆按钮。 */
 function ZoomBtn({ label, onClick, disabled, children }: {
@@ -42,15 +54,18 @@ export default function Page2() {
   // 字号与边框风格不再开放给用户调，固定用标准值。
   const fontSize: FontSz = "md";
   const styleK: StyleKey = "minimal";
-  const [custom, setCustom]     = useState<CustomCfg>({
-    orientation:"portrait", showPhoto:true, showQR:true,
-    showBarcode:false, showDots:false, headerLabel:"", subLabel:"",
-  });
+  const [custom, setCustom] = useState<CustomCfg>(() => ({
+    ...DEFAULT_CUSTOM_TEMPLATE,
+  }));
+  const [templateDocument, setTemplateDocument] =
+    useState<HtmlTemplateDocument | null>(null);
+  const [templateImageUrl, setTemplateImageUrl] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [optPanelOpen, setOptPanelOpen] = useState(true);
+  const [aiDesignBusy, setAiDesignBusy] = useState(false);
 
   const [cardId] = useState<number | null>(saved?.cardId ?? null);
-  // 导出尺寸（像素宽度，高度按 55:85 比例自动计算）
+  // 导出尺寸是目标像素宽度；高度按当前模板的实际比例等比生成。
   const [exportSize, setExportSize] = useState(1100); // 默认高清 1100×1700px
   // 预览缩放档位选择器已下线，固定 1×。视口的滚轮/按钮缩放照旧可用。
   const previewScale = 1;
@@ -89,21 +104,85 @@ export default function Page2() {
   };
 
   const badgeProps = { fields, template, accent, fontSize, styleK, custom, portraitUrl };
+  const customTemplateSize = resolveCustomTemplateSize(
+    custom,
+    fields.filter(field => field.selected).length,
+  );
+  const contentSize = templateContentSize(
+    template,
+    custom.orientation,
+    fzHeightFactor(fontSize),
+    customTemplateSize,
+  );
 
-  // 导出：固定 55×85 比例，通过 exportSize（像素宽度）控制尺寸
+  const captureAiPreview = useCallback(
+    (
+      design: CustomTemplateDesign,
+      document: HtmlTemplateDocument | null,
+      imageUrl: string | null,
+    ) =>
+      renderElementToDataUrl(
+        document ? (
+          <HtmlBadge
+            fields={fields}
+            design={design}
+            templateDocument={document}
+            portraitUrl={portraitUrl}
+            templateImageUrl={imageUrl}
+          />
+        ) : (
+          <BadgeCard
+            fields={fields}
+            template="custom"
+            accent={accent}
+            fontSize={fontSize}
+            styleK={styleK}
+            custom={design}
+            portraitUrl={portraitUrl}
+            scale={1}
+          />
+        ),
+      ),
+    [fields, accent, fontSize, styleK, portraitUrl],
+  );
+
+  const applyAiDesign = useCallback(
+    (
+      design: CustomTemplateDesign,
+      document: HtmlTemplateDocument | null,
+      imageUrl: string | null,
+    ) => {
+      setCustom(design);
+      setTemplateDocument(document);
+      setTemplateImageUrl(imageUrl);
+      setTemplate("custom");
+    },
+    [],
+  );
+
+  // 导出按当前设计稿比例，通过 exportSize（像素宽度）控制清晰度。
   const handleExport = useCallback(async () => {
     if (exporting) return;
     setExporting(true);
     try {
       const who = fields.find(f => f.key === "name")?.value?.trim();
-      // BadgeCard 使用模板的像素尺寸，按实际内容宽度计算倍率。
-      const contentWidth = templateContentSize(
-        template, custom.orientation, fzHeightFactor(fontSize),
-      ).width;
-      const scale = exportSize / contentWidth;
+      // 预览与导出共用同一份解析尺寸，避免自定义画布导出时被二次缩放。
+      const scale = exportSize / contentSize.width;
+      const exportElement =
+        template === "custom" && templateDocument ? (
+          <HtmlBadge
+            fields={fields}
+            design={custom}
+            templateDocument={templateDocument}
+            portraitUrl={portraitUrl}
+            templateImageUrl={templateImageUrl}
+          />
+        ) : (
+          <BadgeCard {...badgeProps} scale={1} />
+        );
 
       await exportElementToPng(
-        <BadgeCard {...badgeProps} scale={1}/>,
+        exportElement,
         who ? `工牌_${who}` : "工牌",
         scale,
       );
@@ -112,7 +191,7 @@ export default function Page2() {
     } finally {
       setExporting(false);
     }
-  }, [exporting, fields, template, accent, fontSize, styleK, custom, portraitUrl, exportSize, badgeProps]);
+  }, [exporting, fields, template, accent, fontSize, styleK, custom, templateDocument, templateImageUrl, portraitUrl, exportSize, badgeProps, contentSize.width]);
 
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column",
@@ -141,8 +220,8 @@ export default function Page2() {
         </div>
         <div style={{ fontSize:11, color:U.textFaint }}>/</div>
         <div style={{ fontSize:11, color:U.textMid }}>
-          {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义", figma:"精美设计" }[template]}
-          {" · "}{ACCENTS[accent].label}
+          {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"AI 设计", figma:"精美设计" }[template]}
+          {template !== "custom" && <>{" · "}{ACCENTS[accent].label}</>}
         </div>
 
         <div style={{ flex:1 }}/>
@@ -207,16 +286,30 @@ export default function Page2() {
               让用户能自己缩小、拖看局部，比只给固定档位实用。 */}
           <PreviewViewport view={view} setView={setView}>
             <div style={{ animation:`floatIn .5s ${E.spring} both` }}>
-              {/* 外层是 mm 实物画布，内容等比缩放居中。设计稿模板是像素比例
-                  （竖版 2:3），与 55:85 不等，包一层才不会拉伸变形。 */}
-              <BadgeCanvas
-                {...canvasSizeMm(55, 85, template, custom.orientation)}
-                contentWidth={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).width}
-                contentHeight={templateContentSize(template, custom.orientation, fzHeightFactor(fontSize)).height}
-                previewScale={previewScale}
-              >
-                <BadgeCard {...badgeProps} scale={1}/>
-              </BadgeCanvas>
+              {/* AI 设计直接展示真实画布尺寸，宽高变化会立即反映在预览中；
+                  内置模板仍放进 55×85mm 实物画布，保持原来的打印语义。 */}
+              {template === "custom" ? (
+                templateDocument ? (
+                  <HtmlBadge
+                    fields={fields}
+                    design={custom}
+                    templateDocument={templateDocument}
+                    portraitUrl={portraitUrl}
+                    templateImageUrl={templateImageUrl}
+                  />
+                ) : (
+                  <BadgeCard {...badgeProps} scale={1}/>
+                )
+              ) : (
+                <BadgeCanvas
+                  {...canvasSizeMm(55, 85, template, custom.orientation)}
+                  contentWidth={contentSize.width}
+                  contentHeight={contentSize.height}
+                  previewScale={previewScale}
+                >
+                  <BadgeCard {...badgeProps} scale={1}/>
+                </BadgeCanvas>
+              )}
             </div>
           </PreviewViewport>
 
@@ -261,8 +354,20 @@ export default function Page2() {
             <div style={{ padding:"20px 18px 32px" }}>
               <OptionsSidebar
                 template={template}   setTemplate={setTemplate}
+                templateSwitchDisabled={aiDesignBusy}
                 accent={accent}       setAccent={setAccent}
                 custom={custom}       setCustom={setCustom}
+                templateAddon={
+                  <AiTemplateDesigner
+                    cardId={cardId}
+                    design={custom}
+                    templateDocument={templateDocument}
+                    templateImageUrl={templateImageUrl}
+                    onApply={applyAiDesign}
+                    onBusyChange={setAiDesignBusy}
+                    capturePreview={captureAiPreview}
+                  />
+                }
                 onExport={handleExport} exporting={exporting}
                 exportSize={exportSize} setExportSize={setExportSize}
               />
@@ -273,6 +378,8 @@ export default function Page2() {
 
       {/* Preview sheet */}
       <PreviewSheet open={sheetOpen} onClose={() => setSheetOpen(false)} {...badgeProps}
+        templateDocument={templateDocument}
+        templateImageUrl={templateImageUrl}
         onExport={handleExport} exporting={exporting} />
     </div>
   );

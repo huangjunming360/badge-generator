@@ -3,6 +3,28 @@ require "test_helper"
 # 分离架构下模型由请求参数指定（无 cookie session），
 # 这里验证 model_id 的优先级与未知 id 的处理。
 class LlmServiceModelIdTest < ActiveSupport::TestCase
+  class FakeChat
+    attr_reader :schema, :temperature
+
+    def with_instructions(*) = self
+    def with_params(**) = self
+    def add_message(**) = self
+
+    def with_temperature(value)
+      @temperature = value
+      self
+    end
+
+    def with_schema(schema)
+      @schema = schema
+      self
+    end
+
+    def complete
+      Struct.new(:content).new({ "ok" => true })
+    end
+  end
+
   MODELS = {
     "default" => "model_a",
     "models" => [
@@ -60,11 +82,19 @@ class LlmServiceModelIdTest < ActiveSupport::TestCase
 
   test "function 选择配置中的模型和参数" do
     with_models do
-      with_functions("template_design" => { "model" => "model_b", "prompt" => "设计", "max_tokens" => 123 }) do
+      with_functions(
+        "template_design" => {
+          "model" => "model_b",
+          "prompt" => "设计",
+          "max_tokens" => 123,
+          "temperature" => 0
+        }
+      ) do
         service = LlmService.new(function: :template_design)
         assert_equal "m-b", service.instance_variable_get(:@config)["model"]
         assert_equal "设计", service.function_prompt
         assert_equal 123, service.function_max_tokens
+        assert_equal 0, service.function_temperature
       end
     end
   end
@@ -81,5 +111,33 @@ class LlmServiceModelIdTest < ActiveSupport::TestCase
     with_functions({}) do
       assert_raises(LlmService::UnknownFunction) { LlmService.new(function: :missing) }
     end
+  end
+
+  test "结构化输出 schema 会交给客户端并保留 Hash 响应" do
+    schema = {
+      "name" => "check",
+      "schema" => {
+        "type" => "object",
+        "properties" => { "ok" => { "type" => "boolean" } },
+        "required" => [ "ok" ],
+        "additionalProperties" => false
+      }
+    }
+    chat = FakeChat.new
+    original = RubyLLM.method(:chat)
+    RubyLLM.define_singleton_method(:chat) { |**| chat }
+
+    with_models do
+      result = LlmService.new(model_id: "model_b").complete(
+        [ { role: "user", content: "检查" } ],
+        schema: schema
+      )
+
+      assert_equal schema, chat.schema
+      assert_equal 0, chat.temperature
+      assert_equal({ "ok" => true }, result)
+    end
+  ensure
+    RubyLLM.define_singleton_method(:chat, original) if original
   end
 end

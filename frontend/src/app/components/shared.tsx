@@ -3,9 +3,16 @@ import {
   User, Phone, Mail, Building2, Hash, Calendar, MapPin,
   Shield, Check, Download, Layers, AlignLeft, Eye, X,
   Type, Palette, Layout, SlidersHorizontal, Sliders,
-  Minimize2, Maximize2, Image as ImageIcon, QrCode, BarChart2, Columns,
+  Image as ImageIcon, QrCode, BarChart2, Columns,
   BookOpen, Users, Bookmark,
 } from "lucide-react";
+import {
+  CUSTOM_TEMPLATE_LIMITS,
+  type CustomTemplateDesign,
+} from "../customTemplate";
+import type { HtmlTemplateDocument } from "../htmlTemplate";
+import { CustomBadge } from "./CustomBadge";
+import { HtmlBadge } from "./HtmlBadge";
 
 // Lazy load FigmaBadge at module scope to avoid recreating on every render
 const FigmaBadge = lazy(() => import("./FigmaBadge"));
@@ -35,12 +42,8 @@ export function fzHeightFactor(fontSize: FontSz) {
   return f <= 1 ? 1 : 1 + (f - 1) * 0.85;
 }
 export type StyleKey  = "minimal" | "formal";
-export interface CustomCfg {
-  orientation: "portrait" | "landscape";
-  showPhoto: boolean; showQR: boolean;
-  showBarcode: boolean; showDots: boolean;
-  headerLabel: string; subLabel: string;
-}
+export type CustomCfg = CustomTemplateDesign;
+export const AI_DESIGN_WATERMARK = "M.K.G.";
 export interface NavState {
   rawText: string;
   fields: Field[];
@@ -240,9 +243,10 @@ function Portrait({ url, size, ac, iconSize }: {
 }
 
 /* ── BadgeCard ───────────────────────────────────────────────── */
-export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, portraitUrl, scale=1 }: {
+export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, portraitUrl, scale=1, watermark }: {
   fields:Field[]; template:Template; accent:AccentKey;
   fontSize:FontSz; styleK:StyleKey; custom:CustomCfg; portraitUrl?:string|null; scale?:number;
+  watermark?:string;
 }) {
   const ac  = ACCENTS[accent];
   const sel = fields.filter(f => f.selected);
@@ -287,57 +291,14 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
   }
 
   if (template === "custom") {
-    const isL = custom.orientation === "landscape";
-    const W = isL ? 320 : 200, H = (isL ? 190 : 300) * hf;
-    const others = sel.filter(f => f.key !== "name");
     return (
-      <div style={{ width:W*scale, height:H*scale, background:bg, borderRadius:rad*scale,
-        border:`1px solid ${bdr}`, boxShadow:SH, overflow:"hidden",
-        fontFamily:"'Outfit',sans-serif", display:"flex", flexDirection:"column" }}>
-        <div style={{ height:4*scale, background:ac.main }}/>
-        <div style={{ background:bgH, padding:`${9*scale}px ${14*scale}px ${8*scale}px`,
-          borderBottom:`1px solid ${bdr}`, textAlign:"center" }}>
-          <div style={{ fontSize:7.5*scale*fz, letterSpacing:".3em", color:ac.main, textTransform:"uppercase" }}>
-            {custom.subLabel || "CUSTOM BADGE"}
-          </div>
-          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15*scale*fz, fontWeight:700, color:"#1A2C40" }}>
-            {custom.headerLabel || "自 定 义"}
-          </div>
-        </div>
-        <div style={{ flex:1, padding:`${11*scale}px ${14*scale}px ${10*scale}px`,
-          display:"flex", flexDirection: isL?"row":"column", gap:10*scale }}>
-          {custom.showPhoto && (
-            <Portrait url={portraitUrl} size={isL?50*scale:40*scale}
-              ac={ac} iconSize={isL?22*scale:18*scale}/>
-          )}
-          <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
-            {has("name")  && <div style={{ fontFamily:"'Playfair Display',serif", fontSize:13*scale*fz, fontWeight:600, color:"#1A2C40", lineHeight:1.2 }}>{get("name")}</div>}
-            {!isL && <div style={{ height:1*scale, background:bdr, margin:`${7*scale}px 0` }}/>}
-            <div style={{ display:"flex", flexDirection:"column", gap:4.5*scale, flex:1 }}>
-              {others.slice(0,5).map(f => (
-                <div key={f.key} style={{ display:"flex", flexDirection:"column", gap:1*scale, minWidth:0 }}>
-                  <span style={{ fontSize:6.5*scale*fz, color:"#8AABBB", letterSpacing:".1em", textTransform:"uppercase", lineHeight:1.25 }}>{f.label}</span>
-                  <span style={{ fontSize:8*scale*fz, color:"#1A2C40", fontWeight:500, lineHeight:1.3,
-                    overflowWrap:"break-word", wordBreak:"break-word" }}>{f.value}</span>
-                </div>
-              ))}
-            </div>
-            {(custom.showQR || custom.showBarcode || custom.showDots) && (
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10*scale,
-                paddingTop:6*scale, borderTop:`1px solid ${bdr}`, marginTop:4*scale, flexShrink:0 }}>
-                {custom.showQR      && <MiniQR color={ac.deep} size={36*scale}/>}
-                {custom.showBarcode && <Barcode color={ac.deep}/>}
-                {custom.showDots    && (
-                  <div style={{ display:"flex", gap:3*scale }}>
-                    {[1,2,3,4].map(i => <div key={i} style={{ width:5*scale, height:5*scale, borderRadius:"50%", background:i<=3?ac.main:bdr }}/>)}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        <div style={{ height:3*scale, background:ac.main }}/>
-      </div>
+      <CustomBadge
+        fields={sel}
+        design={custom}
+        portraitUrl={portraitUrl}
+        scale={scale}
+        watermark={watermark}
+      />
     );
   }
 
@@ -419,23 +380,30 @@ export function BadgeCard({ fields, template, accent, fontSize, styleK, custom, 
 }
 
 /* ── OptionTile ──────────────────────────────────────────────── */
-export function OptionTile({ active, onClick, children, row=false }: {
+export function OptionTile({ active, onClick, children, row=false, disabled=false, title }: {
   active:boolean; onClick:()=>void; children:React.ReactNode; row?:boolean;
+  disabled?:boolean; title?:string;
 }) {
   const { hovered, pressed, bind } = usePress();
   return (
-    <button onClick={onClick} style={{
+    <button
+      type="button"
+      disabled={disabled}
+      title={title}
+      onClick={disabled ? undefined : onClick}
+      style={{
       display:"flex", flexDirection:row?"row":"column",
       alignItems:"center", gap:row?11:7,
       padding:row?"10px 13px":"13px 6px 11px",
-      borderRadius:10, cursor:"pointer", textAlign:"left",
-      border:active?`1.5px solid ${U.blue}`:`1px solid ${hovered?U.blue+"44":U.border}`,
-      background:active?U.blueXLight:hovered?U.surfaceBlue:U.bg,
+      borderRadius:10, cursor:disabled?"not-allowed":"pointer", textAlign:"left",
+      border:active?`1.5px solid ${U.blue}`:`1px solid ${!disabled&&hovered?U.blue+"44":U.border}`,
+      background:active?U.blueXLight:!disabled&&hovered?U.surfaceBlue:U.bg,
       flex:row?undefined:1, width:row?"100%":undefined,
-      boxShadow:active?"0 3px 12px rgba(58,118,196,.2)":hovered?"0 2px 8px rgba(58,118,196,.08)":"none",
-      transform:`scale(${pressed?0.96:hovered?1.012:1})`,
+      boxShadow:active?"0 3px 12px rgba(58,118,196,.2)":!disabled&&hovered?"0 2px 8px rgba(58,118,196,.08)":"none",
+      transform:`scale(${!disabled&&pressed?0.96:!disabled&&hovered?1.012:1})`,
+      opacity:disabled ? .45 : 1,
       transition:`all .15s ${E.smooth}`, willChange:"transform",
-    }} {...bind}>
+    }} {...(disabled ? {} : bind)}>
       {children}
     </button>
   );
@@ -459,26 +427,57 @@ export function Divider() {
 /* ── CustomPanel ─────────────────────────────────────────────── */
 export function CustomPanel({ cfg, onChange }: { cfg:CustomCfg; onChange:(c:CustomCfg)=>void }) {
   const set = <K extends keyof CustomCfg>(k:K, v:CustomCfg[K]) => onChange({...cfg, [k]:v});
+  const clamp = (value:number, min:number, max:number) => Math.min(max, Math.max(min, value));
+  const setDimension = (key:"cardWidth"|"cardHeight", value:number) => {
+    if (!Number.isFinite(value)) return;
+    const limit = CUSTOM_TEMPLATE_LIMITS[key];
+    const next = {
+      ...cfg,
+      sizeMode:"custom" as const,
+      [key]:clamp(Math.round(value), limit.min, limit.max),
+    };
+    onChange({
+      ...next,
+      orientation:
+        next.cardWidth > next.cardHeight
+          ? "landscape"
+          : next.cardHeight > next.cardWidth
+            ? "portrait"
+            : next.orientation,
+    });
+  };
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:9, padding:"13px 15px",
       borderRadius:10, background:U.blueXLight, border:`1px solid ${U.border}`,
       animation:`fadeSlideIn .25s ${E.smooth} both` }}>
-      <div style={{ display:"flex", gap:6 }}>
-        {(["portrait","landscape"] as const).map(o => {
-          const active = cfg.orientation===o;
-          return (
-            <button key={o} onClick={()=>set("orientation",o)} style={{
-              flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:5,
-              padding:"7px 0", borderRadius:7, cursor:"pointer",
-              border:active?`1.5px solid ${U.blue}`:`1px solid ${U.border}`,
-              background:active?U.surface:U.bg, color:active?U.blue:U.textMid,
-              fontSize:11, fontWeight:active?600:400, transition:`all .16s ${E.smooth}`,
-            }}>
-              {o==="portrait" ? <Minimize2 size={12}/> : <Maximize2 size={12}/>}
-              {o==="portrait" ? "竖版" : "横版"}
-            </button>
-          );
-        })}
+      <div>
+        <div style={{ fontSize:9.5, color:U.textLight, letterSpacing:".15em", marginBottom:5, textTransform:"uppercase" }}>
+          画布尺寸
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7 }}>
+          {([
+            ["cardWidth", "宽度"],
+            ["cardHeight", "高度"],
+          ] as const).map(([key, label]) => {
+            const limit = CUSTOM_TEMPLATE_LIMITS[key];
+            return (
+              <label key={key} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                <span style={{ fontSize:9.5, color:U.textLight }}>{label}（px）</span>
+                <input
+                  type="number"
+                  min={limit.min}
+                  max={limit.max}
+                  step={1}
+                  value={cfg[key]}
+                  onChange={e=>setDimension(key,e.currentTarget.valueAsNumber)}
+                  style={{ width:"100%", padding:"7px 8px", borderRadius:7,
+                    border:`1px solid ${U.border}`, background:U.surface,
+                    fontSize:11, color:U.text, outline:"none", boxSizing:"border-box" }}
+                />
+              </label>
+            );
+          })}
+        </div>
       </div>
       <div>
         <div style={{ fontSize:9.5, color:U.textLight, letterSpacing:".15em", marginBottom:5, textTransform:"uppercase" }}>标题文字</div>
@@ -507,10 +506,12 @@ export function CustomPanel({ cfg, onChange }: { cfg:CustomCfg; onChange:(c:Cust
 }
 
 /* ── PreviewSheet ────────────────────────────────────────────── */
-export function PreviewSheet({ open, onClose, fields, template, accent, fontSize, styleK, custom, portraitUrl, onExport, exporting }: {
+export function PreviewSheet({ open, onClose, fields, template, accent, fontSize, styleK, custom, templateDocument, templateImageUrl, portraitUrl, onExport, exporting }: {
   open:boolean; onClose:()=>void;
   fields:Field[]; template:Template; accent:AccentKey;
-  fontSize:FontSz; styleK:StyleKey; custom:CustomCfg; portraitUrl?:string|null;
+  fontSize:FontSz; styleK:StyleKey; custom:CustomCfg;
+  templateDocument?:HtmlTemplateDocument|null; templateImageUrl?:string|null;
+  portraitUrl?:string|null;
   onExport?:()=>void; exporting?:boolean;
 }) {
   return (
@@ -535,7 +536,7 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
           <div>
             <div style={{ fontSize:15, fontWeight:700, color:U.text }}>工牌预览</div>
             <div style={{ fontSize:10.5, color:U.textLight, marginTop:3 }}>
-              {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"自定义", figma:"精美设计" }[template]}
+              {{ visitor:"访客通行证", access:"员工通行证", business:"名片", custom:"AI 设计", figma:"精美设计" }[template]}
               {" · "}{ACCENTS[accent].label}
             </div>
           </div>
@@ -568,9 +569,22 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
               <rect width="100%" height="100%" fill="url(#pd)"/>
             </svg>
             <div style={{ position:"relative", zIndex:1, animation:`floatIn .5s ${E.spring} both` }}>
-              <BadgeCard fields={fields} template={template} accent={accent}
-                fontSize={fontSize} styleK={styleK} custom={custom}
-                portraitUrl={portraitUrl} scale={1.2}/>
+              {template === "custom" && templateDocument ? (
+                <HtmlBadge
+                  fields={fields}
+                  design={custom}
+                  templateDocument={templateDocument}
+                  portraitUrl={portraitUrl}
+                  templateImageUrl={templateImageUrl}
+                  scale={1.2}
+                  watermark={AI_DESIGN_WATERMARK}
+                />
+              ) : (
+                <BadgeCard fields={fields} template={template} accent={accent}
+                  fontSize={fontSize} styleK={styleK} custom={custom}
+                  portraitUrl={portraitUrl} scale={1.2}
+                  watermark={template === "custom" ? AI_DESIGN_WATERMARK : undefined}/>
+              )}
             </div>
           </div>
         </div>
@@ -582,11 +596,14 @@ export function PreviewSheet({ open, onClose, fields, template, accent, fontSize
 /* ── Options sidebar (shared between Page2 layouts) ──────────── */
 export function OptionsSidebar({
   template, setTemplate, accent, setAccent,
-  custom, setCustom, onExport, exporting, exportSize, setExportSize,
+  custom, setCustom, templateAddon, templateSwitchDisabled=false,
+  onExport, exporting, exportSize, setExportSize,
 }: {
   template:Template;   setTemplate:(t:Template)=>void;
   accent:AccentKey;    setAccent:(a:AccentKey)=>void;
   custom:CustomCfg;    setCustom:(c:CustomCfg)=>void;
+  templateAddon?:React.ReactNode;
+  templateSwitchDisabled?:boolean;
   onExport?:()=>void; exporting?:boolean;
   exportSize?:number; setExportSize?:(size:number)=>void;
 }) {
@@ -604,15 +621,22 @@ export function OptionsSidebar({
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7, marginBottom:9 }}>
           {(["visitor","access","business","custom","figma"] as Template[]).map(t => {
             const active = template===t;
+            const disabled = templateSwitchDisabled && !active;
             const meta: Record<Template,{label:string;icon:React.ReactNode}> = {
               visitor:  {label:"访客证", icon:<Shield size={13}/>},
               access:   {label:"通行证", icon:<Hash size={13}/>},
               business: {label:"名片",   icon:<AlignLeft size={13}/>},
-              custom:   {label:"自定义", icon:<Sliders size={13}/>},
+              custom:   {label:"AI设计", icon:<Sliders size={13}/>},
               figma:    {label:"精美",   icon:<Layers size={13}/>},
             };
             return (
-              <OptionTile key={t} active={active} onClick={()=>setTemplate(t)}>
+              <OptionTile
+                key={t}
+                active={active}
+                disabled={disabled}
+                title={disabled ? "AI 正在设计，暂时不可切换模板" : undefined}
+                onClick={()=>setTemplate(t)}
+              >
                 <div style={{ color:active?U.blue:U.textLight }}>{meta[t].icon}</div>
                 <span style={{ fontSize:11, color:active?U.blue:U.textMid, fontWeight:active?600:400 }}>{meta[t].label}</span>
                 <div style={{ width:t==="business"?36:22, height:t==="business"?22:32, borderRadius:active?6:2,
@@ -623,47 +647,55 @@ export function OptionsSidebar({
             );
           })}
         </div>
+        {template === "custom" && templateAddon && (
+          <div style={{ marginBottom:9 }}>{templateAddon}</div>
+        )}
         <div style={{ fontSize:10, color:U.textFaint, lineHeight:1.65, marginBottom:8 }}>
           {{ visitor:"访客当日通行，附二维码验证", access:"员工长期凭证，含权限等级",
-             business:"横版名片，附完整联系方式", custom:"自由组合版式与元素",
-             figma:"Figma 精美设计，自定义文字+渐变背景" }[template]}
+             business:"横版名片，附完整联系方式", custom:"对话生成设计，查看预览后继续调整",
+             figma:"Figma 精美设计，可编辑文字与渐变背景" }[template]}
         </div>
-        <div style={{ maxHeight:template==="custom"?600:0, overflow:"hidden",
+        <div style={{ maxHeight:template==="custom"?1000:0,
+          overflow:template==="custom"?"visible":"hidden",
           transition:`max-height .38s ${E.smooth}` }}>
           <CustomPanel cfg={custom} onChange={setCustom}/>
         </div>
       </div>
 
-      <Divider/>
+      {template !== "custom" && (
+        <>
+          <Divider/>
 
-      {/* Accent */}
-      <div>
-        <SLabel icon={<Palette size={11}/>} text="工牌主题色"/>
-        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-          {(["rose","blue","gold"] as AccentKey[]).map(k => {
-            const active = accent===k;
-            const ac = ACCENTS[k];
-            return (
-              <OptionTile key={k} active={active} onClick={()=>setAccent(k)} row>
-                <div style={{ width:32, height:36, borderRadius:5, background:"#FDFBF7",
-                  border:"1px solid #E0D8C8", overflow:"hidden", position:"relative", flexShrink:0 }}>
-                  <div style={{ height:3, background:ac.main }}/>
-                  <div style={{ position:"absolute", bottom:0, left:0, right:0, height:2, background:ac.main }}/>
-                  <div style={{ position:"absolute", top:"50%", left:"50%",
-                    transform:"translate(-50%,-50%)", width:10, height:10,
-                    borderRadius:"50%", background:ac.muted, border:`1px solid ${ac.main}44` }}/>
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, color:active?U.blue:U.text, fontWeight:active?600:500 }}>{ac.label}</div>
-                  <div style={{ fontSize:10, color:U.textFaint, marginTop:2 }}>{ac.desc}</div>
-                </div>
-                <div style={{ width:9, height:9, borderRadius:"50%",
-                  background:active?U.blue:U.border, transition:`background .2s ${E.spring}` }}/>
-              </OptionTile>
-            );
-          })}
-        </div>
-      </div>
+          {/* AI HTML/CSS 自己管理配色，自定义模式不展示无效的主题色控件。 */}
+          <div>
+            <SLabel icon={<Palette size={11}/>} text="工牌主题色"/>
+            <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+              {(["rose","blue","gold"] as AccentKey[]).map(k => {
+                const active = accent===k;
+                const ac = ACCENTS[k];
+                return (
+                  <OptionTile key={k} active={active} onClick={()=>setAccent(k)} row>
+                    <div style={{ width:32, height:36, borderRadius:5, background:"#FDFBF7",
+                      border:"1px solid #E0D8C8", overflow:"hidden", position:"relative", flexShrink:0 }}>
+                      <div style={{ height:3, background:ac.main }}/>
+                      <div style={{ position:"absolute", bottom:0, left:0, right:0, height:2, background:ac.main }}/>
+                      <div style={{ position:"absolute", top:"50%", left:"50%",
+                        transform:"translate(-50%,-50%)", width:10, height:10,
+                        borderRadius:"50%", background:ac.muted, border:`1px solid ${ac.main}44` }}/>
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12, color:active?U.blue:U.text, fontWeight:active?600:500 }}>{ac.label}</div>
+                      <div style={{ fontSize:10, color:U.textFaint, marginTop:2 }}>{ac.desc}</div>
+                    </div>
+                    <div style={{ width:9, height:9, borderRadius:"50%",
+                      background:active?U.blue:U.border, transition:`background .2s ${E.spring}` }}/>
+                  </OptionTile>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       <Divider/>
 

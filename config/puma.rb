@@ -19,13 +19,13 @@
 # Global VM Lock (GVL) it has diminishing returns and will degrade the
 # response time (latency) of the application.
 #
-# The default is set to 3 threads as it's deemed a decent compromise between
-# throughput and latency for the average Rails application.
+# AI 请求会长时间等待上游响应，而 LlmService 自身最多允许 8 路并发。
+# Web 线程池默认保留额外容量，避免 AI 占满后登录、页面和普通 API 一起卡死。
 #
 # Any libraries that use a connection pool or another resource pool should
 # be configured to provide at least as many connections as the number of
 # threads. This includes Active Record's `pool` parameter in `database.yml`.
-threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
+threads_count = ENV.fetch("RAILS_MAX_THREADS", 16)
 threads threads_count, threads_count
 
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.

@@ -16,8 +16,9 @@ class LlmService
   class UnknownModel < Error; end
   class UnknownFunction < Error; end
 
-  # 全局并发控制：默认最多 3 个 LLM 请求同时运行
-  MAX_CONCURRENCY = [ ENV.fetch("LLM_MAX_CONCURRENCY", 3).to_i, 1 ].max
+  # 全局并发控制：默认最多 8 个 LLM 请求同时运行。Puma 默认保留两倍
+  # Web 线程，避免长时间等待上游时把登录和普通 API 一起堵死。
+  MAX_CONCURRENCY = [ ENV.fetch("LLM_MAX_CONCURRENCY", 8).to_i, 1 ].max
   SEMAPHORE = Mutex.new
   @@active_requests = 0
 
@@ -62,7 +63,11 @@ class LlmService
     value.present? ? value.to_i : nil
   end
 
-  def complete(messages, system: nil, max_tokens: nil)
+  def function_temperature
+    @function_config.fetch("temperature", 0)
+  end
+
+  def complete(messages, system: nil, max_tokens: nil, schema: nil)
     system ||= function_prompt.presence
     max_tokens = function_max_tokens || 4096 if max_tokens.nil?
     # 等待并发槽位
@@ -79,7 +84,8 @@ class LlmService
       assume_model_exists: true
     )
     chat.with_instructions(system) if system.present?
-    chat.with_temperature(0.0)
+    chat.with_temperature(function_temperature)
+    chat.with_schema(schema) if schema.present?
     if @config["no_thinking"] && @config["api"] == "openai"
       # Doubao 等 OpenAI 协议模型：主动发 thinking:disabled 关闭深度推理
       params = { thinking: { type: "disabled" } }
@@ -99,7 +105,7 @@ class LlmService
     end
 
     response = chat.complete
-    response.content.to_s
+    schema.present? ? response.content : response.content.to_s
   rescue RubyLLM::Error => e
     raise Error, "AI 服务响应异常: #{e.message}"
   rescue => e
