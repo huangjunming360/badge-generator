@@ -58,6 +58,13 @@ Rails.application.routes.draw do
       end
       namespace :admin do
         get "template-agent/status", to: "template_agent#status"
+        resources :gpu_nodes, only: %i[index create] do
+          member do
+            patch :update_config
+            post :rotate_token
+            post :revoke
+          end
+        end
         resources :template_generation_jobs, only: :show do
           member do
             post :apply
@@ -95,6 +102,7 @@ Rails.application.routes.draw do
   root "frontend#index"
   # React 管理员模板工作台位于 /admin 命名空间，但由 SPA 渲染，不走旧 ERB 后台。
   get "/admin/templates", to: "frontend#index"
+  get "/admin/gpu-nodes", to: "frontend#index"
   get "/*path" => "frontend#index",
       constraints: ->(req) {
         !req.path.start_with?("/admin", "/api", "/rails", "/up", "/assets")

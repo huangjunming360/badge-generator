@@ -1,20 +1,21 @@
 import { getJson, sendForm, sendJson } from "./client";
+import type { SemanticField } from "./designSessions";
 
-export interface TemplateVersion { id: number; version: number; source_kind: string; source_html?: string; source_css?: string; validation_report?: { valid?: boolean; errors?: string[] }; created_at?: string; }
+export interface TemplateVersion { id: number; version: number; source_kind: string; source_html?: string; source_css?: string; semantic_fields?: SemanticField[]; validation_report?: { valid?: boolean; errors?: string[] }; created_at?: string; }
 export interface BadgeTemplate { id: number; name: string; orientation: string; width_mm: number; height_mm: number; status: string; versions?: TemplateVersion[]; published_version?: TemplateVersion | null; }
 export interface TemplateProposal { html: string; css: string; notes: string; validation_report?: { valid?: boolean; errors?: string[] }; }
 
 export const fetchAdminTemplates = () => getJson<{ templates: BadgeTemplate[] }>("/admin/badge_templates").then(r => r.templates);
 export const fetchStudioTemplates = () => getJson<{ templates: BadgeTemplate[] }>("/template_studio").then(r => r.templates);
-export const createAdminTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string; generation_job_id?: number }) =>
+export const createAdminTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string; semantic_fields?: SemanticField[]; generation_job_id?: number }) =>
   sendJson<{ template: BadgeTemplate }>("/admin/badge_templates", "POST", {
     badge_template: { name: data.name, orientation: data.orientation, width_mm: data.width_mm, height_mm: data.height_mm },
-    source: { source_html: data.html, source_css: data.css, source_kind: "manual" }, generation_job_id: data.generation_job_id,
+    source: { source_html: data.html, source_css: data.css, source_kind: "manual", semantic_fields: data.semantic_fields }, generation_job_id: data.generation_job_id,
   }).then(r => r.template);
-export const createStudioTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string; generation_job_id?: number }) =>
+export const createStudioTemplate = (data: { name: string; orientation: string; width_mm: number; height_mm: number; html: string; css: string; semantic_fields?: SemanticField[]; generation_job_id?: number }) =>
   sendJson<{ template: BadgeTemplate }>("/template_studio", "POST", {
     badge_template: { name: data.name, orientation: data.orientation, width_mm: data.width_mm, height_mm: data.height_mm },
-    source: { source_html: data.html, source_css: data.css }, generation_job_id: data.generation_job_id,
+    source: { source_html: data.html, source_css: data.css, semantic_fields: data.semantic_fields }, generation_job_id: data.generation_job_id,
   }).then(r => r.template);
 export const updateAdminTemplate = (id: number, data: Partial<{ name: string; orientation: string; width_mm: number; height_mm: number }> & { html?: string; css?: string; generation_job_id?: number }) =>
   sendJson<{ template: BadgeTemplate }>(`/admin/badge_templates/${id}`, "PATCH", {

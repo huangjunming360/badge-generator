@@ -39,6 +39,7 @@ class BadgeTemplateSerializer
       id: version.id,
       version: version.version,
       source_kind: version.source_kind,
+      semantic_fields: version.semantic_fields,
       validation_report: version.validation_report,
       created_at: version.created_at&.iso8601
     }

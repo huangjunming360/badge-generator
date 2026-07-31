@@ -49,7 +49,8 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
         "reference_notes" => values.fetch("reference_notes", "").to_s.truncate(8_000),
         "model_id" => model_id,
         "width_mm" => values.fetch("width_mm", 55).to_f.clamp(20, 200),
-        "height_mm" => values.fetch("height_mm", 85).to_f.clamp(20, 200)
+        "height_mm" => values.fetch("height_mm", 85).to_f.clamp(20, 200),
+        "semantic_fields" => values["semantic_fields"].presence || BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS
       }
     )
     job.reference_assets.attach(assets) if assets.present?
@@ -119,7 +120,7 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
 
   def enqueue_visual_repair
     version = @template.versions.find(params.require(:version_id))
-    report = BadgeTemplateRenderer.validate_source(version.source_html, version.source_css)
+    report = BadgeTemplateRenderer.validate_source(version.source_html, version.source_css, semantic_fields: version.semantic_fields)
     return render json: { errors: report.fetch("errors") }, status: :unprocessable_content unless report.fetch("valid")
 
     job = Current.user.template_generation_jobs.create!(
@@ -132,7 +133,8 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
         "diagnostics" => visual_repair_params[:diagnostics].to_s.truncate(4_000),
         "requirement" => visual_repair_params[:requirement].to_s.truncate(4_000),
         "width_mm" => @template.width_mm,
-        "height_mm" => @template.height_mm
+        "height_mm" => @template.height_mm,
+        "semantic_fields" => version.semantic_fields
       }
     )
     render json: { job: job_payload(job) }, status: :accepted
@@ -151,7 +153,8 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
   end
 
   def source_params
-    params.fetch(:source, ActionController::Parameters.new).permit(:source_html, :source_css, :source_kind)
+    params.fetch(:source, ActionController::Parameters.new).permit(:source_html, :source_css, :source_kind,
+                                                                   semantic_fields: [ :key, :label, :default_value ])
   end
 
   def create_version!(template)
@@ -163,6 +166,7 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
       version: template.next_version_number,
       source_html: source[:source_html],
       source_css: source[:source_css].to_s,
+      semantic_fields: source[:semantic_fields].presence || template.versions.order(version: :desc).pick(:semantic_fields) || BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS,
       source_kind: source[:source_kind].presence || "manual"
     )
   end
@@ -172,7 +176,8 @@ class Api::V1::Admin::BadgeTemplatesController < Api::BaseController
   end
 
   def generation_params
-    params.permit(:requirement, :complexity, :reference_notes, :model_id, :width_mm, :height_mm)
+    params.permit(:requirement, :complexity, :reference_notes, :model_id, :width_mm, :height_mm,
+                  semantic_fields: [ :key, :label, :default_value ])
   end
 
   def validated_reference_assets

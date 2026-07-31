@@ -70,7 +70,8 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
   end
 
   def session_params
-    permitted = params.permit(:name, :status, configuration: %i[complexity reference_notes model_id width_mm height_mm])
+    permitted = params.permit(:name, :status, configuration: [ :complexity, :reference_notes, :model_id, :width_mm, :height_mm,
+                                                               { semantic_fields: [ :key, :label, :default_value ] } ])
     result = {}
     result[:name] = permitted[:name].to_s.truncate(80) if permitted.key?(:name)
     result[:status] = permitted[:status] if permitted.key?(:status)
@@ -79,7 +80,8 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
   end
 
   def configuration_params
-    params.fetch(:configuration, ActionController::Parameters.new).permit(:complexity, :reference_notes, :model_id, :width_mm, :height_mm).to_h
+    params.fetch(:configuration, ActionController::Parameters.new).permit(:complexity, :reference_notes, :model_id, :width_mm, :height_mm,
+                                                                           semantic_fields: [ :key, :label, :default_value ]).to_h
   end
 
   def initial_message

@@ -43,6 +43,29 @@ class Api::V1::BadgeTemplatesTest < ActionDispatch::IntegrationTest
     assert_equal [ "需要管理员权限" ], body["errors"]
   end
 
+  test "版本持久化自定义语义字段，并拒绝未声明字段的模板源码" do
+    sign_in(@admin)
+    contract = [ { key: "participant_role", label: "参与角色", default_value: "学员" } ]
+
+    post "/api/v1/admin/badge_templates", params: {
+      badge_template: { name: "角色模板", orientation: "portrait", width_mm: 55, height_mm: 85 },
+      source: { source_html: "<h1>{{ fields.participant_role }}</h1>", source_css: "", semantic_fields: contract }
+    }
+
+    assert_response :created
+    version = BadgeTemplate.find(body.dig("template", "id")).versions.sole
+    assert_equal "participant_role", version.semantic_fields.sole["key"]
+    assert_equal contract.first[:label], body.dig("template", "versions", 0, "semantic_fields", 0, "label")
+
+    post "/api/v1/admin/badge_templates", params: {
+      badge_template: { name: "越界字段模板", orientation: "portrait", width_mm: 55, height_mm: 85 },
+      source: { source_html: "<h1>{{ fields.organization }}</h1>", source_css: "", semantic_fields: contract }
+    }
+
+    assert_response :unprocessable_content
+    assert_includes body.fetch("errors").join(" "), "未声明的语义字段"
+  end
+
   test "草稿对普通用户不可见，发布后可读取并预览" do
     sign_in(@admin)
     template = create_template

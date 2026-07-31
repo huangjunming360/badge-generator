@@ -70,7 +70,8 @@ class Api::V1::TemplateStudioController < Api::BaseController
         "reference_notes" => values.fetch("reference_notes", "").to_s.truncate(8_000),
         "model_id" => model_id,
         "width_mm" => values.fetch("width_mm", 55).to_f.clamp(20, 200),
-        "height_mm" => values.fetch("height_mm", 85).to_f.clamp(20, 200)
+        "height_mm" => values.fetch("height_mm", 85).to_f.clamp(20, 200),
+        "semantic_fields" => values["semantic_fields"].presence || BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS
       }
     )
     job.reference_assets.attach(assets) if assets.present?
@@ -98,7 +99,8 @@ class Api::V1::TemplateStudioController < Api::BaseController
   end
 
   def source_params
-    params.fetch(:source, ActionController::Parameters.new).permit(:source_html, :source_css)
+    params.fetch(:source, ActionController::Parameters.new).permit(:source_html, :source_css,
+                                                                   semantic_fields: [ :key, :label, :default_value ])
   end
 
   def create_version!(template)
@@ -110,12 +112,14 @@ class Api::V1::TemplateStudioController < Api::BaseController
       version: template.next_version_number,
       source_html: source[:source_html],
       source_css: source[:source_css].to_s,
+      semantic_fields: source[:semantic_fields].presence || template.versions.order(version: :desc).pick(:semantic_fields) || BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS,
       source_kind: "manual"
     )
   end
 
   def generation_params
-    params.permit(:requirement, :complexity, :reference_notes, :model_id, :width_mm, :height_mm)
+    params.permit(:requirement, :complexity, :reference_notes, :model_id, :width_mm, :height_mm,
+                  semantic_fields: [ :key, :label, :default_value ])
   end
 
   def template_model_available?(model_id)

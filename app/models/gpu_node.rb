@@ -1,4 +1,10 @@
 class GpuNode < ApplicationRecord
+  DEFAULT_DESIRED_CONFIG = {
+    "paused" => false,
+    "max_iterations" => 3,
+    "max_concurrency" => 1
+  }.freeze
+
   has_secure_password :token, validations: false
   has_many :template_generation_jobs, dependent: :restrict_with_error
 
@@ -7,7 +13,16 @@ class GpuNode < ApplicationRecord
   validate :desired_config_is_hash
 
   def effective_desired_config
-    { "paused" => false, "max_iterations" => 3, "max_concurrency" => 1 }.merge(desired_config || {})
+    configured = desired_config.to_h
+    DEFAULT_DESIRED_CONFIG.merge(
+      "paused" => ActiveModel::Type::Boolean.new.cast(
+        configured.fetch("paused", DEFAULT_DESIRED_CONFIG.fetch("paused"))
+      ),
+      "max_iterations" => configured.fetch("max_iterations", DEFAULT_DESIRED_CONFIG.fetch("max_iterations")).to_i.clamp(1, 3),
+      # The current worker is deliberately single-process. Do not advertise
+      # concurrency that the Python node cannot honor.
+      "max_concurrency" => 1
+    )
   end
 
   def online?

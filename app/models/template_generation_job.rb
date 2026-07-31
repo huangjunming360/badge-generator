@@ -102,6 +102,20 @@ class TemplateGenerationJob < ApplicationRecord
     end
   end
 
+  def release_node_lease!
+    with_lock do
+      return false unless leased? && gpu_node_id.present?
+
+      update!(
+        status: "queued",
+        gpu_node_id: nil,
+        lease_token_digest: nil,
+        lease_expires_at: nil
+      )
+      true
+    end
+  end
+
   def server_lease_valid?(token)
     return false unless generation_job? && leased? && gpu_node_id.nil? && lease_expires_at&.future? && token.present? && lease_token_digest.present?
 
@@ -136,7 +150,7 @@ class TemplateGenerationJob < ApplicationRecord
   end
 
   def payload_is_safe_shape
-    allowed = %w[source_html source_css diagnostics requirement reference_notes model_id width_mm height_mm parent_generation_job_id design_message_id]
+    allowed = %w[source_html source_css diagnostics requirement reference_notes model_id width_mm height_mm semantic_fields parent_generation_job_id design_message_id]
     return if payload.is_a?(Hash) && payload.keys.all? { |key| allowed.include?(key.to_s) }
 
     errors.add(:payload, "包含不支持的字段")

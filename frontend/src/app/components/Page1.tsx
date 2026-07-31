@@ -15,6 +15,7 @@ import CropModal from "./CropModal";
 import { toFields, toAiFields } from "../../api/fields";
 import { ApiError } from "../../api/client";
 import type { SchemaFieldDef, SchemaPayload } from "../../api/types";
+import { useAuth } from "./useAuth";
 
 /* 标签列宽。「项目主题英文」是最长的标签，窄了会和输入框挨在一起，
    所以按它撑宽，所有行统一，输入框左边缘才对齐。 */
@@ -162,6 +163,7 @@ function SlotAction({ label, onClick }: { label: string; onClick: () => void }) 
 
 /* ── Page 1 ──────────────────────────────────────────────────── */
 export default function Page1() {
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const saved    = location.state as NavState | null;
@@ -369,11 +371,11 @@ export default function Page1() {
         textAlign: "center", flexShrink: 0, position: "relative",
       }}>
         <div style={{ position: "absolute", top: 12, right: 16, zIndex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => navigate("/history")} style={{
+          {user && !authLoading && <button onClick={() => navigate("/history")} style={{
             padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,.22)",
             background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.75)",
             cursor: "pointer", fontSize: 11, fontFamily: "'Outfit',sans-serif",
-          }}>历史记录</button>
+          }}>历史记录</button>}
           <UserMenu dark />
         </div>
 

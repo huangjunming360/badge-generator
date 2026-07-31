@@ -55,6 +55,18 @@ class BadgeTemplateGeneratorTest < ActiveSupport::TestCase
     asset&.purge
   end
 
+  test "passes the semantic field contract and rejects undeclared generated fields" do
+    fields = [ { "key" => "participant_name", "label" => "参加者姓名" } ]
+    client = FakeClient.new('{"html":"<h1>{{ fields.organization }}</h1>","css":"","notes":""}')
+
+    error = assert_raises(BadgeTemplateGenerator::Error) do
+      BadgeTemplateGenerator.new(client: client).generate(requirement: "x", semantic_fields: fields)
+    end
+
+    assert_includes client.last_messages.first[:content], '"semantic_fields":[{"key":"participant_name","label":"参加者姓名"}]'
+    assert_includes error.message, "未声明的语义字段"
+  end
+
   test "rejects unsafe generated source" do
     client = FakeClient.new('{"html":"<script>alert(1)</script>","css":"","notes":""}')
 

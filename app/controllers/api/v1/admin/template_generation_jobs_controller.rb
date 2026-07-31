@@ -20,6 +20,7 @@ class Api::V1::Admin::TemplateGenerationJobsController < Api::BaseController
         version: template.next_version_number,
         source_html: result.fetch("source_html"),
         source_css: result.fetch("source_css"),
+        semantic_fields: @job.payload.fetch("semantic_fields", BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS),
         source_kind: "ai_repaired"
       )
     end

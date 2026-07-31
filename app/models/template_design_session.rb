@@ -41,6 +41,7 @@ class TemplateDesignSession < ApplicationRecord
           "model_id" => config["model_id"],
           "width_mm" => config.fetch("width_mm"),
           "height_mm" => config.fetch("height_mm"),
+          "semantic_fields" => config.fetch("semantic_fields"),
           "design_message_id" => message.id
         }
       )
@@ -80,7 +81,8 @@ class TemplateDesignSession < ApplicationRecord
       "complexity" => 5,
       "reference_notes" => "",
       "width_mm" => 55,
-      "height_mm" => 85
+      "height_mm" => 85,
+      "semantic_fields" => BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS
     }.merge(configuration || {}).tap do |config|
       config["complexity"] = config["complexity"].to_i.clamp(1, 10)
       config["width_mm"] = config["width_mm"].to_f.clamp(20, 200)

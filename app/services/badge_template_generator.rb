@@ -11,41 +11,44 @@ class BadgeTemplateGenerator
     @client = client
   end
 
-  def generate(requirement:, complexity: 5, reference_notes: nil, model_id: nil, width_mm: 55, height_mm: 85, reference_assets: [])
+  def generate(requirement:, complexity: 5, reference_notes: nil, model_id: nil, width_mm: 55, height_mm: 85, reference_assets: [], semantic_fields: BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS)
     call_function(
       :template_codegen,
-      build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm, reference_assets.size),
+      build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm, reference_assets.size, semantic_fields),
       model_id: model_id,
-      attachments: reference_assets
+      attachments: reference_assets,
+      semantic_fields: semantic_fields
     )
   end
 
-  def repair(html:, css:, diagnostics:, requirement: nil)
+  def repair(html:, css:, diagnostics:, requirement: nil, semantic_fields: BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS)
     payload = {
       requirement: requirement.to_s,
       html: html.to_s,
       css: css.to_s,
-      diagnostics: diagnostics.to_s
+      diagnostics: diagnostics.to_s,
+      semantic_fields: semantic_fields
     }
     ensure_request_size!(payload)
-    call_function(:template_repair, payload)
+    call_function(:template_repair, payload, semantic_fields: semantic_fields)
   end
 
   private
 
-  def build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm, reference_asset_slots)
+  def build_generation_request(requirement, complexity, reference_notes, width_mm, height_mm, reference_asset_slots, semantic_fields)
     payload = {
       requirement: requirement.to_s,
       complexity: [ [ complexity.to_i, 1 ].max, 10 ].min,
       reference_notes: reference_notes.to_s,
       reference_asset_slots: reference_asset_slots.to_i.clamp(0, TemplateGenerationJob::MAX_REFERENCE_ASSETS),
-      canvas: { width_mm: width_mm.to_f.clamp(20, 200), height_mm: height_mm.to_f.clamp(20, 200) }
+      canvas: { width_mm: width_mm.to_f.clamp(20, 200), height_mm: height_mm.to_f.clamp(20, 200) },
+      semantic_fields: semantic_fields
     }
     ensure_request_size!(payload)
     payload
   end
 
-  def call_function(function, payload, model_id: nil, attachments: [])
+  def call_function(function, payload, model_id: nil, attachments: [], semantic_fields: BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS)
     client = @client || LlmService.new(function: function, model_id: model_id)
     response = client.complete(
       [ { role: "user", content: JSON.generate(payload), attachments: attachments } ],
@@ -53,7 +56,7 @@ class BadgeTemplateGenerator
       max_tokens: client.function_max_tokens || 4096
     )
     result = parse_response(response)
-    report = BadgeTemplateRenderer.validate_source(result.fetch("html"), result.fetch("css"))
+    report = BadgeTemplateRenderer.validate_source(result.fetch("html"), result.fetch("css"), semantic_fields: semantic_fields)
     raise Error, report.fetch("errors").join("；") unless report.fetch("valid")
 
     result.merge("validation_report" => report)

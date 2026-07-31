@@ -16,10 +16,20 @@ class BadgeTemplateRenderer
   FORBIDDEN_CSS = /@import|expression\s*\(|javascript\s*:|behavior\s*:|-moz-binding|url\s*\(/i.freeze
   FORBIDDEN_HTML = /<(?:script|iframe|object|embed|form|input|textarea|select|meta|link)\b/i.freeze
   SAFE_IMAGE_PREFIXES = %w[/rails/active_storage/ /default-avatar.svg].freeze
+  SYSTEM_CARD_FIELDS = %w[width_mm height_mm portrait_url].freeze
+  LEGACY_FIELD_ALIASES = {
+    "name" => "participant_name",
+    "name_en" => "participant_name_en",
+    "organization" => "organization",
+    "host_organization" => "host_organization",
+    "host_department" => "host_department",
+    "event_topic" => "event_topic",
+    "event_topic_en" => "event_topic_en"
+  }.freeze
 
   class InvalidTemplate < StandardError; end
 
-  def self.validate_source(html, css)
+  def self.validate_source(html, css, semantic_fields: BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS)
     errors = []
     html = html.to_s
     css = css.to_s
@@ -28,7 +38,7 @@ class BadgeTemplateRenderer
     errors << "CSS 超过 #{MAX_CSS_BYTES / 1.kilobyte}KB" if css.bytesize > MAX_CSS_BYTES
     errors << "HTML 包含不允许的标签" if html.match?(FORBIDDEN_HTML)
     errors << "CSS 包含不允许的规则或外部资源" if css.match?(FORBIDDEN_CSS)
-    errors.concat(liquid_errors(html))
+    errors.concat(liquid_errors(html, semantic_fields: semantic_fields))
 
     begin
       Liquid::Template.parse(html)
@@ -40,10 +50,10 @@ class BadgeTemplateRenderer
   end
 
   def self.render(version:, card:)
-    report = validate_source(version.source_html, version.source_css)
+    report = validate_source(version.source_html, version.source_css, semantic_fields: version.semantic_fields)
     raise InvalidTemplate, report.fetch("errors").join("；") unless report.fetch("valid")
 
-    html = Liquid::Template.parse(version.source_html).render!(context_for(card, version.badge_template), strict_variables: true)
+    html = Liquid::Template.parse(version.source_html).render!(context_for(card, version), strict_variables: true)
     html = sanitize_html(html)
     css = sanitize_css(version.source_css)
     document = document_for(html, css, version.badge_template)
@@ -54,28 +64,37 @@ class BadgeTemplateRenderer
     raise InvalidTemplate, "Liquid 渲染失败：#{e.message}"
   end
 
-  def self.context_for(card, template)
-    data = card.normalized_data.transform_values { |value| ERB::Util.html_escape(value.to_s) }
-    ai_fields = card.data.to_h.fetch("_ai_fields", [])
-    selected = ai_fields.filter { |field| field["selected"] != false }.map do |field|
-      {
-        "key" => ERB::Util.html_escape(field["key"].to_s),
-        "label" => ERB::Util.html_escape(field["label"].to_s),
-        "value" => ERB::Util.html_escape(field["value"].to_s)
-      }
+  def self.context_for(card, version)
+    fields = version.semantic_fields.each_with_object({}) do |field, result|
+      key = field.fetch("key")
+      result[key] = ERB::Util.html_escape(semantic_value(card, field).to_s)
+    end
+    legacy_card_fields = LEGACY_FIELD_ALIASES.each_with_object({}) do |(legacy_key, semantic_key), result|
+      result[legacy_key] = fields[semantic_key] if fields.key?(semantic_key)
     end
 
     {
-      "card" => data.merge(
+      "card" => legacy_card_fields.merge(
         "width_mm" => card.width,
         "height_mm" => card.height,
         "portrait_url" => portrait_url(card)
       ),
-      "fields" => data,
-      "assets" => template_asset_urls(template),
-      "selected_fields" => selected
+      "fields" => fields,
+      "assets" => template_asset_urls(version.badge_template)
     }
   end
+
+  def self.semantic_value(card, field)
+    key = field.fetch("key")
+    stored = card.data.to_h
+    return stored[key] if stored.key?(key)
+
+    legacy_key = LEGACY_FIELD_ALIASES.key(key) || key
+    return stored[legacy_key] if stored.key?(legacy_key)
+
+    Card::FIELD_DEFAULTS[legacy_key] || field["default_value"]
+  end
+  private_class_method :semantic_value
 
   def self.portrait_url(card)
     return "/default-avatar.svg" unless card.portrait.attached?
@@ -141,12 +160,38 @@ class BadgeTemplateRenderer
   end
   private_class_method :document_for
 
-  def self.liquid_errors(html)
-    html.scan(/{%\s*(\w+)/).flatten.uniq.filter_map do |tag|
+  def self.liquid_errors(html, semantic_fields:)
+    errors = html.scan(/{%\s*(\w+)/).flatten.uniq.filter_map do |tag|
       next if ALLOWED_LIQUID_TAGS.include?(tag)
 
       "不允许使用 Liquid 标签：#{tag}"
     end
+    declared_fields = BadgeTemplateVersion.semantic_field_keys(semantic_fields)
+    liquid_references(html).each do |reference|
+      root, key = reference.split(".", 2)
+      case root
+      when "fields"
+        errors << "模板引用了未声明的语义字段：#{key}" unless declared_fields.include?(key)
+      when "card"
+        next if SYSTEM_CARD_FIELDS.include?(key)
+        canonical = LEGACY_FIELD_ALIASES[key]
+        if canonical.nil?
+          errors << "不允许使用 Liquid 变量：#{reference}"
+        elsif !declared_fields.include?(canonical)
+          errors << "模板引用了未声明的语义字段：#{canonical}"
+        end
+      when "assets"
+        errors << "素材引用格式无效：#{reference}" unless key&.match?(/\Areference_[1-9]\d*\z/)
+      else
+        errors << "不允许使用 Liquid 变量：#{reference}"
+      end
+    end
+    errors
   end
   private_class_method :liquid_errors
+
+  def self.liquid_references(html)
+    html.scan(/(?:{{|{%\s*(?:if|elsif|unless))\s*([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?)/).flatten.uniq
+  end
+  private_class_method :liquid_references
 end

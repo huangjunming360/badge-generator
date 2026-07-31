@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import httpx
 
 from .client import RailsControlPlane
+from .claude import AgentEditError, ClaudeTemplateEditor
 from .config import Settings
 from .contracts import HeartbeatRequest, JobResult, NodeCapabilities, TemplateJob
 from .mai import MaiVisualRepairer, VisualRepairError
@@ -22,6 +23,7 @@ class TemplateAgent:
         self._control_plane = RailsControlPlane(settings)
         self._renderer = IsolatedRenderer(settings.renderer_image, settings.renderer_timeout_seconds)
         self._repairer = MaiVisualRepairer(settings, self._renderer)
+        self._editor = ClaudeTemplateEditor(settings)
 
     def run_forever(self) -> None:
         while True:
@@ -56,7 +58,7 @@ class TemplateAgent:
         lease_thread.start()
         try:
             result = self._run_visual_repair(job, max_iterations)
-        except (RenderError, VisualRepairError) as error:
+        except (AgentEditError, RenderError, VisualRepairError) as error:
             LOGGER.warning("job %s failed: %s", job.id, error)
             result = JobResult(status="failed", error=str(error))
         except Exception:
@@ -80,12 +82,17 @@ class TemplateAgent:
     def _run_visual_repair(self, job: TemplateJob, max_iterations: int) -> JobResult:
         if job.job_type != "visual_repair":
             return JobResult(status="failed", error="不支持的节点任务类型")
-        repaired = self._repairer.repair(job, max_iterations=max_iterations)
+        edited = self._editor.edit(job)
+        review_job = job.model_copy(update={
+            "source_html": edited.source_html,
+            "source_css": edited.source_css,
+        })
+        repaired = self._repairer.repair(review_job, max_iterations=max_iterations)
         return JobResult(
             status="succeeded",
             source_html=repaired.source_html,
             source_css=repaired.source_css,
-            report=repaired.report,
+            report={**edited.report, **repaired.report},
         )
 
 

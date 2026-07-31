@@ -11,6 +11,7 @@ import ChangePasswordPage from "./components/ChangePasswordPage";
 import AdminTemplateWorkbench from "./components/AdminTemplateWorkbench";
 import TemplateStudioWorkbench from "./components/TemplateStudioWorkbench";
 import TemplateDesignChat from "./components/TemplateDesignChat";
+import AdminGpuNodes from "./components/AdminGpuNodes";
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: "/inactive", Component: InactivePage },
       { path: "/change-password", Component: ChangePasswordPage },
       { path: "/admin/templates", Component: TemplateDesignChat },
+      { path: "/admin/gpu-nodes", Component: AdminGpuNodes },
       { path: "/templates", Component: TemplateStudioWorkbench },
     ],
   },

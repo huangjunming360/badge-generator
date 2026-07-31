@@ -61,6 +61,7 @@ export default function UserMenu({ dark }: { dark?: boolean }) {
             <>
               <a href="/admin" style={itemStyle}>管理后台</a>
               <a href="/admin/templates" style={itemStyle}>模板工作台</a>
+              <a href="/admin/gpu-nodes" style={itemStyle}>GPU 节点</a>
             </>
           )}
           {!user.admin && studioAvailable && <a href="/templates" style={itemStyle}>我的模板</a>}

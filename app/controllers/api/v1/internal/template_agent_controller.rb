@@ -30,7 +30,7 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
     if completion_params[:status] == "succeeded"
       source_html = completion_params[:source_html].to_s
       source_css = completion_params[:source_css].to_s
-      report = BadgeTemplateRenderer.validate_source(source_html, source_css)
+      report = BadgeTemplateRenderer.validate_source(source_html, source_css, semantic_fields: job.payload.fetch("semantic_fields", BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS))
       return render json: { errors: report.fetch("errors") }, status: :unprocessable_content unless report.fetch("valid")
 
       result = result.merge("source_html" => source_html, "source_css" => source_css, "validation_report" => report)
@@ -74,7 +74,8 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
       source_html: payload["source_html"].to_s,
       source_css: payload["source_css"].to_s,
       width_mm: payload.fetch("width_mm", 55).to_i,
-      height_mm: payload.fetch("height_mm", 85).to_i
+      height_mm: payload.fetch("height_mm", 85).to_i,
+      semantic_fields: payload.fetch("semantic_fields", BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS)
     }
   end
 

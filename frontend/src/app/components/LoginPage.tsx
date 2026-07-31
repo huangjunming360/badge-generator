@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { U, E } from "./shared";
 import { login } from "../../api/sessions";
+import { setAuthenticatedUser } from "./useAuth";
 
 export default function LoginPage() {
   const nav = useNavigate();
@@ -15,7 +16,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      setAuthenticatedUser(result.user);
       nav("/");
     } catch (err: any) {
       setError(err.errors?.[0] || "登录失败");

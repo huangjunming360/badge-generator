@@ -2,7 +2,7 @@
 
 节点运行在 Windows 的 WSL2 Ubuntu 中。它主动通过 ZeroTier 私网向 Rails 心跳和领取任务，因此不需要端口映射，也不会接触浏览器 Cookie 或用户登录会话。
 
-该目录已经包含可运行的私有节点：Rails 持久化租约、Python 轮询、MAI 视觉修复和一次性 Playwright 沙箱。节点不会接触浏览器 Cookie、用户密码、数据库或宿主机桌面。
+该目录已经包含可运行的私有节点：Rails 持久化租约、Python 轮询、Claude Agent SDK 的受限模板编辑、MAI 本地视觉质检和一次性 Playwright 沙箱。节点不会接触浏览器 Cookie、用户密码、数据库或宿主机桌面。
 
 ## 下载 MAI-UI-8B
 
@@ -68,7 +68,17 @@ cp .env.example .env
 badge-template-agent
 ```
 
-节点每 15 秒向 Rails 主动心跳。空闲时不访问 MAI；收到 `visual_repair` 任务才会处理。单任务最多 3 轮：渲染截图 -> MAI 诊断/修复 -> 再渲染。截图只停留在本机进程内，不上传 Rails。
+节点每 15 秒向 Rails 主动心跳。空闲时不访问模型；收到 `visual_repair` 任务才会处理。处理顺序是：Claude Agent SDK 在临时目录中只编辑 `template.html` 和 `template.css` -> 受限渲染器截图 -> 本机 MAI 诊断/修复 -> 再渲染。截图只停留在本机进程内，不上传 Rails。
+
+Claude Agent SDK 从 GPU 节点本机取得 Claude Code 登录态或 `ANTHROPIC_API_KEY`，不经 Rails 转发。安装依赖后任选一种认证方式：
+
+```bash
+claude login
+# 或
+export ANTHROPIC_API_KEY=...
+```
+
+SDK 不获得 `Bash`、网络、子代理或搜索工具；每次任务创建空临时目录，并由写入前 hook 强制限制为两个输出文件。`TEMPLATE_AGENT_CLAUDE_MODEL` 留空时使用节点 Claude Code 的默认模型；配置它可固定模型。Claude 服务不可用时任务会失败并等待人工重试，不会回退到不受控的模型输出。
 
 不接 GPU 也可以先运行节点单元测试，验证容器隔离参数、MAI 响应解析与多轮修复控制逻辑：
 

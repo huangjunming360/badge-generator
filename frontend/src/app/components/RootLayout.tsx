@@ -3,7 +3,7 @@ import { useNavigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "./useAuth";
 import { getJson } from "../../api/client";
 
-const PROTECTED = ["/design", "/history", "/change-password", "/admin/templates", "/templates"];
+const PROTECTED = ["/design", "/history", "/change-password", "/admin/templates", "/admin/gpu-nodes", "/templates"];
 const PUBLIC = ["/login", "/register", "/setup", "/inactive"];
 
 export default function RootLayout() {
@@ -28,7 +28,7 @@ export default function RootLayout() {
     if (PUBLIC.some(p => loc.pathname.startsWith(p))) return;
     if (PROTECTED.some(p => loc.pathname.startsWith(p)) && !user) {
       nav("/login", { replace: true });
-    } else if (loc.pathname.startsWith("/admin/templates") && !user?.admin) {
+    } else if (loc.pathname.startsWith("/admin/") && !user?.admin) {
       nav("/", { replace: true });
     }
   }, [loading, user, loc.pathname, setupChecked]);

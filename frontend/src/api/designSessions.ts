@@ -13,6 +13,13 @@ export interface DesignConfiguration {
   model_id?: string | null;
   width_mm: number;
   height_mm: number;
+  semantic_fields?: SemanticField[];
+}
+
+export interface SemanticField {
+  key: string;
+  label: string;
+  default_value?: string;
 }
 
 export interface DesignJob {
@@ -67,6 +74,14 @@ export const createDesignSession = (data: {
   form.set("name", data.name);
   form.set("initial_message", data.initial_message ?? "");
   Object.entries(data.configuration).forEach(([key, value]) => {
+    if (key === "semantic_fields") {
+      (value as SemanticField[] | undefined)?.forEach((field, index) => {
+        form.set(`configuration[semantic_fields][${index}][key]`, field.key);
+        form.set(`configuration[semantic_fields][${index}][label]`, field.label);
+        if (field.default_value) form.set(`configuration[semantic_fields][${index}][default_value]`, field.default_value);
+      });
+      return;
+    }
     if (value !== undefined && value !== null) form.set(`configuration[${key}]`, String(value));
   });
   data.assets.forEach((asset) => form.append("reference_assets[]", asset));
@@ -77,6 +92,14 @@ export const appendDesignMessage = (id: number, data: { content: string; configu
   const form = new FormData();
   form.set("content", data.content);
   Object.entries(data.configuration ?? {}).forEach(([key, value]) => {
+    if (key === "semantic_fields") {
+      (value as SemanticField[] | undefined)?.forEach((field, index) => {
+        form.set(`configuration[semantic_fields][${index}][key]`, field.key);
+        form.set(`configuration[semantic_fields][${index}][label]`, field.label);
+        if (field.default_value) form.set(`configuration[semantic_fields][${index}][default_value]`, field.default_value);
+      });
+      return;
+    }
     if (value !== undefined && value !== null) form.set(`configuration[${key}]`, String(value));
   });
   data.assets.forEach((asset) => form.append("reference_assets[]", asset));

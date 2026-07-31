@@ -28,7 +28,8 @@ class TemplateGenerationOrchestrator
       model_id: payload["model_id"],
       width_mm: payload["width_mm"],
       height_mm: payload["height_mm"],
-      reference_assets: @job.reference_assets
+      reference_assets: @job.reference_assets,
+      semantic_fields: payload.fetch("semantic_fields", BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS)
     )
     @job.advance_stage!("validating", message: "正在检查模板安全性和可渲染性", result: proposal.fetch("validation_report"))
     renew_lease!
@@ -76,6 +77,7 @@ class TemplateGenerationOrchestrator
         "requirement" => payload.fetch("requirement").to_s,
         "width_mm" => payload.fetch("width_mm", 55),
         "height_mm" => payload.fetch("height_mm", 85),
+        "semantic_fields" => payload.fetch("semantic_fields", BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS),
         "parent_generation_job_id" => @job.id
       }
     )
@@ -88,6 +90,7 @@ class TemplateGenerationOrchestrator
       "model_id" => payload["model_id"],
       "reference_notes_present" => payload["reference_notes"].to_s.present?,
       "canvas" => { "width_mm" => payload.fetch("width_mm", 55), "height_mm" => payload.fetch("height_mm", 85) },
+      "semantic_fields" => payload.fetch("semantic_fields", BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS),
       "reference_assets_count" => @job.reference_assets.count
     }
   end

@@ -74,7 +74,7 @@ functions:
 
       约束：
       - HTML 只能使用 article、div、h1-h6、p、span、img、main、section、header、footer、ul、li、br、strong、small 等普通展示标签。
-      - 只能使用 Liquid 变量 {{ card.name }}、{{ card.name_en }}、{{ card.organization }}、{{ card.host_organization }}、{{ card.host_department }}、{{ card.event_topic }}、{{ card.portrait_url }}；可使用 if/else/endif 和 for/endfor。
+      - 请求中的 semantic_fields 是本模板唯一允许展示的业务字段契约。业务文字只能使用 {{ fields.<key> }}，其中 <key> 必须逐字来自该数组；不要猜测其他字段。系统变量仅允许 {{ card.portrait_url }}、{{ card.width_mm }}、{{ card.height_mm }}；可使用 if/else/endif 和 for/endfor。
       - 请求中的 reference_asset_slots 是可复用的本地品牌/装饰素材数量。需要在最终成品中使用第 N 张素材时，只能使用 {{ assets.reference_N }}（N 从 1 开始且不能超过该数量）；没有素材时绝不能引用 assets。素材会在管理员保存草案时安全归属到该模板。
       - 不得输出 script、iframe、form、input、meta、link、外部资源、JavaScript、CSS url() 或 @import。
       - 图片如需使用，只能写 src="{{ card.portrait_url }}"。
@@ -96,7 +96,7 @@ functions:
 
       保留原模板的内容意图，只修复布局、溢出、可读性和明显的视觉错误。
       不要把字段写死在固定坐标；保留或建立可伸缩文字区域、字号范围和明确的长文本溢出策略。中文优先使用 "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif 字体栈。
-      遵守模板生成器的全部安全约束：不得使用 script、iframe、form、input、meta、link、外部资源、JavaScript、CSS url() 或 @import；只能使用允许的 Liquid 变量和控制标签。
+      遵守模板生成器的全部安全约束：不得使用 script、iframe、form、input、meta、link、外部资源、JavaScript、CSS url() 或 @import；业务文字只能使用请求 semantic_fields 中声明的 {{ fields.<key> }}，系统变量仅限头像和画布尺寸。
       CSS 只返回样式表内容，不要包含 <style> 标签。
     model: fast
     max_tokens: 4096

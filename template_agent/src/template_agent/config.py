@@ -19,3 +19,8 @@ class Settings(BaseSettings):
     renderer_image: str = "badge-template-renderer:local"
     renderer_timeout_seconds: int = 60
     lease_heartbeat_seconds: int = 30
+
+    # Authentication is owned by Claude Agent SDK on the GPU node. This is
+    # intentionally separate from the Rails node token.
+    claude_model: str | None = None
+    claude_max_turns: int = 6

@@ -28,6 +28,29 @@ class BadgeTemplateRendererTest < ActiveSupport::TestCase
     assert_includes html, "Content-Security-Policy"
   end
 
+  test "模板只能引用版本声明的语义字段" do
+    fields = [ { "key" => "participant_name", "label" => "参加者姓名" } ]
+    report = BadgeTemplateRenderer.validate_source("<h1>{{ fields.organization }}</h1>", "", semantic_fields: fields)
+
+    assert_not report.fetch("valid")
+    assert_includes report.fetch("errors"), "模板引用了未声明的语义字段：organization"
+  end
+
+  test "渲染只为声明字段提供数据，并兼容历史姓名键" do
+    version = @template.versions.create!(
+      created_by: @user,
+      version: @template.next_version_number,
+      semantic_fields: [ { "key" => "participant_name", "label" => "参加者姓名" } ],
+      source_html: "<h1>{{ fields.participant_name }}</h1>",
+      source_css: ""
+    )
+
+    html = BadgeTemplateRenderer.render(version: version, card: @card)
+
+    assert_includes html, "张三"
+    assert_not_includes BadgeTemplateRenderer.context_for(@card, version).fetch("fields"), "organization"
+  end
+
   test "用户字段会被转义" do
     @card.update!(data: { "name" => '<img src="https://evil.example/x">' })
     version = create_version(html: "<div>{{ card.name }}</div>")
