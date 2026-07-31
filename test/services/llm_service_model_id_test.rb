@@ -19,6 +19,14 @@ class LlmServiceModelIdTest < ActiveSupport::TestCase
     Rails.application.config.x.models = original
   end
 
+  def with_functions(functions)
+    original = Rails.application.config.x.llm_functions
+    Rails.application.config.x.llm_functions = functions
+    yield
+  ensure
+    Rails.application.config.x.llm_functions = original
+  end
+
   def config_of(**kwargs)
     LlmService.new(**kwargs).instance_variable_get(:@config)
   end
@@ -47,6 +55,31 @@ class LlmServiceModelIdTest < ActiveSupport::TestCase
       # 静默回落会让用户以为换了模型其实没换
       error = assert_raises(LlmService::UnknownModel) { config_of(model_id: "nope") }
       assert_match(/未知的模型/, error.message)
+    end
+  end
+
+  test "function 选择配置中的模型和参数" do
+    with_models do
+      with_functions("template_design" => { "model" => "model_b", "prompt" => "设计", "max_tokens" => 123 }) do
+        service = LlmService.new(function: :template_design)
+        assert_equal "m-b", service.instance_variable_get(:@config)["model"]
+        assert_equal "设计", service.function_prompt
+        assert_equal 123, service.function_max_tokens
+      end
+    end
+  end
+
+  test "显式 model_id 优先于 function 默认模型" do
+    with_models do
+      with_functions("template_design" => { "model" => "model_b" }) do
+        assert_equal "m-a", config_of(function: :template_design, model_id: "model_a")["model"]
+      end
+    end
+  end
+
+  test "未知 function 报错" do
+    with_functions({}) do
+      assert_raises(LlmService::UnknownFunction) { LlmService.new(function: :missing) }
     end
   end
 end
