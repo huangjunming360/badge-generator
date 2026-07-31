@@ -35,6 +35,7 @@ import {
   updateStudioTemplate,
   type BadgeTemplate,
   type TemplateAgentStatus,
+  type TemplateProposal,
   type TemplateVersion,
 } from "../../api/templates";
 import { U } from "./shared";
@@ -60,6 +61,14 @@ const liquidSample = (s: string) =>
 
 const latestGenerationStorageKey = (studio: boolean) =>
   studio ? "badge-template-studio-generation-job" : "badge-template-admin-generation-job";
+
+const visualStopLabel = (reason?: string) =>
+  ({
+    visual_check_passed: "视觉检查通过",
+    no_visual_improvement: "连续修复未改善，已停止",
+    time_budget_exhausted: "达到时间预算，已停止",
+    max_iterations_reached: "达到修复轮数上限，已停止",
+  } as Record<string, string>)[reason ?? ""];
 
 export default function AdminTemplateWorkbench({ studio = false }: { studio?: boolean }) {
   const nav = useNavigate();
@@ -88,6 +97,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
   const [generationStage, setGenerationStage] = useState<string | null>(null);
   const [generationMessage, setGenerationMessage] = useState("");
+  const [generationVisualReview, setGenerationVisualReview] = useState<TemplateProposal["visual_review"]>();
   const [canvasPreviewReady, setCanvasPreviewReady] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [agentStatus, setAgentStatus] = useState<TemplateAgentStatus | null>(null);
@@ -125,6 +135,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
         setGenerationStatus(job.status);
         setGenerationStage(job.stage ?? "");
         setGenerationMessage(job.stage_message ?? "");
+        setGenerationVisualReview(job.result?.visual_review);
         if (["succeeded", "waiting_for_visual_review"].includes(job.status) && job.result?.html) {
           setHtml(job.result.html);
           setCss(job.result.css);
@@ -222,6 +233,7 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
             setGenerationStatus(job.status);
             setGenerationStage(job.stage ?? "");
             setGenerationMessage(job.stage_message ?? "");
+            setGenerationVisualReview(job.result?.visual_review);
             if (["succeeded", "waiting_for_visual_review"].includes(job.status) && job.result?.html) {
               setHtml(job.result.html);
               setCss(job.result.css);
@@ -733,6 +745,17 @@ export default function AdminTemplateWorkbench({ studio = false }: { studio?: bo
                 )[generationStage] ?? generationStage}
                 <br />
                 <span style={{ color: U.textFaint }}>{generationMessage}</span>
+                {visualStopLabel(generationVisualReview?.stop_reason) && (
+                  <span style={{ display: "block", marginTop: 4, color: U.textMid }}>
+                    {visualStopLabel(generationVisualReview?.stop_reason)}
+                    {generationVisualReview?.iterations
+                      ? ` · ${generationVisualReview.iterations.length} 轮`
+                      : ""}
+                    {generationVisualReview?.elapsed_ms
+                      ? ` · ${(generationVisualReview.elapsed_ms / 1000).toFixed(1)} 秒`
+                      : ""}
+                  </span>
+                )}
               </div>
             )}
           </div>

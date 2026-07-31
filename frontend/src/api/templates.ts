@@ -3,7 +3,16 @@ import type { SemanticField } from "./designSessions";
 
 export interface TemplateVersion { id: number; version: number; source_kind: string; source_html?: string; source_css?: string; semantic_fields?: SemanticField[]; validation_report?: { valid?: boolean; errors?: string[] }; created_at?: string; }
 export interface BadgeTemplate { id: number; name: string; orientation: string; width_mm: number; height_mm: number; status: string; versions?: TemplateVersion[]; published_version?: TemplateVersion | null; }
-export interface TemplateProposal { html: string; css: string; notes: string; validation_report?: { valid?: boolean; errors?: string[] }; }
+export interface TemplateProposal {
+  html: string;
+  css: string;
+  notes: string;
+  validation_report?: { valid?: boolean; errors?: string[] };
+  visual_review?: { stop_reason?: string; elapsed_ms?: number; iterations?: unknown[] };
+  stop_reason?: string;
+  elapsed_ms?: number;
+  iterations?: unknown[];
+}
 
 export const fetchAdminTemplates = () => getJson<{ templates: BadgeTemplate[] }>("/admin/badge_templates").then(r => r.templates);
 export const fetchStudioTemplates = () => getJson<{ templates: BadgeTemplate[] }>("/template_studio").then(r => r.templates);
