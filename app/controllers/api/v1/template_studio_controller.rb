@@ -140,8 +140,9 @@ class Api::V1::TemplateStudioController < Api::BaseController
   def validated_reference_assets
     assets = Array(params[:reference_assets]).compact
     return [] if assets.empty?
-    if assets.length > TemplateGenerationJob::MAX_REFERENCE_ASSETS
-      render json: { errors: [ "参考素材最多上传 #{TemplateGenerationJob::MAX_REFERENCE_ASSETS} 个" ] }, status: :unprocessable_content
+    limit = TemplateDesignPolicy.reference_asset_limit(Current.user)
+    if assets.length > limit
+      render json: { errors: [ "参考素材最多上传 #{limit} 个" ] }, status: :unprocessable_content
       return []
     end
 

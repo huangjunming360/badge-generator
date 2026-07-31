@@ -9,6 +9,7 @@ class TemplateDesignPolicy
   DEFAULT_TEMPLATE_LIMIT = 10
   DEFAULT_SESSION_LIMIT = 10
   DEFAULT_MONTHLY_GENERATION_LIMIT = 3
+  DEFAULT_REFERENCE_ASSET_LIMIT = 4
 
   def self.ensure_design_access!(user)
     return if user.admin?
@@ -48,11 +49,20 @@ class TemplateDesignPolicy
     raise QuotaExceeded, "本月 AI 模板生成额度已用完（#{limit} 次）"
   end
 
+  def self.reference_asset_limit(user)
+    return TemplateGenerationJob::MAX_REFERENCE_ASSETS if user.admin?
+
+    setting_limit("user_template_reference_asset_limit", DEFAULT_REFERENCE_ASSET_LIMIT)
+      .clamp(0, TemplateGenerationJob::MAX_REFERENCE_ASSETS)
+  end
+
   def self.settings_payload
     {
       enabled: Setting.bool("user_templates_enabled", default: false),
       template_limit: setting_limit("user_template_limit", DEFAULT_TEMPLATE_LIMIT),
       session_limit: setting_limit("user_template_session_limit", DEFAULT_SESSION_LIMIT),
+      reference_asset_limit: setting_limit("user_template_reference_asset_limit", DEFAULT_REFERENCE_ASSET_LIMIT)
+        .clamp(0, TemplateGenerationJob::MAX_REFERENCE_ASSETS),
       monthly_generation_limit: setting_limit("user_template_generation_monthly_limit", DEFAULT_MONTHLY_GENERATION_LIMIT)
     }
   end

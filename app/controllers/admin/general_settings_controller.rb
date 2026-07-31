@@ -1,7 +1,7 @@
 class Admin::GeneralSettingsController < Admin::BaseController
   BOOL_KEYS = %i[allow_registration require_login_for_models mineru_enabled portrait_detect ai_fields_enabled user_templates_enabled].freeze
   TEXT_KEYS = %i[site_title mineru_model mineru_extensions extract_model portrait_model allowed_extensions].freeze
-  INTEGER_KEYS = %i[user_template_limit user_template_session_limit user_template_generation_monthly_limit].freeze
+  INTEGER_KEYS = %i[user_template_limit user_template_session_limit user_template_reference_asset_limit user_template_generation_monthly_limit].freeze
   SECRET_KEYS = %i[mineru_api_key].freeze
 
   def show
@@ -9,7 +9,13 @@ class Admin::GeneralSettingsController < Admin::BaseController
     BOOL_KEYS.each { |k| @settings[k] = Setting.bool(k.to_s) }
     TEXT_KEYS.each { |k| @settings[k] = Setting.get(k.to_s) }
     INTEGER_KEYS.each do |key|
-      default = key == :user_template_generation_monthly_limit ? 3 : 10
+      default = if key == :user_template_generation_monthly_limit
+        3
+      elsif key == :user_template_reference_asset_limit
+        4
+      else
+        10
+      end
       @settings[key] = TemplateDesignPolicy.setting_limit(key.to_s, default)
     end
     SECRET_KEYS.each { |k| @settings[k] = Setting.get(k.to_s) }
