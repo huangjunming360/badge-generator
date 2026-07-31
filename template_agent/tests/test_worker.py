@@ -7,6 +7,7 @@ from template_agent.claude import AgentEditError
 from template_agent.cancellation import JobCancelled
 from template_agent.contracts import TemplateJob
 from template_agent.worker import TemplateAgent
+from template_agent.rendering import RenderResult
 
 
 class TemplateAgentCancellationTest(unittest.TestCase):
@@ -77,3 +78,21 @@ class TemplateAgentCancellationTest(unittest.TestCase):
 
         agent._editor.edit.assert_not_called()
         agent._repairer.repair.assert_not_called()
+
+    def test_model_call_budget_stops_before_starting_a_new_repair_round(self) -> None:
+        agent = TemplateAgent.__new__(TemplateAgent)
+        agent._editor = Mock()
+        agent._repairer = Mock()
+        agent._repairer.render.return_value = RenderResult("data:image/png;base64,x", {"overflow_y": True})
+        agent._repairer.diagnostic_score.return_value = 1
+        job = TemplateJob(
+            id="job-budget", lease_token="lease", job_type="visual_repair", complexity=4,
+            source_html="<article></article>", source_css=".badge{}",
+        )
+
+        result = agent._run_visual_repair(job, 200, 1, None, None, threading.Event())
+
+        self.assertEqual("model_call_budget_exhausted", result.report["stop_reason"])
+        self.assertEqual(0, result.report["model_calls"])
+        agent._repairer.diagnose.assert_not_called()
+        agent._editor.edit.assert_not_called()
