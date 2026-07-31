@@ -43,6 +43,8 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     assert_equal job.id.to_s, body.dig("job", "id")
     assert_equal 55, body.dig("job", "width_mm")
     assert_equal 85, body.dig("job", "height_mm")
+    assert_equal "", body.dig("job", "reference_notes")
+    assert_equal BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS, body.dig("job", "semantic_fields")
     assert_nil body.dig("desired_config", "claude_model")
     assert_equal "leased", job.reload.status
     assert_equal true, @node.reload.capabilities["mai_ready"]
@@ -164,6 +166,23 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     assert_equal "cancelled", job.reload.status
     assert_equal "用户主动停止", job.stage_results.dig("cancellation", "reason")
     assert_not_nil job.stage_results.dig("cancellation", "cancelled_at")
+  end
+
+  test "已取消任务的迟到完成不能覆盖取消状态" do
+    job = queued_job
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true, agent_model_ready: true, agent_model_id: "node-local-default" }
+    }, headers: node_headers
+    lease = body.dig("job", "lease_token")
+    job.cancel!(reason: "用户主动停止")
+
+    post "/api/v1/internal/template-agent/jobs/#{job.id}/complete", params: {
+      lease_token: lease, status: "failed", error: "节点迟到返回"
+    }, headers: node_headers
+
+    assert_response :conflict
+    assert_equal "cancelled", job.reload.status
+    assert_equal "用户主动停止", job.stage_results.dig("cancellation", "reason")
   end
 
   test "自动视觉检查完成后会把修复后的草案回写给父生成任务" do

@@ -138,6 +138,8 @@ class MaiVisualRepairer:
         instruction = {
             "task": "修复固定尺寸名牌模板的视觉问题",
             "requirement": job.requirement,
+            "reference_notes": job.reference_notes,
+            "semantic_fields": job.semantic_fields,
             "diagnostics": [job.diagnostics, rendered.diagnostics],
             "complexity": job.complexity,
             "html": html,

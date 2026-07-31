@@ -2,8 +2,21 @@ require "test_helper"
 
 class Api::V1::TemplateDesignSessionsTest < ActionDispatch::IntegrationTest
   setup do
-    @admin = User.create!(email_address: "design-admin@test.com", password: "test123", password_confirmation: "test123", role: "admin")
+    @admin = User.create!(email_address: "design-admin@test.com", password: "test123", password_confirmation: "test123", role: "admin", model_level: 4)
     @other = User.create!(email_address: "design-other@test.com", password: "test123", password_confirmation: "test123", role: "admin")
+    @original_models = Rails.application.config.x.models
+    Rails.application.config.x.models = {
+      "default" => "fast",
+      "models" => [
+        { "id" => "fast", "label" => "极速", "level" => 4, "capabilities" => [ "text_generation" ] },
+        { "id" => "restricted", "label" => "受限", "level" => 1, "capabilities" => [ "text_generation" ] },
+        { "id" => "visual-only", "label" => "视觉", "level" => 4, "capabilities" => [ "vision_input" ] }
+      ]
+    }
+  end
+
+  teardown do
+    Rails.application.config.x.models = @original_models
   end
 
   def sign_in(user)
@@ -112,5 +125,86 @@ class Api::V1::TemplateDesignSessionsTest < ActionDispatch::IntegrationTest
     post "/api/v1/template_design_sessions/#{session_id}/append_message", params: { content: "继续修改第三版" }
     assert_response :too_many_requests
     assert_includes body.fetch("errors").first, "额度已用完"
+  end
+
+  test "创建会话会拒绝未知模型和不具备文本生成能力的模型" do
+    sign_in(@admin)
+
+    assert_no_difference "TemplateDesignSession.count" do
+      post "/api/v1/template_design_sessions", params: {
+        name: "未知模型", configuration: { model_id: "missing" }
+      }
+    end
+    assert_response :unprocessable_content
+    assert_includes body.fetch("errors"), "未知的模型"
+
+    assert_no_difference "TemplateDesignSession.count" do
+      post "/api/v1/template_design_sessions", params: {
+        name: "视觉模型", configuration: { model_id: "visual-only" }
+      }
+    end
+    assert_response :unprocessable_content
+    assert_includes body.fetch("errors"), "该模型不支持文本生成"
+  end
+
+  test "普通用户不能在创建会话时选择超过权限等级的模型" do
+    user = User.create!(email_address: "design-model-level@test.com", password: "test123", password_confirmation: "test123", model_level: 4)
+    Setting.set("user_templates_enabled", true)
+    sign_in(user)
+
+    assert_no_difference "TemplateDesignSession.count" do
+      post "/api/v1/template_design_sessions", params: {
+        name: "越权模型", configuration: { model_id: "restricted" }
+      }
+    end
+
+    assert_response :forbidden
+    assert_includes body.fetch("errors"), "无权限使用该模型"
+  end
+
+  test "管理员更新和追加需求都会校验会话指定模型" do
+    sign_in(@admin)
+    session = @admin.template_design_sessions.create!(name: "模型校验", configuration: { "model_id" => "fast" })
+
+    patch "/api/v1/template_design_sessions/#{session.id}", params: {
+      configuration: { model_id: "visual-only" }
+    }
+    assert_response :unprocessable_content
+    assert_equal "fast", session.reload.configuration.fetch("model_id")
+
+    patch "/api/v1/template_design_sessions/#{session.id}", params: {
+      configuration: { model_id: "restricted" }
+    }
+    assert_response :forbidden
+    assert_equal "fast", session.reload.configuration.fetch("model_id")
+
+    assert_no_difference "TemplateDesignMessage.count" do
+      post "/api/v1/template_design_sessions/#{session.id}/append_message", params: {
+        content: "换一个模型", configuration: { model_id: "missing" }
+      }
+    end
+    assert_response :unprocessable_content
+    assert_includes body.fetch("errors"), "未知的模型"
+  end
+
+  test "普通用户更新和追加需求同样不能绕过模型权限" do
+    user = User.create!(email_address: "design-model-update@test.com", password: "test123", password_confirmation: "test123", model_level: 4)
+    Setting.set("user_templates_enabled", true)
+    session = user.template_design_sessions.create!(name: "普通用户模型校验", configuration: { "model_id" => "fast" })
+    sign_in(user)
+
+    patch "/api/v1/template_design_sessions/#{session.id}", params: {
+      configuration: { model_id: "restricted" }
+    }
+    assert_response :forbidden
+    assert_equal "fast", session.reload.configuration.fetch("model_id")
+
+    assert_no_difference "TemplateDesignMessage.count" do
+      post "/api/v1/template_design_sessions/#{session.id}/append_message", params: {
+        content: "不能越权", configuration: { model_id: "restricted" }
+      }
+    end
+    assert_response :forbidden
+    assert_includes body.fetch("errors"), "无权限使用该模型"
   end
 end

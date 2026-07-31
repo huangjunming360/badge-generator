@@ -83,6 +83,24 @@ class MaiVisualRepairerTest(unittest.TestCase):
         with self.assertRaises(VisualRepairError):
             repairer._parse_response("not json")
 
+    def test_visual_request_includes_field_contract_and_reference_notes(self) -> None:
+        with patch("template_agent.mai.OpenAI") as openai:
+            client = openai.return_value
+            client.chat.completions.create.return_value = Mock(
+                choices=[Mock(message=Mock(content='{"html":"<article></article>","css":"","notes":"ok"}'))]
+            )
+            repairer = MaiVisualRepairer(self.settings, Mock())
+            job = self.job.model_copy(update={
+                "reference_notes": "参考蓝色夏令营挂牌",
+                "semantic_fields": [{"key": "name", "label": "姓名"}],
+            })
+
+            repairer._ask_mai(job, "<article></article>", ".badge{}", RenderResult("data:image/png;base64,x", {}))
+
+        text = client.chat.completions.create.call_args.kwargs["messages"][1]["content"][0]["text"]
+        self.assertIn("参考蓝色夏令营挂牌", text)
+        self.assertIn('"semantic_fields"', text)
+
     def test_rejects_oversized_model_output(self) -> None:
         with patch("template_agent.mai.OpenAI"):
             repairer = MaiVisualRepairer(self.settings, Mock())

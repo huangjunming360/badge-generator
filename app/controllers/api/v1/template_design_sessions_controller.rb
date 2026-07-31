@@ -17,9 +17,12 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
   end
 
   def create
+    attributes = session_params
+    return unless template_model_available?(attributes.dig(:configuration, "model_id"))
+
     TemplateDesignPolicy.ensure_session_capacity!(Current.user)
     TemplateDesignPolicy.ensure_generation_capacity!(Current.user) if initial_message.present?
-    session = Current.user.template_design_sessions.create!({ name: "未命名设计会话" }.merge(session_params))
+    session = Current.user.template_design_sessions.create!({ name: "未命名设计会话" }.merge(attributes))
     assets = validated_reference_assets
     return if performed?
 
@@ -34,7 +37,10 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
   end
 
   def update
-    @session.update!(session_params)
+    attributes = session_params
+    return unless template_model_available?(attributes.dig(:configuration, "model_id"))
+
+    @session.update!(attributes)
     render json: { session: session_payload(@session, include_details: true) }
   rescue ActiveRecord::RecordInvalid => e
     render json: { errors: e.record.errors.full_messages }, status: :unprocessable_content
@@ -44,11 +50,14 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
     content = params.require(:content).to_s.strip
     return render json: { errors: [ "设计需求不能为空" ] }, status: :unprocessable_content if content.blank?
 
+    configuration = configuration_params.presence
+    return unless template_model_available?(configuration&.fetch("model_id", nil))
+
     TemplateDesignPolicy.ensure_generation_capacity!(Current.user, include_concurrency: false)
     assets = validated_reference_assets
     return if performed?
 
-    message = @session.queue_user_message!(content: content, assets: assets, configuration: configuration_params.presence)
+    message = @session.queue_user_message!(content: content, assets: assets, configuration: configuration)
     render json: { message: message_payload(message.reload), session: session_payload(@session.reload, include_details: false) }, status: :accepted
   rescue TemplateDesignPolicy::QuotaExceeded => e
     render json: { errors: [ e.message ] }, status: :too_many_requests
@@ -86,6 +95,31 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
   def configuration_params
     params.fetch(:configuration, ActionController::Parameters.new).permit(:complexity, :reference_notes, :model_id, :width_mm, :height_mm,
                                                                            semantic_fields: [ :key, :label, :default_value ]).to_h
+  end
+
+  def template_model_available?(model_id)
+    return true if model_id.blank?
+
+    model = configured_models.find { |entry| entry["id"] == model_id }
+    unless model
+      render json: { errors: [ "未知的模型" ] }, status: :unprocessable_content
+      return false
+    end
+
+    level = model["level"].to_i
+    if level >= 0 && level < Current.user.model_level.to_i
+      render json: { errors: [ "无权限使用该模型" ] }, status: :forbidden
+      return false
+    end
+
+    return true if Array(model["capabilities"]).map(&:to_s).include?("text_generation")
+
+    render json: { errors: [ "该模型不支持文本生成" ] }, status: :unprocessable_content
+    false
+  end
+
+  def configured_models
+    (Rails.application.config.x.models || {}).fetch("models", [])
   end
 
   def initial_message

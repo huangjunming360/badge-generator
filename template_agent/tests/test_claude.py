@@ -51,6 +51,27 @@ class ClaudeTemplateEditorTest(unittest.TestCase):
         self.assertIn("template.html", prompt)
         self.assertIn("template.css", prompt)
 
+    def test_workspace_path_guard_rejects_absolute_and_parent_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+
+            self.assertTrue(ClaudeTemplateEditor._allowed_workspace_path(workspace, "template.html"))
+            self.assertTrue(ClaudeTemplateEditor._allowed_workspace_path(workspace, workspace / "template.css"))
+            self.assertFalse(ClaudeTemplateEditor._allowed_workspace_path(workspace, "../.env"))
+            self.assertFalse(ClaudeTemplateEditor._allowed_workspace_path(workspace, "/etc/passwd"))
+            self.assertFalse(ClaudeTemplateEditor._allowed_workspace_path(workspace, "other.txt"))
+
+    def test_prompt_includes_field_contract_and_reference_notes(self) -> None:
+        job = self.job.model_copy(update={
+            "reference_notes": "参考夏令营蓝色挂牌",
+            "semantic_fields": [{"key": "name", "label": "姓名，最多 20 字"}],
+        })
+
+        prompt = ClaudeTemplateEditor._prompt(job)
+
+        self.assertIn("参考夏令营蓝色挂牌", prompt)
+        self.assertIn("姓名，最多 20 字", prompt)
+
     def test_rejects_a_terminal_agent_error_result(self) -> None:
         class FailedMessages:
             def __aiter__(self):

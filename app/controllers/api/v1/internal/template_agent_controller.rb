@@ -23,11 +23,7 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
 
   def complete
     job = @node.template_generation_jobs.find(params[:id])
-    unless job.lease_valid_for?(@node, completion_params[:lease_token])
-      return render json: { errors: [ "任务租约无效或已过期" ] }, status: :conflict
-    end
-
-    result = completion_params.fetch(:report, {}).to_h
+    result = completion_params[:report]&.to_h || {}
     if completion_params[:status] == "succeeded"
       source_html = completion_params[:source_html].to_s
       source_css = completion_params[:source_css].to_s
@@ -36,9 +32,10 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
 
       result = result.merge("source_html" => source_html, "source_css" => source_css, "validation_report" => report)
     end
-    job.complete!(status: completion_params[:status], result: result, error: completion_params[:error])
-    job.update!(stage: completion_params[:status] == "succeeded" ? "review_ready" : "validating",
-                stage_message: completion_params[:status] == "succeeded" ? "视觉修复已完成，等待人工审核" : "视觉修复失败")
+    unless job.complete_from_node!(@node, lease_token: completion_params[:lease_token], status: completion_params[:status], result: result, error: completion_params[:error])
+      return render json: { errors: [ "任务租约无效或已过期" ] }, status: :conflict
+    end
+
     complete_parent_generation!(job, result, completion_params[:status], completion_params[:error])
     head :no_content
   end
@@ -77,6 +74,7 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
       source_css: payload["source_css"].to_s,
       width_mm: payload.fetch("width_mm", 55).to_i,
       height_mm: payload.fetch("height_mm", 85).to_i,
+      reference_notes: payload.fetch("reference_notes", "").to_s,
       semantic_fields: payload.fetch("semantic_fields", BadgeTemplateVersion::DEFAULT_SEMANTIC_FIELDS)
     }
   end

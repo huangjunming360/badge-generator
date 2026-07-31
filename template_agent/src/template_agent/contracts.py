@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,7 @@ class NodeCapabilities(BaseModel):
 
 class DesiredConfig(BaseModel):
     paused: bool = False
-    max_iterations: int = Field(default=3, ge=1, le=200)
+    max_iterations: int = Field(default=200, ge=1, le=200)
     max_concurrency: int = Field(default=1, ge=1, le=1)
     claude_model_id: str | None = None
     claude_model: str | None = None
@@ -35,6 +35,8 @@ class TemplateJob(BaseModel):
     source_css: str
     width_mm: int = Field(default=55, ge=20, le=200)
     height_mm: int = Field(default=85, ge=20, le=200)
+    reference_notes: str = Field(default="", max_length=8000)
+    semantic_fields: list[dict[str, Any]] = Field(default_factory=list, max_length=50)
 
 
 class HeartbeatRequest(BaseModel):

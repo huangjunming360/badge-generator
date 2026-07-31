@@ -130,17 +130,24 @@ class TemplateGenerationJob < ApplicationRecord
     end
   end
 
-  def complete!(status:, result:, error: nil)
+  def complete_from_node!(node, lease_token:, status:, result:, error: nil)
     raise ArgumentError, "无效的完成状态" unless %w[succeeded failed].include?(status)
 
-    update!(
-      status: status,
-      result: result,
-      error_message: error.to_s.truncate(2_000).presence,
-      completed_at: Time.current,
-      lease_token_digest: nil,
-      lease_expires_at: nil
-    )
+    with_lock do
+      return false unless lease_valid_for?(node, lease_token)
+
+      update!(
+        status: status,
+        stage: status == "succeeded" ? "review_ready" : "validating",
+        stage_message: status == "succeeded" ? "视觉修复已完成，等待人工审核" : "视觉修复失败",
+        result: result,
+        error_message: error.to_s.truncate(2_000).presence,
+        completed_at: Time.current,
+        lease_token_digest: nil,
+        lease_expires_at: nil
+      )
+      true
+    end
   end
 
   # Keep the node association long enough for its next authenticated heartbeat

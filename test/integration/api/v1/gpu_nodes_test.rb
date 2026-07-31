@@ -55,6 +55,7 @@ class Api::V1::GpuNodesTest < ActionDispatch::IntegrationTest
     assert node.authenticate_token(token)
     assert_not_equal token, node.token_digest
     assert_equal 1, body.dig("node", "desired_config", "max_concurrency")
+    assert_equal 200, body.dig("node", "desired_config", "max_iterations")
 
     get "/api/v1/admin/gpu_nodes"
 

@@ -100,22 +100,17 @@ class ClaudeTemplateEditor:
         except ImportError as error:
             raise AgentEditError("未安装 Claude Agent SDK；请重新执行 pip install '.[visual]'") from error
 
-        async def only_template_outputs(input_data: dict[str, Any], tool_use_id: str, context: Any) -> dict[str, object]:
+        async def only_template_files(input_data: dict[str, Any], tool_use_id: str, context: Any) -> dict[str, object]:
             del tool_use_id, context
             requested = input_data.get("tool_input", {}).get("file_path", "")
-            try:
-                candidate = Path(requested)
-                output_path = (candidate if candidate.is_absolute() else workspace / candidate).resolve()
-                permitted = output_path.parent == workspace and output_path.name in self._ALLOWED_FILENAMES
-            except (OSError, TypeError):
-                permitted = False
+            permitted = self._allowed_workspace_path(workspace, requested)
             if permitted:
                 return {}
             return {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
-                    "permissionDecisionReason": "只允许编辑 template.html 与 template.css",
+                    "permissionDecisionReason": "只允许读取或编辑 template.html 与 template.css",
                 }
             }
 
@@ -123,8 +118,8 @@ class ClaudeTemplateEditor:
         options_kwargs.update({
             "cwd": str(workspace),
             # `tools` removes every other built-in tool from the agent's
-            # available toolset. `allowed_tools` then auto-approves these
-            # three only; the hook enforces their exact output paths.
+            # available toolset. The hook enforces the exact input/output
+            # paths for Read as well as Write/Edit.
             "tools": ["Read", "Write", "Edit"],
             "allowed_tools": ["Read", "Write", "Edit"],
             "disallowed_tools": self._DISALLOWED_TOOLS,
@@ -136,7 +131,7 @@ class ClaudeTemplateEditor:
             ),
             "hooks": {
                 "PreToolUse": [
-                    HookMatcher(matcher="Write|Edit", hooks=[only_template_outputs]),
+                    HookMatcher(matcher="Read|Write|Edit", hooks=[only_template_files]),
                 ],
             },
         })
@@ -217,6 +212,16 @@ class ClaudeTemplateEditor:
             raise
 
     @staticmethod
+    def _allowed_workspace_path(workspace: Path, requested: object) -> bool:
+        try:
+            workspace = workspace.resolve()
+            candidate = Path(str(requested))
+            path = (candidate if candidate.is_absolute() else workspace / candidate).resolve()
+        except (OSError, TypeError, ValueError):
+            return False
+        return path.parent == workspace and path.name in ClaudeTemplateEditor._ALLOWED_FILENAMES
+
+    @staticmethod
     def _read_output(path: Path) -> str:
         try:
             content = path.read_text(encoding="utf-8")
@@ -233,10 +238,12 @@ class ClaudeTemplateEditor:
 成品固定尺寸：{job.width_mm}mm 宽 × {job.height_mm}mm 高。
 需求：{job.requirement or "保持现有设计意图并改善可读性。"}
 已知问题：{job.diagnostics or "无。"}
+参考素材说明：{job.reference_notes or "无。"}
 视觉复杂度：{job.complexity}/10。
+可用字段（只能使用这些字段；展示规则由字段描述决定）：{job.semantic_fields or "未声明额外字段"}
 
 规则：
-- 保留已有 Liquid 变量，不得臆造字段；所有文字空间应容纳长姓名和组织名称。
+- 保留已有 Liquid 变量，不得臆造字段；所有文字空间应容纳字段的长文本，不得依赖样例长度。
 - HTML 只能是普通展示标签；禁止 script、iframe、form、input、meta、link 和外部 URL。
 - CSS 禁止 url() 与 @import；不得把画布尺寸撑开。
 - 只编辑这两个已存在的文件。完成后停止。"""

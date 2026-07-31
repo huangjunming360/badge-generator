@@ -1,7 +1,9 @@
 class GpuNode < ApplicationRecord
   DEFAULT_DESIRED_CONFIG = {
     "paused" => false,
-    "max_iterations" => 3,
+    # 200 is a hard ceiling, not an instruction to keep repairing. The node
+    # stops earlier on a clean render, no improvement, cancellation, or budget.
+    "max_iterations" => 200,
     "max_concurrency" => 1,
     # The selected model and its public-compatible endpoint are control-plane
     # settings. Credentials never enter this record or leave the GPU host.
