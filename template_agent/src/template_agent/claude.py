@@ -7,6 +7,7 @@ model JSON.
 """
 
 import asyncio
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -44,7 +45,7 @@ class ClaudeTemplateEditor:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def edit(self, job: TemplateJob) -> AgentEditResult:
+    def edit(self, job: TemplateJob, *, model: str | None = None, base_url: str | None = None) -> AgentEditResult:
         with tempfile.TemporaryDirectory(prefix="badge-template-agent-") as directory:
             workspace = Path(directory).resolve()
             html_path = workspace / "template.html"
@@ -52,7 +53,7 @@ class ClaudeTemplateEditor:
             html_path.write_text(job.source_html, encoding="utf-8")
             css_path.write_text(job.source_css, encoding="utf-8")
 
-            self._run_agent(workspace, job)
+            self._run_agent(workspace, job, model=model, base_url=base_url)
             html = self._read_output(html_path)
             css = self._read_output(css_path)
 
@@ -62,7 +63,7 @@ class ClaudeTemplateEditor:
             report={"agent": "claude", "workspace_files": sorted(self._ALLOWED_FILENAMES)},
         )
 
-    def _run_agent(self, workspace: Path, job: TemplateJob) -> None:
+    def _run_agent(self, workspace: Path, job: TemplateJob, *, model: str | None = None, base_url: str | None = None) -> None:
         try:
             from claude_agent_sdk import ClaudeAgentOptions, HookMatcher, query
         except ImportError as error:
@@ -107,8 +108,21 @@ class ClaudeTemplateEditor:
                 ],
             },
         }
-        if self._settings.claude_model:
-            options_kwargs["model"] = self._settings.claude_model
+        selected_model = model or getattr(self._settings, "claude_model", None)
+        if selected_model:
+            options_kwargs["model"] = selected_model
+
+        # The API key remains in this node's environment. Rails can select a
+        # configured model/endpoint, but never sees or transports the secret.
+        agent_env = os.environ.copy()
+        local_base_url = getattr(self._settings, "claude_base_url", None)
+        configured_base_url = base_url or (str(local_base_url) if local_base_url else None)
+        if configured_base_url:
+            agent_env["ANTHROPIC_BASE_URL"] = configured_base_url
+        local_api_key = getattr(self._settings, "claude_api_key", None)
+        if local_api_key:
+            agent_env["ANTHROPIC_API_KEY"] = local_api_key.get_secret_value()
+        options_kwargs["env"] = agent_env
 
         prompt = self._prompt(job)
         try:

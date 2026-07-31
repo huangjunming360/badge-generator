@@ -13,7 +13,10 @@ class Api::V1::Admin::GpuNodesController < Api::BaseController
 
   def index
     nodes = GpuNode.order(updated_at: :desc)
-    render json: { nodes: nodes.map { |node| node_payload(node) } }
+    render json: {
+      nodes: nodes.map { |node| node_payload(node) },
+      agent_models: agent_models
+    }
   end
 
   def create
@@ -37,6 +40,7 @@ class Api::V1::Admin::GpuNodesController < Api::BaseController
       "max_iterations" => config_params.fetch(:max_iterations, current_config.fetch("max_iterations")).to_i.clamp(1, 3),
       "max_concurrency" => 1
     )
+    configuration.merge!(agent_model_configuration(config_params[:claude_model_id])) if config_params.key?(:claude_model_id)
     @node.update!(desired_config: configuration)
     render json: { node: node_payload(@node) }
   rescue ActiveRecord::RecordInvalid => e
@@ -82,7 +86,37 @@ class Api::V1::Admin::GpuNodesController < Api::BaseController
   end
 
   def config_params
-    params.require(:gpu_node).permit(:paused, :max_iterations)
+    params.require(:gpu_node).permit(:paused, :max_iterations, :claude_model_id)
+  end
+
+  def agent_models
+    configured_models.filter_map do |model|
+      next unless model["api"] == "anthropic" && model["id"].present? && model["model"].present?
+
+      {
+        id: model["id"],
+        label: model["label"].presence || model["id"],
+        model: model["model"],
+        api_base: model["api_base"].presence
+      }
+    end
+  end
+
+  def agent_model_configuration(model_id)
+    return { "claude_model_id" => nil, "claude_model" => nil, "claude_base_url" => nil } if model_id.blank?
+
+    selected = agent_models.find { |model| model[:id] == model_id }
+    raise ActionController::ParameterMissing, "gpu_node.claude_model_id（必须选择已配置的 Anthropic 模型）" unless selected
+
+    {
+      "claude_model_id" => selected.fetch(:id),
+      "claude_model" => selected.fetch(:model),
+      "claude_base_url" => selected[:api_base]
+    }
+  end
+
+  def configured_models
+    Rails.application.config.x.models.fetch("models", [])
   end
 
   def generated_node_key

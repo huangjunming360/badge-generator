@@ -30,7 +30,12 @@ class TemplateAgent:
             try:
                 response = self._control_plane.heartbeat(self._heartbeat())
                 if response.job and not response.desired_config.paused:
-                    self._run_job(response.job, max_iterations=response.desired_config.max_iterations)
+                    self._run_job(
+                        response.job,
+                        max_iterations=response.desired_config.max_iterations,
+                        claude_model=response.desired_config.claude_model,
+                        claude_base_url=response.desired_config.claude_base_url,
+                    )
             except httpx.HTTPError as error:
                 LOGGER.warning("control plane unavailable: %s", error)
             except Exception:
@@ -48,7 +53,7 @@ class TemplateAgent:
             sent_at=datetime.now(UTC),
         )
 
-    def _run_job(self, job: TemplateJob, max_iterations: int) -> None:
+    def _run_job(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None) -> None:
         stop_heartbeat = threading.Event()
         lease_thread = threading.Thread(
             target=self._keep_lease_alive,
@@ -57,7 +62,7 @@ class TemplateAgent:
         )
         lease_thread.start()
         try:
-            result = self._run_visual_repair(job, max_iterations)
+            result = self._run_visual_repair(job, max_iterations, claude_model, claude_base_url)
         except (AgentEditError, RenderError, VisualRepairError) as error:
             LOGGER.warning("job %s failed: %s", job.id, error)
             result = JobResult(status="failed", error=str(error))
@@ -79,10 +84,10 @@ class TemplateAgent:
             except Exception:
                 LOGGER.exception("job %s lease heartbeat crashed", job_id)
 
-    def _run_visual_repair(self, job: TemplateJob, max_iterations: int) -> JobResult:
+    def _run_visual_repair(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None) -> JobResult:
         if job.job_type != "visual_repair":
             return JobResult(status="failed", error="不支持的节点任务类型")
-        edited = self._editor.edit(job)
+        edited = self._editor.edit(job, model=claude_model, base_url=claude_base_url)
         review_job = job.model_copy(update={
             "source_html": edited.source_html,
             "source_css": edited.source_css,

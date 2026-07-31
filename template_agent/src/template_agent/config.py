@@ -23,4 +23,6 @@ class Settings(BaseSettings):
     # Authentication is owned by Claude Agent SDK on the GPU node. This is
     # intentionally separate from the Rails node token.
     claude_model: str | None = None
+    claude_base_url: HttpUrl | None = None
+    claude_api_key: SecretStr | None = None
     claude_max_turns: int = 6

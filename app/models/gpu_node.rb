@@ -2,7 +2,12 @@ class GpuNode < ApplicationRecord
   DEFAULT_DESIRED_CONFIG = {
     "paused" => false,
     "max_iterations" => 3,
-    "max_concurrency" => 1
+    "max_concurrency" => 1,
+    # The selected model and its public-compatible endpoint are control-plane
+    # settings. Credentials never enter this record or leave the GPU host.
+    "claude_model_id" => nil,
+    "claude_model" => nil,
+    "claude_base_url" => nil
   }.freeze
 
   has_secure_password :token, validations: false
@@ -21,7 +26,10 @@ class GpuNode < ApplicationRecord
       "max_iterations" => configured.fetch("max_iterations", DEFAULT_DESIRED_CONFIG.fetch("max_iterations")).to_i.clamp(1, 3),
       # The current worker is deliberately single-process. Do not advertise
       # concurrency that the Python node cannot honor.
-      "max_concurrency" => 1
+      "max_concurrency" => 1,
+      "claude_model_id" => configured["claude_model_id"].presence,
+      "claude_model" => configured["claude_model"].presence,
+      "claude_base_url" => configured["claude_base_url"].presence
     )
   end
 

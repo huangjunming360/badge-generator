@@ -4,6 +4,18 @@ class Api::V1::GpuNodesTest < ActionDispatch::IntegrationTest
   setup do
     @admin = User.create!(email_address: "gpu-node-admin@test.com", password: "test123", password_confirmation: "test123", role: "admin")
     @user = User.create!(email_address: "gpu-node-user@test.com", password: "test123", password_confirmation: "test123")
+    @original_models = Rails.application.config.x.models
+    Rails.application.config.x.models = {
+      "default" => "agent-haiku",
+      "models" => [
+        { "id" => "agent-haiku", "label" => "Haiku", "api" => "anthropic", "model" => "claude-haiku-test", "api_base" => "https://anthropic.example.test" },
+        { "id" => "openai", "label" => "OpenAI", "api" => "openai", "model" => "gpt-test", "api_base" => "https://openai.example.test" }
+      ]
+    }
+  end
+
+  teardown do
+    Rails.application.config.x.models = @original_models
   end
 
   def sign_in(user)
@@ -55,14 +67,32 @@ class Api::V1::GpuNodesTest < ActionDispatch::IntegrationTest
     sign_in(@admin)
 
     patch "/api/v1/admin/gpu_nodes/#{node.id}/update_config", params: {
-      gpu_node: { paused: true, max_iterations: 99, max_concurrency: 20 }
+      gpu_node: { paused: true, max_iterations: 99, max_concurrency: 20, claude_model_id: "agent-haiku" }
     }
 
     assert_response :success
     assert_equal true, body.dig("node", "desired_config", "paused")
     assert_equal 3, body.dig("node", "desired_config", "max_iterations")
     assert_equal 1, body.dig("node", "desired_config", "max_concurrency")
+    assert_equal "agent-haiku", body.dig("node", "desired_config", "claude_model_id")
+    assert_equal "claude-haiku-test", body.dig("node", "desired_config", "claude_model")
+    assert_equal "https://anthropic.example.test", body.dig("node", "desired_config", "claude_base_url")
     assert_equal true, node.reload.effective_desired_config.fetch("paused")
+
+    get "/api/v1/admin/gpu_nodes"
+    assert_equal [ "agent-haiku" ], body.fetch("agent_models").map { |model| model.fetch("id") }
+  end
+
+  test "只允许下发后台配置的 Anthropic 模型" do
+    node = GpuNode.create!(node_key: "node-model", name: "模型节点", token: "old-token")
+    sign_in(@admin)
+
+    patch "/api/v1/admin/gpu_nodes/#{node.id}/update_config", params: {
+      gpu_node: { claude_model_id: "openai" }
+    }
+
+    assert_response :bad_request
+    assert_nil node.reload.effective_desired_config.fetch("claude_model")
   end
 
   test "轮换和撤销令牌不会泄露旧凭据并会释放租约" do

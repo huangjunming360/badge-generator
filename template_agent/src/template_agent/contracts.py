@@ -16,6 +16,9 @@ class DesiredConfig(BaseModel):
     paused: bool = False
     max_iterations: int = Field(default=3, ge=1, le=3)
     max_concurrency: int = Field(default=1, ge=1, le=1)
+    claude_model_id: str | None = None
+    claude_model: str | None = None
+    claude_base_url: str | None = None
 
 
 class TemplateJob(BaseModel):

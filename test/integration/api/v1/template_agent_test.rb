@@ -43,6 +43,7 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     assert_equal job.id.to_s, body.dig("job", "id")
     assert_equal 55, body.dig("job", "width_mm")
     assert_equal 85, body.dig("job", "height_mm")
+    assert_nil body.dig("desired_config", "claude_model")
     assert_equal "leased", job.reload.status
     assert_equal true, @node.reload.capabilities["mai_ready"]
 
@@ -70,6 +71,23 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     job.reload
     assert_equal "succeeded", job.status
     assert_equal true, job.result.dig("validation_report", "valid")
+  end
+
+  test "心跳只下发管理员选择的模型与 Base URL，不含 API Key" do
+    @node.update!(desired_config: {
+      "claude_model_id" => "agent-haiku",
+      "claude_model" => "claude-haiku-test",
+      "claude_base_url" => "https://anthropic.example.test"
+    })
+
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: { agent_version: "0.2.0", mai_ready: false, renderer_ready: false }
+    }, headers: node_headers
+
+    assert_response :success
+    assert_equal "claude-haiku-test", body.dig("desired_config", "claude_model")
+    assert_equal "https://anthropic.example.test", body.dig("desired_config", "claude_base_url")
+    assert_not_includes response.body, "api_key"
   end
 
   test "节点凭据错误不能领取任务" do

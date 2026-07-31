@@ -23,7 +23,7 @@ class ClaudeTemplateEditorTest(unittest.TestCase):
     def test_returns_only_the_two_workspace_outputs(self) -> None:
         editor = ClaudeTemplateEditor(self.settings)
 
-        def edit_files(workspace: Path, _job: TemplateJob) -> None:
+        def edit_files(workspace: Path, _job: TemplateJob, **_kwargs: object) -> None:
             (workspace / "template.html").write_text("<article>edited</article>", encoding="utf-8")
             (workspace / "template.css").write_text(".badge{color:#000}", encoding="utf-8")
 
@@ -81,6 +81,24 @@ class ClaudeTemplateEditorTest(unittest.TestCase):
         self.assertEqual(["Read", "Write", "Edit"], options.allowed_tools)
         self.assertIn("Bash", options.disallowed_tools)
         self.assertIn("PreToolUse", options.hooks)
+
+    def test_node_local_key_and_control_plane_endpoint_are_passed_only_to_sdk(self) -> None:
+        self.settings.claude_api_key = Mock(get_secret_value=Mock(return_value="node-only-key"))
+        self.settings.claude_base_url = None
+        editor = ClaudeTemplateEditor(self.settings)
+
+        async def finished():
+            if False:
+                yield None
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("claude_agent_sdk.query", return_value=finished()) as query:
+                editor._run_agent(Path(directory), self.job, model="claude-haiku-test", base_url="https://anthropic.example.test")
+
+        options = query.call_args.kwargs["options"]
+        self.assertEqual("claude-haiku-test", options.model)
+        self.assertEqual("https://anthropic.example.test", options.env["ANTHROPIC_BASE_URL"])
+        self.assertEqual("node-only-key", options.env["ANTHROPIC_API_KEY"])
 
 
 if __name__ == "__main__":

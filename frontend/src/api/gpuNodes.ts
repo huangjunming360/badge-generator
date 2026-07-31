@@ -9,8 +9,22 @@ export interface GpuNode {
   ready: boolean;
   last_seen_at?: string;
   capabilities: Record<string, unknown>;
-  desired_config: { paused: boolean; max_iterations: number; max_concurrency: 1 };
+  desired_config: {
+    paused: boolean;
+    max_iterations: number;
+    max_concurrency: 1;
+    claude_model_id: string | null;
+    claude_model: string | null;
+    claude_base_url: string | null;
+  };
   leased_jobs_count: number;
+}
+
+export interface AgentModel {
+  id: string;
+  label: string;
+  model: string;
+  api_base: string | null;
 }
 
 export interface NodeCredentials {
@@ -20,16 +34,16 @@ export interface NodeCredentials {
 }
 
 export const fetchGpuNodes = () =>
-  getJson<{ nodes: GpuNode[] }>("/admin/gpu_nodes").then((response) => response.nodes);
+  getJson<{ nodes: GpuNode[]; agent_models: AgentModel[] }>("/admin/gpu_nodes");
 
 export const createGpuNode = (name: string, serverUrl: string) =>
   sendJson<{ node: GpuNode; credentials: NodeCredentials }>("/admin/gpu_nodes", "POST", {
     gpu_node: { name, server_url: serverUrl },
   });
 
-export const updateGpuNodeConfig = (id: number, paused: boolean, maxIterations: number) =>
+export const updateGpuNodeConfig = (id: number, paused: boolean, maxIterations: number, claudeModelId?: string | null) =>
   sendJson<{ node: GpuNode }>(`/admin/gpu_nodes/${id}/update_config`, "PATCH", {
-    gpu_node: { paused, max_iterations: maxIterations },
+    gpu_node: { paused, max_iterations: maxIterations, ...(claudeModelId !== undefined ? { claude_model_id: claudeModelId } : {}) },
   }).then((response) => response.node);
 
 export const rotateGpuNodeToken = (id: number, serverUrl: string) =>

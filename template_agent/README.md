@@ -106,4 +106,6 @@ bin/rails runner 'node = GpuNode.find_or_initialize_by(node_key: "home-4090"); t
 
 把输出填入 WSL 的 `.env`。节点通过 ZeroTier 地址访问 Rails，例如 `http://10.x.x.x:8000`；不要开放 vLLM 的 18000 端口，也不要将节点暴露到公网。
 
+管理员可在“GPU 节点”后台选择一个已配置的 Anthropic 模型。选择后，Rails 会在节点下次心跳时只下发模型名和 Base URL；`ANTHROPIC_API_KEY` 或 `TEMPLATE_AGENT_CLAUDE_API_KEY` 始终只保留在 4090 本机，不会经过 Rails、浏览器或任务队列。选择“节点本地默认”可撤销后台覆盖，回到 `.env` 或 `claude login` 的本地配置。
+
 管理员随后可调用 `POST /api/v1/admin/badge_templates/:id/enqueue_visual_repair`，传入 `version_id`、`complexity`、`diagnostics` 和 `requirement` 创建任务。任务结果先保存在队列记录中，永远不会自动发布或覆盖模板版本，必须经人工审核后才创建新版本。
