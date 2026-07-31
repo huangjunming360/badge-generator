@@ -67,10 +67,9 @@ class TemplateDesignSession < ApplicationRecord
 
   def interrupt_and_dispatch!
     with_lock do
-      template_generation_jobs.where(status: ACTIVE_JOB_STATUSES).update_all(
-        status: "cancelled", completed_at: Time.current, lease_token_digest: nil,
-        lease_expires_at: nil, updated_at: Time.current
-      )
+      template_generation_jobs.where(status: ACTIVE_JOB_STATUSES).find_each do |job|
+        job.cancel!
+      end
       messages.where(state: "processing").update_all(state: "cancelled", updated_at: Time.current)
       dispatch_next_message!
     end

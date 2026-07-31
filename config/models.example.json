@@ -5,7 +5,8 @@
       "id": "claude_haiku",
       "label": "Claude Haiku 4.5",
       "api": "anthropic",
-      "model": "claude-haiku-4-5-20251001"
+      "model": "claude-haiku-4-5-20251001",
+      "capabilities": ["text_generation", "vision_input", "anthropic_messages", "claude_agent_sdk"]
     },
     {
       "id": "claude_sonnet",
@@ -13,7 +14,8 @@
       "api": "anthropic",
       "model": "claude-sonnet-5",
       "api_key": "",
-      "api_base": ""
+      "api_base": "",
+      "capabilities": ["text_generation", "vision_input", "anthropic_messages", "claude_agent_sdk"]
     },
     {
       "id": "gpt4o_mini",
@@ -21,7 +23,8 @@
       "api": "openai",
       "model": "gpt-4o-mini",
       "api_key": "",
-      "api_base": ""
+      "api_base": "",
+      "capabilities": ["text_generation", "vision_input", "openai_chat_completions"]
     },
     {
       "id": "gpt4o",
@@ -29,7 +32,8 @@
       "api": "openai",
       "model": "gpt-4o",
       "api_key": "",
-      "api_base": ""
+      "api_base": "",
+      "capabilities": ["text_generation", "vision_input", "openai_chat_completions"]
     }
   ]
 }

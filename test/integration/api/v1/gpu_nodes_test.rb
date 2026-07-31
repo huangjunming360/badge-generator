@@ -8,8 +8,9 @@ class Api::V1::GpuNodesTest < ActionDispatch::IntegrationTest
     Rails.application.config.x.models = {
       "default" => "agent-haiku",
       "models" => [
-        { "id" => "agent-haiku", "label" => "Haiku", "api" => "anthropic", "model" => "claude-haiku-test", "api_base" => "https://anthropic.example.test" },
-        { "id" => "openai", "label" => "OpenAI", "api" => "openai", "model" => "gpt-test", "api_base" => "https://openai.example.test" }
+        { "id" => "agent-haiku", "label" => "Haiku", "api" => "anthropic", "model" => "claude-haiku-test", "api_base" => "https://anthropic.example.test", "capabilities" => [ "anthropic_messages", "claude_agent_sdk" ] },
+        { "id" => "named-claude-only", "label" => "Claude 名称但未经验证", "api" => "anthropic", "model" => "claude-proxy-test", "capabilities" => [ "text_generation" ] },
+        { "id" => "openai", "label" => "OpenAI", "api" => "openai", "model" => "gpt-test", "api_base" => "https://openai.example.test", "capabilities" => [ "openai_chat_completions" ] }
       ]
     }
   end
@@ -83,12 +84,12 @@ class Api::V1::GpuNodesTest < ActionDispatch::IntegrationTest
     assert_equal [ "agent-haiku" ], body.fetch("agent_models").map { |model| model.fetch("id") }
   end
 
-  test "只允许下发后台配置的 Anthropic 模型" do
+  test "只允许下发显式声明 Claude Agent 兼容能力的模型" do
     node = GpuNode.create!(node_key: "node-model", name: "模型节点", token: "old-token")
     sign_in(@admin)
 
     patch "/api/v1/admin/gpu_nodes/#{node.id}/update_config", params: {
-      gpu_node: { claude_model_id: "openai" }
+      gpu_node: { claude_model_id: "named-claude-only" }
     }
 
     assert_response :bad_request

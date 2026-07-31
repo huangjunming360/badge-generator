@@ -128,6 +128,26 @@ class Api::V1::TemplateAgentTest < ActionDispatch::IntegrationTest
     assert_equal "leased", job.reload.status
   end
 
+  test "已取消的节点任务会通过下一次心跳下发停止命令并保留审计记录" do
+    job = queued_job
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+    }, headers: node_headers
+
+    job.cancel!(reason: "用户主动停止")
+    post "/api/v1/internal/template-agent/heartbeat", params: {
+      current_job_id: job.id,
+      capabilities: { agent_version: "0.2.0", mai_ready: true, renderer_ready: true }
+    }, headers: node_headers
+
+    assert_response :success
+    assert_equal true, body.fetch("cancel_current_job")
+    assert_nil body["job"]
+    assert_equal "cancelled", job.reload.status
+    assert_equal "用户主动停止", job.stage_results.dig("cancellation", "reason")
+    assert_not_nil job.stage_results.dig("cancellation", "cancelled_at")
+  end
+
   test "自动视觉检查完成后会把修复后的草案回写给父生成任务" do
     parent = @user.template_generation_jobs.create!(
       job_type: "template_generation",

@@ -1,10 +1,12 @@
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from template_agent.claude import AgentEditError, ClaudeTemplateEditor
+from template_agent.cancellation import JobCancelled
 from template_agent.contracts import TemplateJob
 
 
@@ -99,6 +101,17 @@ class ClaudeTemplateEditorTest(unittest.TestCase):
         self.assertEqual("claude-haiku-test", options.model)
         self.assertEqual("https://anthropic.example.test", options.env["ANTHROPIC_BASE_URL"])
         self.assertEqual("node-only-key", options.env["ANTHROPIC_API_KEY"])
+
+    def test_cancelled_job_does_not_start_the_agent_sdk(self) -> None:
+        editor = ClaudeTemplateEditor(self.settings)
+        editor._run_agent = Mock()
+        cancelled = threading.Event()
+        cancelled.set()
+
+        with self.assertRaises(JobCancelled):
+            editor.edit(self.job, cancel_event=cancelled)
+
+        editor._run_agent.assert_not_called()
 
 
 if __name__ == "__main__":

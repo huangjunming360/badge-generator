@@ -3,7 +3,11 @@
 import base64
 import json
 import subprocess
+import threading
+import time
 from dataclasses import dataclass
+
+from .cancellation import raise_if_cancelled
 
 
 class RenderError(RuntimeError):
@@ -21,7 +25,7 @@ class IsolatedRenderer:
         self._image = image
         self._timeout_seconds = timeout_seconds
 
-    def render(self, html: str, css: str, *, width_mm: int, height_mm: int) -> RenderResult:
+    def render(self, html: str, css: str, *, width_mm: int, height_mm: int, cancel_event: threading.Event | None = None) -> RenderResult:
         payload = json.dumps(
             {"html": html, "css": css, "width_mm": width_mm, "height_mm": height_mm},
             ensure_ascii=False,
@@ -40,11 +44,39 @@ class IsolatedRenderer:
             self._image,
         ]
         try:
-            completed = subprocess.run(
-                command, input=payload, capture_output=True, check=True,
-                timeout=self._timeout_seconds,
-            )
-            output = json.loads(completed.stdout.decode("utf-8"))
+            if cancel_event is None:
+                completed = subprocess.run(
+                    command, input=payload, capture_output=True, check=True,
+                    timeout=self._timeout_seconds,
+                )
+                stdout = completed.stdout
+            else:
+                process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                deadline = time.monotonic() + self._timeout_seconds
+                first_input = payload
+                try:
+                    while True:
+                        raise_if_cancelled(cancel_event)
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise subprocess.TimeoutExpired(command, self._timeout_seconds)
+                        try:
+                            stdout, stderr = process.communicate(input=first_input, timeout=min(0.2, remaining))
+                            break
+                        except subprocess.TimeoutExpired:
+                            first_input = None
+                except BaseException:
+                    if process.returncode is None:
+                        process.terminate()
+                        try:
+                            process.communicate(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.communicate()
+                    raise
+                if process.returncode:
+                    raise subprocess.CalledProcessError(process.returncode, command, output=stdout, stderr=stderr)
+            output = json.loads(stdout.decode("utf-8"))
             screenshot = output["screenshot_png_base64"]
             return RenderResult(
                 screenshot_data_url=f"data:image/png;base64,{screenshot}",

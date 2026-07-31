@@ -91,13 +91,16 @@ class Api::V1::Admin::GpuNodesController < Api::BaseController
 
   def agent_models
     configured_models.filter_map do |model|
-      next unless model["api"] == "anthropic" && model["id"].present? && model["model"].present?
+      capabilities = Array(model["capabilities"]).map(&:to_s)
+      next unless model["id"].present? && model["model"].present?
+      next unless capabilities.intersect?(%w[claude_agent_sdk anthropic_messages])
 
       {
         id: model["id"],
         label: model["label"].presence || model["id"],
         model: model["model"],
-        api_base: model["api_base"].presence
+        api_base: model["api_base"].presence,
+        capabilities: capabilities
       }
     end
   end
@@ -106,7 +109,7 @@ class Api::V1::Admin::GpuNodesController < Api::BaseController
     return { "claude_model_id" => nil, "claude_model" => nil, "claude_base_url" => nil } if model_id.blank?
 
     selected = agent_models.find { |model| model[:id] == model_id }
-    raise ActionController::ParameterMissing, "gpu_node.claude_model_id（必须选择已配置的 Anthropic 模型）" unless selected
+    raise ActionController::ParameterMissing, "gpu_node.claude_model_id（必须选择已声明 Claude Agent 兼容能力的模型）" unless selected
 
     {
       "claude_model_id" => selected.fetch(:id),

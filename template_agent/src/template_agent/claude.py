@@ -9,11 +9,13 @@ model JSON.
 import asyncio
 import os
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .config import Settings
+from .cancellation import JobCancelled, raise_if_cancelled
 from .contracts import TemplateJob
 
 
@@ -45,7 +47,8 @@ class ClaudeTemplateEditor:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def edit(self, job: TemplateJob, *, model: str | None = None, base_url: str | None = None) -> AgentEditResult:
+    def edit(self, job: TemplateJob, *, model: str | None = None, base_url: str | None = None, cancel_event: threading.Event | None = None) -> AgentEditResult:
+        raise_if_cancelled(cancel_event)
         with tempfile.TemporaryDirectory(prefix="badge-template-agent-") as directory:
             workspace = Path(directory).resolve()
             html_path = workspace / "template.html"
@@ -53,7 +56,8 @@ class ClaudeTemplateEditor:
             html_path.write_text(job.source_html, encoding="utf-8")
             css_path.write_text(job.source_css, encoding="utf-8")
 
-            self._run_agent(workspace, job, model=model, base_url=base_url)
+            self._run_agent(workspace, job, model=model, base_url=base_url, cancel_event=cancel_event)
+            raise_if_cancelled(cancel_event)
             html = self._read_output(html_path)
             css = self._read_output(css_path)
 
@@ -63,7 +67,7 @@ class ClaudeTemplateEditor:
             report={"agent": "claude", "workspace_files": sorted(self._ALLOWED_FILENAMES)},
         )
 
-    def _run_agent(self, workspace: Path, job: TemplateJob, *, model: str | None = None, base_url: str | None = None) -> None:
+    def _run_agent(self, workspace: Path, job: TemplateJob, *, model: str | None = None, base_url: str | None = None, cancel_event: threading.Event | None = None) -> None:
         try:
             from claude_agent_sdk import ClaudeAgentOptions, HookMatcher, query
         except ImportError as error:
@@ -126,21 +130,44 @@ class ClaudeTemplateEditor:
 
         prompt = self._prompt(job)
         try:
-            asyncio.run(self._consume(query(prompt=prompt, options=ClaudeAgentOptions(**options_kwargs))))
+            asyncio.run(self._consume(query(prompt=prompt, options=ClaudeAgentOptions(**options_kwargs)), cancel_event))
+        except JobCancelled:
+            raise
         except AgentEditError:
             raise
         except Exception as error:
             raise AgentEditError("Claude Agent 模板编辑失败") from error
 
     @staticmethod
-    async def _consume(messages: Any) -> None:
+    async def _consume(messages: Any, cancel_event: threading.Event | None = None) -> None:
         # A CLI transport may end normally while reporting a failed agent run.
         # Do not accept the unchanged files as a successful generated result.
-        async for message in messages:
-            if getattr(message, "is_error", False):
-                details = getattr(message, "errors", None) or []
-                detail = str(details[0]) if details else "未提供详情"
-                raise AgentEditError(f"Claude Agent 未完成模板编辑：{detail}")
+        iterator = messages.__aiter__()
+        pending: asyncio.Task[Any] | None = None
+        try:
+            while True:
+                raise_if_cancelled(cancel_event)
+                pending = asyncio.create_task(iterator.__anext__())
+                while True:
+                    try:
+                        message = await asyncio.wait_for(asyncio.shield(pending), timeout=0.2)
+                        break
+                    except TimeoutError:
+                        raise_if_cancelled(cancel_event)
+                if getattr(message, "is_error", False):
+                    details = getattr(message, "errors", None) or []
+                    detail = str(details[0]) if details else "未提供详情"
+                    raise AgentEditError(f"Claude Agent 未完成模板编辑：{detail}")
+                pending = None
+        except StopAsyncIteration:
+            return
+        except JobCancelled:
+            if pending and not pending.done():
+                pending.cancel()
+            closer = getattr(messages, "aclose", None)
+            if closer:
+                await closer()
+            raise
 
     @staticmethod
     def _read_output(path: Path) -> str:

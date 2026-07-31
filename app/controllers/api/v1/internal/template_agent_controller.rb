@@ -16,6 +16,7 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
     claimed = TemplateGenerationJob.claim_next_for!(@node) if ready_for_visual_repair? && !renewing
     render json: {
       desired_config: @node.effective_desired_config,
+      cancel_current_job: cancelled_current_job?,
       job: claimed && job_payload(*claimed)
     }
   end
@@ -93,6 +94,16 @@ class Api::V1::Internal::TemplateAgentController < ActionController::API
     return false unless job_id
 
     @node.template_generation_jobs.find_by(id: job_id)&.renew_node_lease!(@node) || false
+  end
+
+  # A cancelled job deliberately retains its node association until this
+  # heartbeat, allowing an outbound-only node to receive a reliable stop
+  # command without exposing an inbound endpoint.
+  def cancelled_current_job?
+    job_id = heartbeat_params[:current_job_id].presence
+    return false unless job_id
+
+    @node.template_generation_jobs.where(id: job_id, status: "cancelled").exists?
   end
 
   def ready_for_visual_repair?

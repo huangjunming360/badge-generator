@@ -57,6 +57,7 @@ class Api::V1::TemplateDesignSessionsTest < ActionDispatch::IntegrationTest
     assert_equal "cancelled", first.reload.state
     assert_equal "processing", second.reload.state
     assert_equal "cancelled", first.template_generation_job.reload.status
+    assert_equal "用户已停止本轮设计", first.template_generation_job.stage_results.dig("cancellation", "reason")
     assert_equal "queued", second.template_generation_job.reload.status
   end
 

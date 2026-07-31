@@ -1,4 +1,5 @@
 import unittest
+import threading
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -53,6 +54,33 @@ class MaiVisualRepairerTest(unittest.TestCase):
         too_large = "x" * (100 * 1024 + 1)
         with self.assertRaises(VisualRepairError):
             repairer._parse_response('{"html":"' + too_large + '","css":""}')
+
+    def test_cancellation_closes_an_inflight_local_mai_request(self) -> None:
+        with patch("template_agent.mai.OpenAI") as openai:
+            client = openai.return_value
+            started = threading.Event()
+            release = threading.Event()
+
+            def slow_request(**_kwargs: object) -> object:
+                started.set()
+                release.wait(2)
+                return Mock(choices=[Mock(message=Mock(content='{"html":"","css":""}'))])
+
+            client.chat.completions.create.side_effect = slow_request
+            repairer = MaiVisualRepairer(self.settings, Mock())
+            cancelled = threading.Event()
+
+            def cancel_after_start() -> None:
+                started.wait(1)
+                cancelled.set()
+
+            stopper = threading.Thread(target=cancel_after_start)
+            stopper.start()
+            with self.assertRaisesRegex(RuntimeError, "用户取消"):
+                repairer._ask_mai(self.job, "<article></article>", ".badge{}", RenderResult("data:image/png;base64,x", {}), cancel_event=cancelled)
+            release.set()
+            stopper.join(timeout=1)
+            client.close.assert_called_once()
 
 
 if __name__ == "__main__":

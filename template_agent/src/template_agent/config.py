@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     mai_model: str = "MAI-UI-8B"
     renderer_image: str = "badge-template-renderer:local"
     renderer_timeout_seconds: int = 60
+    mai_request_timeout_seconds: int = 30
     lease_heartbeat_seconds: int = 30
 
     # Authentication is owned by Claude Agent SDK on the GPU node. This is

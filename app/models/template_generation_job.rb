@@ -143,6 +143,27 @@ class TemplateGenerationJob < ApplicationRecord
     )
   end
 
+  # Keep the node association long enough for its next authenticated heartbeat
+  # to receive the cancellation instruction. The lease itself is revoked so a
+  # late completion can never overwrite the user's decision.
+  def cancel!(reason: "用户已停止本轮设计")
+    with_lock do
+      return false if %w[succeeded failed cancelled].include?(status)
+
+      update!(
+        status: "cancelled",
+        stage_message: reason.to_s.truncate(200),
+        stage_results: stage_results.to_h.merge(
+          "cancellation" => { "reason" => reason.to_s.truncate(500), "cancelled_at" => Time.current.iso8601 }
+        ),
+        completed_at: Time.current,
+        lease_token_digest: nil,
+        lease_expires_at: nil
+      )
+      true
+    end
+  end
+
   private
 
   def leased?

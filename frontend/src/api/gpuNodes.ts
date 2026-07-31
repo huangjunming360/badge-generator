@@ -25,6 +25,7 @@ export interface AgentModel {
   label: string;
   model: string;
   api_base: string | null;
+  capabilities: string[];
 }
 
 export interface NodeCredentials {

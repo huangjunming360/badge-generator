@@ -42,6 +42,7 @@ class HeartbeatRequest(BaseModel):
 
 class HeartbeatResponse(BaseModel):
     desired_config: DesiredConfig
+    cancel_current_job: bool = False
     job: TemplateJob | None = None
 
 

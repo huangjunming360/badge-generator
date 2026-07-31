@@ -1,11 +1,14 @@
 """Small MAI-UI adapter. It only receives already-isolated screenshots."""
 
 import json
+import queue
+import threading
 from dataclasses import dataclass
 
 from openai import OpenAI
 
 from .config import Settings
+from .cancellation import raise_if_cancelled
 from .contracts import TemplateJob
 from .rendering import IsolatedRenderer, RenderResult
 
@@ -25,20 +28,37 @@ class MaiVisualRepairer:
     def __init__(self, settings: Settings, renderer: IsolatedRenderer) -> None:
         self._settings = settings
         self._renderer = renderer
-        self._client = OpenAI(base_url=str(settings.mai_base_url), api_key="local-not-used")
+        self._client = self._new_client()
+        self._client_closed = False
 
-    def repair(self, job: TemplateJob, max_iterations: int) -> RepairResult:
+    def _new_client(self) -> OpenAI:
+        return OpenAI(
+            base_url=str(self._settings.mai_base_url),
+            api_key="local-not-used",
+            timeout=getattr(self._settings, "mai_request_timeout_seconds", 30),
+        )
+
+    def _active_client(self) -> OpenAI:
+        if self._client_closed:
+            self._client = self._new_client()
+            self._client_closed = False
+        return self._client
+
+    def repair(self, job: TemplateJob, max_iterations: int, cancel_event: threading.Event | None = None) -> RepairResult:
         html, css = job.source_html, job.source_css
         iterations: list[dict[str, object]] = []
         for iteration in range(max_iterations):
-            rendered = self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm)
+            raise_if_cancelled(cancel_event)
+            rendered = self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm, cancel_event=cancel_event)
             if iteration > 0 and not self._needs_another_pass(rendered):
                 break
             iterations.append({"iteration": iteration + 1, "diagnostics": rendered.diagnostics})
-            html, css, notes = self._ask_mai(job, html, css, rendered)
+            raise_if_cancelled(cancel_event)
+            html, css, notes = self._ask_mai(job, html, css, rendered, cancel_event=cancel_event)
+            raise_if_cancelled(cancel_event)
             iterations[-1]["notes"] = notes
 
-        final_render = self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm)
+        final_render = self._renderer.render(html, css, width_mm=job.width_mm, height_mm=job.height_mm, cancel_event=cancel_event)
         return RepairResult(
             source_html=html,
             source_css=css,
@@ -59,12 +79,12 @@ class MaiVisualRepairer:
 
     def ready(self) -> bool:
         try:
-            self._client.models.list()
+            self._active_client().models.list()
         except Exception:
             return False
         return True
 
-    def _ask_mai(self, job: TemplateJob, html: str, css: str, rendered: RenderResult) -> tuple[str, str, str]:
+    def _ask_mai(self, job: TemplateJob, html: str, css: str, rendered: RenderResult, *, cancel_event: threading.Event | None = None) -> tuple[str, str, str]:
         instruction = {
             "task": "修复固定尺寸名牌模板的视觉问题",
             "requirement": job.requirement,
@@ -82,18 +102,36 @@ class MaiVisualRepairer:
                 "所有文字区域都应可伸缩，长姓名和单位不能重叠、越界或缩小到不可读",
             ],
         }
-        response = self._client.chat.completions.create(
-            model=self._settings.mai_model,
-            temperature=0,
-            max_tokens=4096,
-            messages=[
-                {"role": "system", "content": "你是受约束的 HTML/CSS 视觉修复器。"},
-                {"role": "user", "content": [
-                    {"type": "text", "text": json.dumps(instruction, ensure_ascii=False)},
-                    {"type": "image_url", "image_url": {"url": rendered.screenshot_data_url}},
-                ]},
-            ],
-        )
+        response_queue: queue.Queue[object] = queue.Queue(maxsize=1)
+
+        def request() -> None:
+            try:
+                response_queue.put(self._active_client().chat.completions.create(
+                    model=self._settings.mai_model,
+                    temperature=0,
+                    max_tokens=4096,
+                    messages=[
+                        {"role": "system", "content": "你是受约束的 HTML/CSS 视觉修复器。"},
+                        {"role": "user", "content": [
+                            {"type": "text", "text": json.dumps(instruction, ensure_ascii=False)},
+                            {"type": "image_url", "image_url": {"url": rendered.screenshot_data_url}},
+                        ]},
+                    ],
+                ))
+            except Exception as error:
+                response_queue.put(error)
+
+        thread = threading.Thread(target=request, daemon=True)
+        thread.start()
+        while thread.is_alive():
+            thread.join(timeout=0.2)
+            if cancel_event and cancel_event.is_set():
+                self._client.close()
+                self._client_closed = True
+                raise_if_cancelled(cancel_event)
+        response = response_queue.get()
+        if isinstance(response, Exception):
+            raise VisualRepairError("MAI 请求失败") from response
         content = response.choices[0].message.content or ""
         return self._parse_response(content)
 

@@ -7,6 +7,7 @@ import httpx
 
 from .client import RailsControlPlane
 from .claude import AgentEditError, ClaudeTemplateEditor
+from .cancellation import JobCancelled, raise_if_cancelled
 from .config import Settings
 from .contracts import HeartbeatRequest, JobResult, NodeCapabilities, TemplateJob
 from .mai import MaiVisualRepairer, VisualRepairError
@@ -55,14 +56,18 @@ class TemplateAgent:
 
     def _run_job(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None) -> None:
         stop_heartbeat = threading.Event()
+        cancelled = threading.Event()
         lease_thread = threading.Thread(
             target=self._keep_lease_alive,
-            args=(job.id, stop_heartbeat),
+            args=(job.id, stop_heartbeat, cancelled),
             daemon=True,
         )
         lease_thread.start()
         try:
-            result = self._run_visual_repair(job, max_iterations, claude_model, claude_base_url)
+            result = self._run_visual_repair(job, max_iterations, claude_model, claude_base_url, cancelled)
+        except JobCancelled:
+            LOGGER.info("job %s cancelled by control plane", job.id)
+            return
         except (AgentEditError, RenderError, VisualRepairError) as error:
             LOGGER.warning("job %s failed: %s", job.id, error)
             result = JobResult(status="failed", error=str(error))
@@ -72,27 +77,32 @@ class TemplateAgent:
         finally:
             stop_heartbeat.set()
             lease_thread.join(timeout=self._settings.lease_heartbeat_seconds + 1)
-        self._control_plane.complete(job, result)
+        if not cancelled.is_set():
+            self._control_plane.complete(job, result)
 
-    def _keep_lease_alive(self, job_id: str, stopped: threading.Event) -> None:
+    def _keep_lease_alive(self, job_id: str, stopped: threading.Event, cancelled: threading.Event) -> None:
         interval = max(5, min(self._settings.lease_heartbeat_seconds, 60))
         while not stopped.wait(interval):
             try:
-                self._control_plane.heartbeat(self._heartbeat(current_job_id=job_id))
+                response = self._control_plane.heartbeat(self._heartbeat(current_job_id=job_id))
+                if response.cancel_current_job:
+                    cancelled.set()
+                    return
             except httpx.HTTPError as error:
                 LOGGER.warning("job %s lease heartbeat failed: %s", job_id, error)
             except Exception:
                 LOGGER.exception("job %s lease heartbeat crashed", job_id)
 
-    def _run_visual_repair(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None) -> JobResult:
+    def _run_visual_repair(self, job: TemplateJob, max_iterations: int, claude_model: str | None, claude_base_url: str | None, cancelled: threading.Event) -> JobResult:
         if job.job_type != "visual_repair":
             return JobResult(status="failed", error="不支持的节点任务类型")
-        edited = self._editor.edit(job, model=claude_model, base_url=claude_base_url)
+        raise_if_cancelled(cancelled)
+        edited = self._editor.edit(job, model=claude_model, base_url=claude_base_url, cancel_event=cancelled)
         review_job = job.model_copy(update={
             "source_html": edited.source_html,
             "source_css": edited.source_css,
         })
-        repaired = self._repairer.repair(review_job, max_iterations=max_iterations)
+        repaired = self._repairer.repair(review_job, max_iterations=max_iterations, cancel_event=cancelled)
         return JobResult(
             status="succeeded",
             source_html=repaired.source_html,
