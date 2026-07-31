@@ -66,10 +66,8 @@ export function BadgeCanvas({
   );
 }
 
-// 各模板设计稿的原始像素尺寸，供 BadgeCanvas 计算缩放系数。
-// 与 shared.tsx 里 BadgeCard 写死的值对应（business 横版 320×190，
-// visitor/access 竖版 200×300，custom 随 orientation 切换），
-// 改那边的尺寸要同步这里。
+// 内置模板设计稿的原始像素尺寸，供 BadgeCanvas 计算缩放系数。
+// custom 的尺寸由 customTemplate.ts 统一解析后传入，避免预览和导出各算一套。
 const PORTRAIT_SIZE = { width: 200, height: 300 } as const;
 const LANDSCAPE_SIZE = { width: 320, height: 190 } as const;
 
@@ -77,8 +75,10 @@ export function templateContentSize(
   template: "visitor" | "access" | "business" | "custom" | "figma",
   orientation: "portrait" | "landscape" = "portrait",
   heightFactor = 1,
+  customSize?: Readonly<{ width: number; height: number }>,
 ) {
   if (template === "figma") return { width: 440, height: 680 };
+  if (template === "custom" && customSize) return customSize;
   const base = isLandscapeTemplate(template, orientation) ? LANDSCAPE_SIZE : PORTRAIT_SIZE;
   // 横版名片没有底部二维码区，不需要补高。
   if (isLandscapeTemplate(template, orientation)) return base;
