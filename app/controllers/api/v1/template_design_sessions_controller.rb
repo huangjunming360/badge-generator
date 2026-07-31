@@ -44,7 +44,7 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
     content = params.require(:content).to_s.strip
     return render json: { errors: [ "设计需求不能为空" ] }, status: :unprocessable_content if content.blank?
 
-    TemplateDesignPolicy.ensure_generation_capacity!(Current.user)
+    TemplateDesignPolicy.ensure_generation_capacity!(Current.user, include_concurrency: false)
     assets = validated_reference_assets
     return if performed?
 

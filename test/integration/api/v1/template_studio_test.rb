@@ -74,4 +74,17 @@ class Api::V1::TemplateStudioTest < ActionDispatch::IntegrationTest
     assert_response :too_many_requests
     assert_includes body["errors"].first, "额度已用完"
   end
+
+  test "普通用户直接生成受后台并发任务上限约束" do
+    Setting.set("user_templates_enabled", true)
+    Setting.set("user_template_generation_monthly_limit", 10)
+    Setting.set("user_template_concurrent_generation_limit", 1)
+    @user.template_generation_jobs.create!(job_type: "template_generation", complexity: 5, payload: { "requirement" => "正在生成" })
+    sign_in(@user)
+
+    post "/api/v1/template_studio/generate", params: { requirement: "再生成一次" }
+
+    assert_response :too_many_requests
+    assert_includes body.fetch("errors").first, "并发上限"
+  end
 end

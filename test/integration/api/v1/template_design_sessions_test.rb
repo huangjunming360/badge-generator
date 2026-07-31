@@ -93,4 +93,24 @@ class Api::V1::TemplateDesignSessionsTest < ActionDispatch::IntegrationTest
     assert_response :too_many_requests
     assert_includes body.fetch("errors").first, "会话数量上限"
   end
+
+  test "普通用户可在运行中继续排队，但排队消息也计入月度额度" do
+    user = User.create!(email_address: "design-queue-quota@test.com", password: "test123", password_confirmation: "test123")
+    Setting.set("user_templates_enabled", true)
+    Setting.set("user_template_generation_monthly_limit", 2)
+    Setting.set("user_template_concurrent_generation_limit", 1)
+    sign_in(user)
+
+    post "/api/v1/template_design_sessions", params: { name: "排队额度", initial_message: "做第一版" }
+    assert_response :created
+    session_id = body.dig("session", "id")
+
+    post "/api/v1/template_design_sessions/#{session_id}/append_message", params: { content: "继续修改第二版" }
+    assert_response :accepted
+    assert_equal "queued", body.dig("message", "state")
+
+    post "/api/v1/template_design_sessions/#{session_id}/append_message", params: { content: "继续修改第三版" }
+    assert_response :too_many_requests
+    assert_includes body.fetch("errors").first, "额度已用完"
+  end
 end
