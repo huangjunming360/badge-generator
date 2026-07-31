@@ -17,6 +17,8 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
   end
 
   def create
+    TemplateDesignPolicy.ensure_session_capacity!(Current.user)
+    TemplateDesignPolicy.ensure_generation_capacity!(Current.user) if initial_message.present?
     session = Current.user.template_design_sessions.create!({ name: "未命名设计会话" }.merge(session_params))
     assets = validated_reference_assets
     return if performed?
@@ -25,6 +27,8 @@ class Api::V1::TemplateDesignSessionsController < Api::BaseController
     message = initial_message
     session.queue_user_message!(content: message) if message.present?
     render json: { session: session_payload(session.reload, include_details: true) }, status: :created
+  rescue TemplateDesignPolicy::QuotaExceeded => e
+    render json: { errors: [ e.message ] }, status: :too_many_requests
   rescue ActiveRecord::RecordInvalid => e
     render json: { errors: e.record.errors.full_messages }, status: :unprocessable_content
   end

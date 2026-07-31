@@ -7,6 +7,7 @@ class TemplateDesignPolicy
   class QuotaExceeded < StandardError; end
 
   DEFAULT_TEMPLATE_LIMIT = 10
+  DEFAULT_SESSION_LIMIT = 10
   DEFAULT_MONTHLY_GENERATION_LIMIT = 3
 
   def self.ensure_design_access!(user)
@@ -26,6 +27,16 @@ class TemplateDesignPolicy
     raise QuotaExceeded, "已达到可创建模板数量上限（#{limit}）"
   end
 
+  def self.ensure_session_capacity!(user)
+    ensure_design_access!(user)
+    return if user.admin?
+
+    limit = setting_limit("user_template_session_limit", DEFAULT_SESSION_LIMIT)
+    return if user.template_design_sessions.count < limit
+
+    raise QuotaExceeded, "已达到设计会话数量上限（#{limit}）"
+  end
+
   def self.ensure_generation_capacity!(user)
     ensure_design_access!(user)
     return if user.admin?
@@ -41,6 +52,7 @@ class TemplateDesignPolicy
     {
       enabled: Setting.bool("user_templates_enabled", default: false),
       template_limit: setting_limit("user_template_limit", DEFAULT_TEMPLATE_LIMIT),
+      session_limit: setting_limit("user_template_session_limit", DEFAULT_SESSION_LIMIT),
       monthly_generation_limit: setting_limit("user_template_generation_monthly_limit", DEFAULT_MONTHLY_GENERATION_LIMIT)
     }
   end

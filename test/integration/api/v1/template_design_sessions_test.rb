@@ -71,4 +71,26 @@ class Api::V1::TemplateDesignSessionsTest < ActionDispatch::IntegrationTest
     post "/api/v1/template_design_sessions/#{session.id}/interrupt"
     assert_response :not_found
   end
+
+  test "普通用户首条会话同样受会话数和月度生成额度限制" do
+    user = User.create!(email_address: "design-quota@test.com", password: "test123", password_confirmation: "test123")
+    Setting.set("user_templates_enabled", true)
+    Setting.set("user_template_session_limit", 2)
+    Setting.set("user_template_generation_monthly_limit", 1)
+    sign_in(user)
+
+    post "/api/v1/template_design_sessions", params: { name: "第一轮", initial_message: "做蓝色名牌" }
+    assert_response :created
+
+    post "/api/v1/template_design_sessions", params: { name: "第二轮", initial_message: "做红色名牌" }
+    assert_response :too_many_requests
+    assert_includes body.fetch("errors").first, "额度已用完"
+
+    post "/api/v1/template_design_sessions", params: { name: "空会话" }
+    assert_response :created
+
+    post "/api/v1/template_design_sessions", params: { name: "第三个会话" }
+    assert_response :too_many_requests
+    assert_includes body.fetch("errors").first, "会话数量上限"
+  end
 end

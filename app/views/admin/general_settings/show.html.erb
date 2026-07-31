@@ -48,9 +48,12 @@
           <div class="w-9 h-5 bg-stone-200 rounded-full peer peer-checked:bg-stone-800 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
         </label>
       </div>
-      <div class="p-5 grid grid-cols-2 gap-4">
+      <div class="p-5 grid grid-cols-3 gap-4">
         <label class="block text-sm font-medium">每用户模板上限
           <%= f.number_field :user_template_limit, value: @settings[:user_template_limit], min: 0, max: 1000, class: "block w-full mt-2 rounded-lg border border-stone-300 px-3 py-2" %>
+        </label>
+        <label class="block text-sm font-medium">每用户设计会话上限
+          <%= f.number_field :user_template_session_limit, value: @settings[:user_template_session_limit], min: 0, max: 1000, class: "block w-full mt-2 rounded-lg border border-stone-300 px-3 py-2" %>
         </label>
         <label class="block text-sm font-medium">每月 AI 生成额度
           <%= f.number_field :user_template_generation_monthly_limit, value: @settings[:user_template_generation_monthly_limit], min: 0, max: 1000, class: "block w-full mt-2 rounded-lg border border-stone-300 px-3 py-2" %>
